@@ -69,3 +69,16 @@ export interface WordshkEntry {
   readonly labels: readonly string[];
   readonly senses: readonly WordshkSense[];
 }
+
+/**
+ * One row of Kaifangcidian's Cantonese dictionary: a colloquial Cantonese word, its reading
+ * converted from the file's Yale to Jyutping (one syllable per character), and its Mandarin
+ * equivalents (e.g. 冇 -> 没有, 没, 无). `mandarin` is empty when the source gives none.
+ * `word` and `mandarin` stay in the script the source file uses (simplified for the pinned file);
+ * the merge step (P1-T13) normalizes the script.
+ */
+export interface KfcdRow {
+  readonly word: string;
+  readonly syllables: readonly string[];
+  readonly mandarin: readonly string[];
+}
