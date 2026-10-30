@@ -104,8 +104,8 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 <pre><code>canto-dict/
 ├── data-pipeline/        Node/TypeScript build scripts (not shipped)
 │   ├── src/sources/      One module per source: download + parse
-│   ├── src/merge/        Merge, normalize (OpenCC), rank readings
-│   ├── src/build/        Write canto.db, syllables.pack, syllables.json, phrase table
+│   ├── src/merge/        Merge on canonical traditional headwords, aliases, rank readings
+│   ├── src/build/        Write canto.db, copy syllable MP3s + manifest, phrase table
 │   ├── fixtures/         Small sample files for parser tests
 │   └── .cache/           Downloaded raw data (git-ignored)
 ├── app/                  Expo Router screens
@@ -115,7 +115,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 │   ├── (tabs)/settings.tsx
 │   └── entry/[id].tsx
 ├── src/
-│   ├── db/               Opens canto.db; all dictionary SQL; DB interface for tests
+│   ├── db/               Opens/updates canto.db; all dictionary SQL; DB interface for tests
 │   ├── dictionary/       Input classification, search, ranking
 │   ├── jyutping/         Text → Jyutping; syllable parser/normalizer
 │   ├── audio/            Syllable player; sentence speaker (expo-speech)
@@ -125,13 +125,15 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 │   │   └── index.ts      translate(text) orchestrator
 │   ├── settings/         Provider config; expo-secure-store key storage
 │   └── userdata/         user.db: history + favorites
-├── assets/               Generated canto.db, syllables.pack, syllables.json (git-ignored)
+├── assets/               Generated canto.db, audio/*.mp3, audio/manifest.json (git-ignored)
 ├── dashboard/            Progress dashboard (index.html + progress.js)
 └── docs/
 </code></pre>
 <p>Screens hold no business logic. Each <code>src/</code> module exposes a small typed API and is unit-testable without a device.</p>
 <h2>4. Data pipeline</h2>
-<p>Run on the Mac with <code>npm run data:build</code>. Steps: download → parse → merge → validate → build. Any download or validation failure stops the build.</p>
+<p>Run on the Mac with <code>npm run data:build</code>. Steps: download → parse → merge → validate → build (build also writes the report).</p>
+<p><strong>Required vs optional sources.</strong> Every source is either <em>required</em> or <em>optional</em> (column below). A required source that fails to download or validate stops the build. An optional source that is missing is skipped and listed as omitted in the build report. An optional source can still feed a required feature: a build without the words.hk dump is a usable reduced build, but it does not meet the example-sentences requirement, and the report says so. Milestone 1 builds a starter dictionary from a smaller required set (rime characters + words, 開放詞典, syllable audio); milestone 2 makes the full required set mandatory.</p>
+<p><strong>Reproducible inputs.</strong> The build report records each source's URL, version or last-modified date, and SHA-256 checksum.</p>
 <h3>4.1 Sources</h3>
 <table>
 <thead>
@@ -232,7 +234,7 @@ english_fts USING fts5(entry_id UNINDEXED, text)
 <td>Two labelled groups, Jyutping first. Toneless syllables match all tones.</td>
 </tr>
 <tr>
-<td>Any other Latin text (<code>eat</code>)</td>
+<td>Any other Latin text (<code>water</code>). Note: some English words, e.g. <code>eat</code> = e + at, are also valid Jyutping and fall in the row above</td>
 <td>English only</td>
 <td>FTS5 on <code>english_fts</code></td>
 </tr>

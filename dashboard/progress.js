@@ -399,7 +399,7 @@ window.CANTO_PROGRESS = {
           id: "P2-T4", title: "Input classifier", status: "todo",
           files: ["src/dictionary/classify.ts", "src/dictionary/classify.test.ts"],
           subtasks: [
-            "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping+english; 'eat' → english; '食 sik' → hanzi",
+            "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping+english; 'eat' → jyutping+english (e + at are attested syllables); 'water' → english; '食 sik' → hanzi",
             "Run tests → fail",
             "Implement using splitSyllables from src/jyutping/syllables.ts",
             "Run tests → pass",
