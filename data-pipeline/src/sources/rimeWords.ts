@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { isValidSyllable } from "../../../src/jyutping/syllables";
-import { fetchToCache } from "../download";
-import { formatProblems, throwIfProblems, type Parsed, type Problem } from "./problems";
+import { parseJyutpingCell } from "./jyutpingCell";
+import { loadTolerant } from "./load";
+import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { rimeDictBody } from "./text";
 import type { WordReading } from "./types";
 import { RIME_WORDS_CACHE_NAME, RIME_WORDS_URL } from "./urls";
@@ -20,7 +19,7 @@ const SOURCE_NAME = "rime words";
  *   skipped and recorded in `skipped` with its 1-based line number.
  */
 export function parseRimeWords(text: string): Parsed<WordReading> {
-  const readings: WordReading[] = [];
+  const rows: WordReading[] = [];
   const skipped: Problem[] = [];
   const structural: Problem[] = [];
 
@@ -40,7 +39,7 @@ export function parseRimeWords(text: string): Parsed<WordReading> {
       continue;
     }
 
-    const syllables = code.trim().split(/\s+/);
+    const { syllables, invalid: bad } = parseJyutpingCell(code);
     const charCount = [...word].length;
     if (syllables.length !== charCount) {
       skipped.push({
@@ -49,21 +48,17 @@ export function parseRimeWords(text: string): Parsed<WordReading> {
       });
       continue;
     }
-    const bad = syllables.find((s) => !isValidSyllable(s));
     if (bad !== undefined) {
       skipped.push({ line: lineNumber, message: `invalid syllable "${bad}" for ${word}: "${code}"` });
       continue;
     }
-    readings.push({ word, syllables });
+    rows.push({ word, syllables });
   }
 
   throwIfProblems(SOURCE_NAME, structural);
-  return { readings, skipped };
+  return { rows, skipped };
 }
 
-export async function loadRimeWords(): Promise<WordReading[]> {
-  const path = await fetchToCache(RIME_WORDS_URL, RIME_WORDS_CACHE_NAME);
-  const { readings, skipped } = parseRimeWords(await readFile(path, "utf8"));
-  if (skipped.length > 0) console.warn(formatProblems(SOURCE_NAME, skipped));
-  return readings;
+export function loadRimeWords(): Promise<WordReading[]> {
+  return loadTolerant(SOURCE_NAME, RIME_WORDS_URL, RIME_WORDS_CACHE_NAME, parseRimeWords);
 }

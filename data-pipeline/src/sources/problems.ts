@@ -21,6 +21,6 @@ export function throwIfProblems(source: string, problems: readonly Problem[]): v
 
 /** What a tolerant source parser returns: the rows it kept, plus the row-level problems it skipped. */
 export interface Parsed<T> {
-  readonly readings: T[];
+  readonly rows: T[];
   readonly skipped: Problem[];
 }

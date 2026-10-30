@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
+import { isSingleCodePoint } from "./codePoints";
+import { parseJyutpingCell } from "./jyutpingCell";
 import { throwIfProblems, type Problem } from "./problems";
 import { RIME_CHARS_CACHE_NAME, RIME_CHARS_URL } from "./urls";
 import { splitLines } from "./text";
@@ -33,16 +34,15 @@ export function parseRimeChars(text: string): CharReading[] {
     const lineNumber = index + 1;
     const [charCell = "", jyutpingCell = "", rankCell = ""] = line.split(",");
     const char = charCell.trim();
-    const syllables = jyutpingCell.trim().split(/\s+/);
+    const { syllables, invalid } = parseJyutpingCell(jyutpingCell);
     const label = rankCell.trim();
     const rank = label === "" ? undefined : RANK_BY_RIME_LABEL.get(label);
     const before = problems.length;
 
-    if ([...char].length !== 1) {
+    if (!isSingleCodePoint(char)) {
       problems.push({ line: lineNumber, message: `char must be exactly one character: "${charCell}"` });
     }
-    const bad = syllables.find((s) => !isValidSyllable(s));
-    if (bad !== undefined) {
+    if (invalid !== undefined) {
       problems.push({ line: lineNumber, message: `invalid Jyutping for ${char}: "${jyutpingCell}"` });
     }
     if (label !== "" && rank === undefined) {

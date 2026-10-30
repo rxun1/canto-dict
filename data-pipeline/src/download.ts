@@ -9,6 +9,11 @@ import type { ReadableStream as WebReadableStream } from "node:stream/web";
 /** Default cache dir, resolved relative to this package (not process.cwd()). */
 const DEFAULT_CACHE_DIR = resolve(import.meta.dirname, "..", ".cache");
 
+/** Absolute path of the cached copy of source `name` (whether or not it has been downloaded). */
+export function cachedPath(name: string): string {
+  return join(DEFAULT_CACHE_DIR, name);
+}
+
 export interface FetchToCacheOptions {
   cacheDir?: string;
 }
@@ -46,8 +51,7 @@ export async function fetchToCache(
     return path;
   }
 
-  const cacheDir = resolve(options.cacheDir ?? DEFAULT_CACHE_DIR);
-  const target = join(cacheDir, name);
+  const target = options.cacheDir === undefined ? cachedPath(name) : join(resolve(options.cacheDir), name);
   if (await exists(target)) return target;
 
   await mkdir(dirname(target), { recursive: true });
