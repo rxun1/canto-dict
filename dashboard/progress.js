@@ -238,6 +238,7 @@ window.CANTO_PROGRESS = {
             "Write failing test: 冇 gets mandarin [没有, 没, 无] from Kaifangcidian and Wiktionary, de-duplicated",
             "Write failing test: every entry and example gets a simplified form via OpenCC t2s; 嘅/冇/喺 stay unchanged",
             "Write failing test: WordReading.loanSyllables survives into Entry readings (validate skips loan syllables; audio must not look for clips like es1)",
+            "Treat the words.hk dump as optional: if CANTO_SRC_WORDSHK_DUMP is unset, build without definitions/examples from it and list it as omitted in the build report (make loadWordshkDump return undefined or add wordshkDumpConfigured() — don't string-match its error)",
             "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from PUBLIC words.hk dump entries (P1-T8; covers ~594 of 2,103) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; unlinked variant rows are dropped and counted in the build report",
             "Run tests → fail",
             "Implement merge.ts",
