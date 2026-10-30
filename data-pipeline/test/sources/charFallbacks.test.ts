@@ -140,6 +140,11 @@ describe("parseUnihan", () => {
     expect(() => parseUnihan("U+D800\tkCantonese\tng5\n")).toThrow(/line 1:.*not a Unicode scalar value/);
   });
 
+  it("throws on extra tokens after the code point in the draft layout", () => {
+    expect(() => parseUnihan("U+4E94  五\tkCantonese\tng5\n")).toThrow(/line 1:/);
+    expect(() => parseUnihan("U+4E94 五 你\tkCantonese\tng5\n")).toThrow(/line 1:/);
+  });
+
   it("skips an invalid syllable with its line number but keeps the other readings of that row", () => {
     const { rows, skipped } = parseUnihan("# c\nU+4E94\tkCantonese\tng5 zzz1\nU+4F60\tkCantonese\tnei5\n");
     expect(rows.map((r) => r.char + r.jyutping)).toEqual(["五ng5", "你nei5"]);

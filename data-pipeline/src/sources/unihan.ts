@@ -1,5 +1,5 @@
-import { charFromCodePointNotation, isCodePointNotation } from "./codePoints";
-import { parseJyutpingCell } from "./jyutpingCell";
+import { isValidSyllable } from "../../../src/jyutping/syllables";
+import { CODE_POINT_ERROR_MESSAGE, parseCodePointNotation } from "./codePoints";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { splitLines } from "./text";
@@ -40,12 +40,12 @@ export function parseUnihan(text: string): Parsed<CharReading> {
     }
     const [codeColumn, property, value] = columns;
     const [codeCell, ...rest] = codeColumn.split(" ");
-    const char = charFromCodePointNotation(codeCell);
-    if (char === undefined) {
-      const why = isCodePointNotation(codeCell) ? "not a Unicode scalar value" : "malformed code point (expected U+XXXX)";
-      structural.push({ line: lineNumber, message: `${why}: "${codeCell}"` });
+    const code = parseCodePointNotation(codeCell);
+    if ("error" in code) {
+      structural.push({ line: lineNumber, message: `${CODE_POINT_ERROR_MESSAGE[code.error]}: "${codeCell}"` });
       return;
     }
+    const { char } = code;
     if (rest.length > 0 && (rest.length > 1 || rest[0] !== char)) {
       structural.push({ line: lineNumber, message: `${codeCell} is ${char} but the row says "${rest.join(" ")}"` });
       return;
@@ -53,9 +53,8 @@ export function parseUnihan(text: string): Parsed<CharReading> {
     if (property !== PROPERTY || value.trim() === "") return;
 
     for (const jyutping of value.trim().split(/\s+/)) {
-      const { invalid } = parseJyutpingCell(jyutping);
-      if (invalid === undefined) rows.push({ char, jyutping, rank: undefined });
-      else skipped.push({ line: lineNumber, message: `invalid syllable "${invalid}" for ${char}: "${value}"` });
+      if (isValidSyllable(jyutping)) rows.push({ char, jyutping, rank: undefined });
+      else skipped.push({ line: lineNumber, message: `invalid syllable "${jyutping}" for ${char}: "${value}"` });
     }
   });
 

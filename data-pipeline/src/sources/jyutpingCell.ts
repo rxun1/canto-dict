@@ -1,10 +1,16 @@
 import { isValidSyllable } from "../../../src/jyutping/syllables";
 
-/**
- * Splits a Jyutping cell on whitespace and finds the first syllable failing isValidSyllable.
- * An empty cell yields `[""]` with `invalid: ""`; callers that allow empty cells check first.
- */
-export function parseJyutpingCell(cell: string): { syllables: string[]; invalid?: string } {
-  const syllables = cell.trim().split(/\s+/);
-  return { syllables, invalid: syllables.find((s) => !isValidSyllable(s)) };
+/** Outcome of reading a Jyutping cell; callers must handle emptiness explicitly. */
+export type JyutpingCell =
+  | { kind: "empty" }
+  | { kind: "invalid"; syllables: string[]; invalid: string }
+  | { kind: "ok"; syllables: string[] };
+
+/** Splits a Jyutping cell on whitespace and finds the first syllable failing isValidSyllable. */
+export function parseJyutpingCell(cell: string): JyutpingCell {
+  const trimmed = cell.trim();
+  if (trimmed === "") return { kind: "empty" };
+  const syllables = trimmed.split(/\s+/);
+  const invalid = syllables.find((s) => !isValidSyllable(s));
+  return invalid === undefined ? { kind: "ok", syllables } : { kind: "invalid", syllables, invalid };
 }

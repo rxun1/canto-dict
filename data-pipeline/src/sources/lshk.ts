@@ -1,4 +1,4 @@
-import { charFromCodePointNotation, isCodePointNotation, isSingleCodePoint } from "./codePoints";
+import { CODE_POINT_ERROR_MESSAGE, isSingleCodePoint, parseCodePointNotation } from "./codePoints";
 import { parseJyutpingCell } from "./jyutpingCell";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
@@ -47,24 +47,23 @@ export function parseLshk(text: string): Parsed<CharReading> {
       structural.push({ line: lineNumber, message: `CH must be exactly one character: "${char}"` });
       return;
     }
-    const codeChar = charFromCodePointNotation(codeCell);
-    if (codeChar === undefined) {
-      const why = isCodePointNotation(codeCell) ? "not a Unicode scalar value" : "malformed code point (expected U+XXXX)";
-      structural.push({ line: lineNumber, message: `UCODE ${why}: "${codeCell}"` });
+    const code = parseCodePointNotation(codeCell);
+    if ("error" in code) {
+      structural.push({ line: lineNumber, message: `UCODE ${CODE_POINT_ERROR_MESSAGE[code.error]}: "${codeCell}"` });
       return;
     }
-    if (codeChar !== char) {
+    if (code.char !== char) {
       structural.push({ line: lineNumber, message: `UCODE ${codeCell} does not match character ${char}` });
       return;
     }
 
-    if (jyutpingCell.trim() === "") return;
-    const { syllables, invalid } = parseJyutpingCell(jyutpingCell);
-    if (invalid !== undefined) {
-      skipped.push({ line: lineNumber, message: `invalid syllable "${invalid}" for ${char}: "${jyutpingCell}"` });
+    const cell = parseJyutpingCell(jyutpingCell);
+    if (cell.kind === "empty") return;
+    if (cell.kind === "invalid") {
+      skipped.push({ line: lineNumber, message: `invalid syllable "${cell.invalid}" for ${char}: "${jyutpingCell}"` });
       return;
     }
-    rows.push({ char, jyutping: syllables.join(" "), rank: undefined });
+    rows.push({ char, jyutping: cell.syllables.join(" "), rank: undefined });
   });
 
   throwIfProblems(SOURCE_NAME, structural);

@@ -1,23 +1,27 @@
-import { charFromCodePointNotation, isSingleCodePoint } from "../../src/sources/codePoints";
+import { CODE_POINT_ERROR_MESSAGE, isSingleCodePoint, parseCodePointNotation } from "../../src/sources/codePoints";
 
-describe("charFromCodePointNotation", () => {
+describe("parseCodePointNotation", () => {
   it("converts BMP and supplementary-plane notation", () => {
-    expect(charFromCodePointNotation("U+4E94")).toBe("五");
-    expect(charFromCodePointNotation("U+20BE2")).toBe("𠯢");
-    expect(charFromCodePointNotation("U+10FFFF")).toBe("\u{10FFFF}");
+    expect(parseCodePointNotation("U+4E94")).toEqual({ char: "五" });
+    expect(parseCodePointNotation("U+20BE2")).toEqual({ char: "𠯢" });
+    expect(parseCodePointNotation("U+10FFFF")).toEqual({ char: "\u{10FFFF}" });
   });
 
-  it("returns undefined for malformed notation", () => {
+  it("classifies malformed notation", () => {
     for (const cell of ["4E94", "U+4e94", "U+4E9", "U+1234567", "U+ZZZZ", "u+4E94", " U+4E94", "U+4E94 五", ""]) {
-      expect(charFromCodePointNotation(cell)).toBeUndefined();
+      expect(parseCodePointNotation(cell)).toEqual({ error: "malformed" });
     }
   });
 
-  it("returns undefined above U+10FFFF and for surrogates", () => {
-    expect(charFromCodePointNotation("U+110000")).toBeUndefined();
-    expect(charFromCodePointNotation("U+FFFFFF")).toBeUndefined();
-    expect(charFromCodePointNotation("U+D800")).toBeUndefined();
-    expect(charFromCodePointNotation("U+DFFF")).toBeUndefined();
+  it("classifies well-formed but non-scalar values (above U+10FFFF, surrogates)", () => {
+    for (const cell of ["U+110000", "U+FFFFFF", "U+D800", "U+DFFF"]) {
+      expect(parseCodePointNotation(cell)).toEqual({ error: "non-scalar" });
+    }
+  });
+
+  it("has one distinct message per error kind", () => {
+    expect(CODE_POINT_ERROR_MESSAGE.malformed).toMatch(/U\+XXXX/);
+    expect(CODE_POINT_ERROR_MESSAGE["non-scalar"]).toMatch(/not a Unicode scalar value/);
   });
 });
 

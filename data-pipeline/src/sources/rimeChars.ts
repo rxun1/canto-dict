@@ -34,7 +34,7 @@ export function parseRimeChars(text: string): CharReading[] {
     const lineNumber = index + 1;
     const [charCell = "", jyutpingCell = "", rankCell = ""] = line.split(",");
     const char = charCell.trim();
-    const { syllables, invalid } = parseJyutpingCell(jyutpingCell);
+    const cell = parseJyutpingCell(jyutpingCell);
     const label = rankCell.trim();
     const rank = label === "" ? undefined : RANK_BY_RIME_LABEL.get(label);
     const before = problems.length;
@@ -42,13 +42,15 @@ export function parseRimeChars(text: string): CharReading[] {
     if (!isSingleCodePoint(char)) {
       problems.push({ line: lineNumber, message: `char must be exactly one character: "${charCell}"` });
     }
-    if (invalid !== undefined) {
+    if (cell.kind !== "ok") {
       problems.push({ line: lineNumber, message: `invalid Jyutping for ${char}: "${jyutpingCell}"` });
     }
     if (label !== "" && rank === undefined) {
       problems.push({ line: lineNumber, message: `unknown rank "${label}" for ${char}` });
     }
-    if (problems.length === before) readings.push({ char, jyutping: syllables.join(" "), rank });
+    if (problems.length === before && cell.kind === "ok") {
+      readings.push({ char, jyutping: cell.syllables.join(" "), rank });
+    }
   });
 
   throwIfProblems("char.csv", problems);
