@@ -1,4 +1,9 @@
-export type ReadingRank = "default" | "common" | "rare" | "obsolete";
+/**
+ * rime-cantonese's reading ranks (預設 default, 常用 common, 罕見 rare, 棄用 obsolete), plus "variant",
+ * which no parser emits: merge gives it to another source's reading of a character rime covers when
+ * rime lacks that reading (LSHK's merged "lazy" readings such as 五 m5, 你 lei5, 我 o5).
+ */
+export type ReadingRank = "default" | "common" | "rare" | "obsolete" | "variant";
 
 export interface CharReading {
   readonly char: string;
