@@ -178,13 +178,13 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/wordshkDump.test.ts → pass",
         },
         {
-          id: "P1-T9", title: "Source: Kaifangcidian 開放詞典 + Yale → Jyutping converter", status: "doing",
-          files: ["data-pipeline/src/sources/kaifangcidian.ts", "data-pipeline/src/yaleToJyutping.ts", "data-pipeline/fixtures/kfcd-cidian.txt", "data-pipeline/test/sources/kaifangcidian.test.ts", "data-pipeline/test/yaleToJyutping.test.ts"],
+          id: "P1-T9", title: "Source: Kaifangcidian 開放詞典 + Yale → Jyutping converter", status: "done",
+          files: ["data-pipeline/src/sources/kaifangcidian.ts", "data-pipeline/src/yaleToJyutping.ts", "data-pipeline/fixtures/kfcd-cidian-ft.txt", "data-pipeline/fixtures/kfcd-cidian-jt.txt", "data-pipeline/test/sources/kaifangcidian.test.ts", "data-pipeline/test/yaleToJyutping.test.ts"],
           subtasks: [
-            "Write failing tests for yaleToJyutping: tones 1–9 → 1–6 (7→1, 8→3, 9→6), initials y→j, j→z, ch→c, finals eu→oe/eo, ue→yu",
+            "Write failing tests for yaleToJyutping: tones 1–9 → 1–6 (7→1, 8→3, 9→6), initials y→j, j→z, ch→c, finals eu-family → oe/eo, y+u/un/ut → jyu/jyun/jyut ('ue' is not Yale and is rejected)",
             "Run test → fails; implement converter; run → passes",
             "Save ~40 real rows to fixtures (include 冇 → 没有，没，无 and 嘅 → 的)",
-            "Write failing test: parse returns { word, jyutping[], mandarin[] } split on '，'",
+            "Write failing test: parse pairs the line-aligned traditional (ft) and simplified (jt) files into KfcdRow { word (trad), wordSimp, syllables, mandarin: { trad, simp }[] }, Mandarin split on 「，、；﹐」",
             "Run test → fails; implement parser + download (kaifangcidian.com/xiazai/)",
             "Run test → passes",
             "Commit",
@@ -196,7 +196,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/yaleToJyutping.test.ts test/sources/kaifangcidian.test.ts → pass",
         },
         {
-          id: "P1-T10", title: "Source: Wiktionary dialect-synonym tables", status: "todo",
+          id: "P1-T10", title: "Source: Wiktionary dialect-synonym tables", status: "doing",
           files: ["data-pipeline/src/sources/wiktionaryDialSyn.ts", "data-pipeline/fixtures/dial-syn-沒有.lua", "data-pipeline/test/sources/wiktionaryDialSyn.test.ts"],
           subtasks: [
             "Download one real Module:zh/data/dial-syn module (沒有) into fixtures",
@@ -760,5 +760,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T7 done: words.hk word list (d087cd3, 9e5da23). 64,652 readings kept; 99.34% agree with rime on shared words; downloads of unpinnable sources are now SHA-256 checked. Review found OpenCC does not fold variant spellings (㨂→揀) — variant links will come from the words.hk dump instead." },
     { date: "2026-10-30", text: "Decided: use only the 16,800 public (已公開) words.hk dump entries — clearly licensed and reviewed; unpublished rows (incl. their variant links) are not used. The committed dump fixture carries words.hk's ALL RIGHTS RESERVED notice: keep this repo private." },
     { date: "2026-10-30", text: "P1-T8 done: words.hk dump parser (4a0c482, f1901d5). 16,711 public entries, 19,784 senses, 27,152 examples — but only 340 examples carry a Mandarin (zho) line, so Mandarin meanings must come mainly from Kaifangcidian / Wiktionary / MoE." },
+    { date: "2026-10-30", text: "P1-T9 done: Kaifangcidian (126eeca, 5599891, 48e130d). Traditional + simplified files paired line by line (0 mismatches); 72,543 rows, 13,690 with Mandarin equivalents (29,908 trad/simp pairs); Yale→Jyutping converter handles all 1,997 syllables, 93.2% agree with rime. Review caught an unrecognized ﹐ separator." },
   ],
 };
