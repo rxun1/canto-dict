@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
-import { formatProblems, throwIfProblems, type Problem } from "./problems";
+import { formatProblems, throwIfProblems, type Parsed, type Problem } from "./problems";
 import { rimeDictBody } from "./text";
 import type { WordReading } from "./types";
 import { RIME_WORDS_CACHE_NAME, RIME_WORDS_URL } from "./urls";
@@ -19,7 +19,7 @@ const SOURCE_NAME = "rime words";
  *   isValidSyllable) are expected in real data (e.g. proverbs containing "，"), so the row is
  *   skipped and recorded in `skipped` with its 1-based line number.
  */
-export function parseRimeWords(text: string): { readings: WordReading[]; skipped: Problem[] } {
+export function parseRimeWords(text: string): Parsed<WordReading> {
   const readings: WordReading[] = [];
   const skipped: Problem[] = [];
   const structural: Problem[] = [];

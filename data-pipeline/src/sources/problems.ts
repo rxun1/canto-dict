@@ -18,3 +18,9 @@ export function formatProblems(source: string, problems: readonly Problem[]): st
 export function throwIfProblems(source: string, problems: readonly Problem[]): void {
   if (problems.length > 0) throw new Error(formatProblems(source, problems));
 }
+
+/** What a tolerant source parser returns: the rows it kept, plus the row-level problems it skipped. */
+export interface Parsed<T> {
+  readonly readings: T[];
+  readonly skipped: Problem[];
+}

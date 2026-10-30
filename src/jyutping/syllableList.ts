@@ -1,6 +1,6 @@
 // GENERATED FILE - do not edit by hand.
 // Toneless Jyutping syllables attested in real data: the union of
-//   - LSHK Jyutping table (CC BY 4.0): https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv
+//   - LSHK Jyutping table (CC BY 4.0): https://raw.githubusercontent.com/lshk-org/jyutping-table/dad2dd6d6f02fc51138ecc6818f7b38eba5c2ad3/list.tsv
 //   - rime-cantonese-upstream char.csv (CC BY 4.0): https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/4cb67a486312e5f0f13cc842433617104d75de87/char.csv
 //   - rime-cantonese jyut6ping3.words.dict.yaml (CC BY 4.0): https://raw.githubusercontent.com/rime/rime-cantonese/259f0e48bba840c3a2e0d117539e96937f3d89bc/jyut6ping3.words.dict.yaml
 // Regenerate: cd data-pipeline && npx tsx scripts/gen-syllables.ts

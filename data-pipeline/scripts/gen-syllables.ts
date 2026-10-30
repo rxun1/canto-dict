@@ -4,9 +4,8 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PARTICLES, TONED_SYLLABLE } from "../../src/jyutping/pattern";
 import { rimeDictBody } from "../src/sources/text";
-import { RIME_CHARS_URL, RIME_WORDS_URL } from "../src/sources/urls";
+import { LSHK_URL, RIME_CHARS_URL, RIME_WORDS_URL } from "../src/sources/urls";
 
-const LSHK_URL = "https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv";
 const OUT = fileURLToPath(new URL("../../src/jyutping/syllableList.ts", import.meta.url));
 
 async function fetchText(url: string): Promise<string> {
