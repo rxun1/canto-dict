@@ -32,7 +32,7 @@ window.CANTO_PROGRESS = {
       doc: "../docs/superpowers/plans/2026-10-29-plan-1-data-pipeline.html",
       tasks: [
         {
-          id: "P1-T1", title: "Pipeline project scaffold", status: "todo",
+          id: "P1-T1", title: "Pipeline project scaffold", status: "done",
           files: ["data-pipeline/package.json", "data-pipeline/tsconfig.json", "data-pipeline/vitest.config.ts", "data-pipeline/src/cli.ts", "data-pipeline/test/smoke.test.ts"],
           subtasks: [
             "Create data-pipeline/package.json (type: module; deps: tsx, typescript, vitest, better-sqlite3, opencc-js, yaml)",
@@ -52,7 +52,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npm test → \"1 passed\"; npm run data:build -- --help → prints download, parse, merge, validate, build",
         },
         {
-          id: "P1-T2", title: "Jyutping syllable module (shared with the app)", status: "todo",
+          id: "P1-T2", title: "Jyutping syllable module (shared with the app)", status: "doing",
           files: ["src/jyutping/syllables.ts", "src/jyutping/syllables.test.ts"],
           subtasks: [
             "Write failing tests: isValidSyllable('sik1') true, ('sik7') false, ('m4','ng5') true, particle ('la1','ga3') true",
@@ -317,8 +317,9 @@ window.CANTO_PROGRESS = {
           id: "P1-T17", title: "Full real build + fixture DB for app tests", status: "todo",
           files: ["data-pipeline/src/cli.ts", "assets/canto.db", "assets/syllables.pack", "assets/syllables.json", "assets/test/canto.fixture.db", "data-pipeline/build-report.html"],
           subtasks: [
-            "Wire all steps in cli.ts: download → parse → merge → validate → build → report",
+            "Wire all steps in cli.ts: download → parse → merge → validate → build (build also writes build-report.html)",
             "Add data:fixture script that builds assets/test/canto.fixture.db from data-pipeline/fixtures/",
+            "Make main async; reject unknown flags and exit non-zero on any step error (deferred from P1-T1 review)",
             "Run npm run data:build on real data; fix any validation failures at the source parser",
             "Open build-report.html and compare counts with the research numbers",
             "Copy headline numbers (entries, DB MB, audio coverage) onto the dashboard log",
@@ -755,5 +756,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-29", text: "Converted spec and research docs from markdown to editable HTML (Edit / Save toolbar)." },
     { date: "2026-10-29", text: "Spec approved." },
     { date: "2026-10-29", text: "Work split into 3 plans (data pipeline, app + lookup, translation) with subtasks, definition of done and tests per task." },
+    { date: "2026-10-29", text: "P1-T1 done: data-pipeline scaffold (0f8717a + review fixes 97898ef). Code review caught a silent no-op entry point and an over-broad ../src include; both fixed and re-verified." },
   ],
 };

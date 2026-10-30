@@ -62,7 +62,7 @@
 <h2>File structure</h2>
 <pre><code>data-pipeline/
   package.json, tsconfig.json, vitest.config.ts
-  src/cli.ts                 step runner: download → parse → merge → validate → build → report
+  src/cli.ts                 step runner: download → parse → merge → validate → build (build also writes the report)
   src/download.ts            fetchToCache + manual-file overrides
   src/yaleToJyutping.ts      Yale → Jyutping (Kaifangcidian)
   src/sources/*.ts           one file per source
