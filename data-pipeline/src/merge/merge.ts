@@ -1,9 +1,9 @@
 // Merge: a pure function from parsed source rows to Entry objects plus the stats the build report
 // prints. No I/O here; loadMergeInputs (load.ts) gathers the inputs.
-import type { CharReading, KfcdRow, MandarinEquivalent, ReadingRank, WordReading } from "../sources/types";
+import type { CharReading, KfcdRow, MandarinEquivalent, MoeEntry, ReadingRank, WordReading, WordshkEntry } from "../sources/types";
 import { isSingleCodePoint } from "../sources/codePoints";
 import { headwordKey, toSimplified } from "./normalize";
-import type { Entry, EntryReading, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
+import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
 /**
  * Reading sources in priority order: rime > LSHK > Unihan for characters (spec §4.1), then words.hk
@@ -28,6 +28,24 @@ const RANK_ORDER: readonly ReadingRank[] = ["default", "common", "rare", "obsole
  */
 const KFCD_ANNOTATION = /（[^）]*）/g;
 
+/** Joins a words.hk entry's several parts of speech (動詞、名詞), as MoE's own combined values do (代、介). */
+const POS_SEPARATOR = "、";
+
+/** The optional source a build can run without. */
+const WORDSHK_DUMP_SOURCE: RowSource = "wordshk-dump";
+
+/** MoE's names for a reading other than the sense's own: 又音 (alternative), 讀音 (literary), 語音 (colloquial). */
+const READING_NOTE = "(?:又音|讀音|語音)";
+
+/**
+ * A definition that is nothing but a pointer at another reading: an optional sense number ("(一)",
+ * "(一)1.2.", "1、2、4"), then 之 or 的 and the reading note: "(一)之又音。", "1、2、4的語音。".
+ */
+const WHOLE_DEFINITION_READING_NOTE = new RegExp(`^(?:\\([一二三四五六七八九十]+\\))?[\\d、.]*[之的]${READING_NOTE}。$`);
+
+/** One sentence ending in "的又音/讀音/語音。": "雙棒兒的雙的語音。" (the reading of 雙 in 雙棒兒). */
+const ONE_SENTENCE_READING_NOTE = new RegExp(`^[^。]*的${READING_NOTE}。$`);
+
 /** Code-unit order: deterministic and locale-independent. */
 const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -50,6 +68,19 @@ export function cleanKfcdItem(item: string): string {
   return item.replace(KFCD_ANNOTATION, "").trim();
 }
 
+/**
+ * True for an MoE definition that only makes sense next to its reading, which canto.db does not
+ * store: a whole-definition pointer ("(一)之又音。" — 443 senses say exactly that), or, for a
+ * one-character headword, a one-sentence note on the character's reading inside a word
+ * ("雙棒兒的雙的語音。"). Multi-character headwords are exempt from the second form because their
+ * real definitions can end that way (口音: "帶有各民族或地方特色的語音。"), as is any definition with
+ * more than one sentence (後人: "後代的子孫。即(一)1.的語音。"). MoeSense.heteronym is no help: the
+ * pointer sits under heteronym 0 as often as not (我: "(一)之讀音。").
+ */
+export function isReadingCrossReference(word: string, def: string): boolean {
+  return WHOLE_DEFINITION_READING_NOTE.test(def) || (isSingleCodePoint(word) && ONE_SENTENCE_READING_NOTE.test(def));
+}
+
 /** A Kaifangcidian row reduced to what merge keeps: cleaned Mandarin items and a content sort key. */
 interface KfcdAttachment {
   /** Syllables, then the raw items: rows repeated per sense sort the same whatever the input order. */
@@ -67,6 +98,9 @@ class EntryBuilder {
   readonly kfcd: KfcdAttachment[] = [];
   /** Mandarin words Wiktionary gives this entry as a Cantonese form of (reversed pairs). */
   readonly wiktionary: string[] = [];
+  /** words.hk dump entries with a headword of this key, by id (a dump entry can list two spellings of one key). */
+  readonly dumpEntries = new Map<number, WordshkEntry>();
+  readonly moe: MoeEntry[] = [];
 
   constructor(readonly key: string) {}
 
@@ -148,6 +182,62 @@ function finishMandarin(builder: EntryBuilder): MandarinItem[] {
   return [...items.values()];
 }
 
+/**
+ * The MoE entry for a key: MoE headwords are unique, but variant spellings fold together (剛才 and
+ * 剛纔 are both MoE headwords). Prefer the displayed spelling, then another entry-creating
+ * source's spelling, then code-unit order.
+ */
+function chooseMoe(builder: EntryBuilder, trad: string): MoeEntry | undefined {
+  const spelledByCreator = (word: string): boolean => [...(builder.spellings.get(word) ?? [])].some((s) => DISPLAY_SOURCE_PRIORITY.includes(s));
+  const rank = (e: MoeEntry): number => (e.word === trad ? 0 : spelledByCreator(e.word) ? 1 : 2);
+  return [...builder.moe].sort((a, b) => rank(a) - rank(b) || byCodeUnits(a.word, b.word))[0];
+}
+
+interface MoeDropStats {
+  sensesDropped: number;
+  readonly droppedSample: { word: string; def: string }[];
+}
+
+/**
+ * words.hk senses (yue) from the entry's dump entries in id order, then the chosen MoE entry's senses
+ * (zho) minus reading cross-references; `sense` counts from 1 per source. Each text keeps its
+ * verbatim traditional form plus a simplified copy. Examples follow their words.hk sense.
+ */
+function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, drops: MoeDropStats): { definitions: Definition[]; examples: Example[] } {
+  const definitions: Definition[] = [];
+  const examples: Example[] = [];
+  let sense = 0;
+  for (const dumpEntry of [...builder.dumpEntries.values()].sort((a, b) => a.id - b.id)) {
+    const pos = dumpEntry.pos.length > 0 ? dumpEntry.pos.join(POS_SEPARATOR) : undefined;
+    for (const { yue, examples: senseExamples } of dumpEntry.senses) {
+      sense++;
+      definitions.push({ sense, ...(pos !== undefined && { pos }), yue, yueSimp: toSimplified(yue, "hk"), source: WORDSHK_DUMP_SOURCE });
+      for (const example of senseExamples) {
+        examples.push({
+          sense,
+          yueTrad: example.yue,
+          yueSimp: toSimplified(example.yue, "hk"),
+          ...(example.jyutping !== undefined && { jyutping: example.jyutping.join(" ") }),
+          ...(example.loanSyllables !== undefined && example.loanSyllables.length > 0 && { loan: example.loanSyllables }),
+          ...(example.zho !== undefined && { zho: example.zho, zhoSimp: toSimplified(example.zho, "hk") }),
+          source: WORDSHK_DUMP_SOURCE,
+        });
+      }
+    }
+  }
+  let moeSense = 0;
+  for (const { pos, def } of moe?.senses ?? []) {
+    if (isReadingCrossReference(moe!.word, def)) {
+      drops.sensesDropped++;
+      if (drops.droppedSample.length < STATS_SAMPLE_SIZE) drops.droppedSample.push({ word: moe!.word, def });
+      continue;
+    }
+    moeSense++;
+    definitions.push({ sense: moeSense, ...(pos !== undefined && { pos }), zho: def, zhoSimp: toSimplified(def, "tw"), source: "moe" });
+  }
+  return { definitions, examples };
+}
+
 /** Adds one to `counts[source]`. */
 function count<K extends string>(counts: Partial<Record<K, number>>, source: K, by = 1): void {
   counts[source] = (counts[source] ?? 0) + by;
@@ -204,6 +294,7 @@ export function merge(inputs: MergeInputs): MergeResult {
   for (const dumpEntry of inputs.wordshkDump ?? []) {
     for (const headword of dumpEntry.headwords) {
       const builder = addWordReading(headword, "wordshk-dump");
+      builder.dumpEntries.set(dumpEntry.id, dumpEntry);
       const first = builder.firstDumpId.get(headword.word);
       if (first === undefined || dumpEntry.id < first) builder.firstDumpId.set(headword.word, dumpEntry.id);
     }
@@ -257,7 +348,22 @@ export function merge(inputs: MergeInputs): MergeResult {
     }
   }
 
+  let moeUnmatched = 0;
+  for (const moeEntry of inputs.moe) {
+    const builder = builders.get(headwordKey(moeEntry.word));
+    if (builder === undefined) {
+      moeUnmatched++;
+      continue;
+    }
+    builder.addSpelling(moeEntry.word, "moe");
+    builder.moe.push(moeEntry);
+  }
+
   const readingCounts: Partial<Record<RowSource, number>> = {};
+  const definitionCounts: Partial<Record<RowSource, number>> = {};
+  const exampleCounts: Partial<Record<RowSource, number>> = {};
+  const moeDrops: MoeDropStats = { sensesDropped: 0, droppedSample: [] };
+  let moeShadowed = 0;
   const mandarinCounts: Partial<Record<RowSource, number>> = {};
   const collisions: { key: string; spellings: string[] }[] = [];
   const entries: Entry[] = [...builders.values()]
@@ -270,6 +376,10 @@ export function merge(inputs: MergeInputs): MergeResult {
       for (const r of readings) count(readingCounts, r.source);
       const mandarin = finishMandarin(builder);
       for (const item of mandarin) for (const source of item.sources) count(mandarinCounts, source);
+      if (builder.moe.length > 1) moeShadowed += builder.moe.length - 1;
+      const { definitions, examples } = finishDefinitions(builder, chooseMoe(builder, trad), moeDrops);
+      for (const d of definitions) count(definitionCounts, d.source);
+      for (const e of examples) count(exampleCounts, e.source);
       return {
         key: builder.key,
         trad,
@@ -279,27 +389,27 @@ export function merge(inputs: MergeInputs): MergeResult {
         aliases: spellings.filter((s) => s !== trad),
         readings,
         mandarin,
-        definitions: [],
-        examples: [],
+        definitions,
+        examples,
       } satisfies Entry;
     });
 
   const stats: MergeStats = {
-    omitted: [],
+    omitted: inputs.wordshkDump === undefined ? [WORDSHK_DUMP_SOURCE] : [],
     entries: { char: entries.filter((e) => e.kind === "char").length, word: entries.filter((e) => e.kind === "word").length },
-    rows: { readings: readingCounts, mandarin: mandarinCounts, definitions: {}, examples: {} },
+    rows: { readings: readingCounts, mandarin: mandarinCounts, definitions: definitionCounts, examples: exampleCounts },
     unmatched: {
       kaifangcidianRows: kfcdUnmatchedRows,
       kaifangcidianWords: kfcdUnmatchedWords.size,
       kaifangcidianFrequent: mostFrequent(kfcdUnmatchedWords, weights),
       wiktionaryForms: wiktUnmatchedForms.size,
-      moeEntries: 0,
+      moeEntries: moeUnmatched,
     },
     keyCollisions: { keysWithSeveralSpellings: collisions.length, sample: collisions.slice(0, STATS_SAMPLE_SIZE) },
     variants: { listRows: 0, listWords: 0, linkedWords: 0, droppedRows: 0, droppedWords: 0, droppedButKeyMatched: 0, aliasesFromLinks: 0 },
     kaifangcidian: kfcdStats,
     wiktionary: wiktStats,
-    moe: { sensesDropped: 0, droppedSample: [], shadowedEntries: 0 },
+    moe: { ...moeDrops, shadowedEntries: moeShadowed },
     freq: { entriesWithFreq: 0, overridesUsed: [], overridesUnused: [] },
   };
   return { entries, stats };
