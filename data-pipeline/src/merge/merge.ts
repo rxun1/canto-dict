@@ -8,15 +8,18 @@ import { headwordKey, toSimplified } from "./normalize";
 import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
+/** The optional source a build can run without. */
+const WORDSHK_DUMP_SOURCE: RowSource = "wordshk-dump";
+
 /**
  * Reading sources in priority order: rime > LSHK > Unihan for characters (spec §4.1), then words.hk
  * (its list before its dump). Word readings come from rime words, the list and dump headwords, in
  * that order; a one-character words.hk headword adds to its character entry.
  */
-const READING_SOURCE_PRIORITY: readonly RowSource[] = ["rime", "lshk", "unihan", "wordshk-list", "wordshk-dump"];
+const READING_SOURCE_PRIORITY: readonly RowSource[] = ["rime", "lshk", "unihan", "wordshk-list", WORDSHK_DUMP_SOURCE];
 
 /** Sources whose spelling is displayed, in preference order: words.hk (HK forms), then rime, then the others. */
-const DISPLAY_SOURCE_PRIORITY: readonly RowSource[] = ["wordshk-dump", "wordshk-list", "rime", "lshk", "unihan"];
+const DISPLAY_SOURCE_PRIORITY: readonly RowSource[] = [WORDSHK_DUMP_SOURCE, "wordshk-list", "rime", "lshk", "unihan"];
 
 /** How many items report samples list. */
 export const STATS_SAMPLE_SIZE = 20;
@@ -33,9 +36,6 @@ const KFCD_ANNOTATION = /（[^）]*）/g;
 
 /** Joins a words.hk entry's several parts of speech (動詞、名詞), as MoE's own combined values do (代、介). */
 const POS_SEPARATOR = "、";
-
-/** The optional source a build can run without. */
-const WORDSHK_DUMP_SOURCE: RowSource = "wordshk-dump";
 
 /**
  * An ideographic description character (U+2FF0–U+2FFF): Wiktionary spells a character Unicode
@@ -183,7 +183,7 @@ function finishReadings(builder: EntryBuilder): EntryReading[] {
 function chooseTrad(builder: EntryBuilder): string {
   for (const source of DISPLAY_SOURCE_PRIORITY) {
     const spellings = builder.spelledBy(source);
-    if (source === "wordshk-dump") {
+    if (source === WORDSHK_DUMP_SOURCE) {
       spellings.sort((a, b) => builder.firstDumpId.get(a)! - builder.firstDumpId.get(b)! || byCodeUnits(a, b));
     }
     if (spellings.length > 0) return spellings[0];
@@ -394,7 +394,7 @@ export function merge(inputs: MergeInputs): MergeResult {
   for (const row of inputs.wordshkList) if (row.variantForm !== true) addWordReading(row, "wordshk-list");
   for (const dumpEntry of inputs.wordshkDump ?? []) {
     for (const headword of dumpEntry.headwords) {
-      const builder = addWordReading(headword, "wordshk-dump");
+      const builder = addWordReading(headword, WORDSHK_DUMP_SOURCE);
       builder.dumpEntries.set(dumpEntry.id, dumpEntry);
       const first = builder.firstDumpId.get(headword.word);
       if (first === undefined || dumpEntry.id < first) builder.firstDumpId.set(headword.word, dumpEntry.id);
