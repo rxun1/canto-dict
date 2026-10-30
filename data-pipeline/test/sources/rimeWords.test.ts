@@ -6,10 +6,10 @@ const fixture = readFileSync(join(import.meta.dirname, "../../fixtures/rime-word
 const HEADER = '---\nname: jyut6ping3.words\nversion: "2026.08.10"\nsort: by_weight\n...\n';
 
 describe("parseRimeWords", () => {
-  it("keeps 31 of the 39 fixture rows and skips 8", () => {
+  it("keeps 34 of the 39 fixture rows and skips 5", () => {
     const { readings, skipped } = parseRimeWords(fixture);
-    expect(readings).toHaveLength(31);
-    expect(skipped).toHaveLength(8);
+    expect(readings).toHaveLength(34);
+    expect(skipped).toHaveLength(5);
   });
 
   it("never parses header or comment lines as data", () => {
@@ -53,12 +53,19 @@ describe("parseRimeWords", () => {
     expect(skipped.filter((s) => /，/.test(s.message)).map((s) => s.line)).toEqual([50, 51, 52]);
   });
 
-  it("reports rows with an invalid syllable, with the right line number", () => {
-    const { readings, skipped } = parseRimeWords(fixture);
-    expect(readings.some((r) => r.word === "暗坎" || r.word === "呱呱")).toBe(false);
-    const kaan = skipped.find((s) => /kaan2/.test(s.message));
-    expect(kaan?.line).toBe(30);
-    expect(skipped.find((s) => /gwek4/.test(s.message))?.line).toBe(34);
+  it("keeps rows with colloquial syllables that are attested via this dict (kaan2, gwek4, zeu6)", () => {
+    const { readings } = parseRimeWords(fixture);
+    expect(readings.find((r) => r.word === "暗坎")?.jyutping).toEqual(["am3", "kaan2"]);
+    expect(readings.find((r) => r.word === "呱呱")?.jyutping).toEqual(["gwek4", "gwek4"]);
+    expect(readings.find((r) => r.word === "噍低")?.jyutping).toEqual(["zeu6", "dai1"]);
+  });
+
+  it("skips a row with a pattern-valid but unattested syllable, with the right line number", () => {
+    const { readings, skipped } = parseRimeWords(`${HEADER}甲乙\tgaap3 jyut6\n丙丁\tzzz1 ding1\n`);
+    expect(readings).toEqual([{ word: "甲乙", jyutping: ["gaap3", "jyut6"] }]);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].line).toBe(7);
+    expect(skipped[0].message).toMatch(/invalid syllable "zzz1"/);
   });
 
   it("treats an uppercase syllable as a row-level problem", () => {
