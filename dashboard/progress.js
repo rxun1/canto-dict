@@ -229,6 +229,7 @@ window.CANTO_PROGRESS = {
           id: "P1-T13", title: "Merge sources into one entry model", status: "todo",
           files: ["data-pipeline/src/merge/types.ts", "data-pipeline/src/merge/merge.ts", "data-pipeline/test/merge.test.ts"],
           subtasks: [
+            "Pick the word-frequency source for freq (rime words dict has NO weights): check rime-cantonese essay-cantonese.txt (license, format), pin it in urls.ts, add a parser + fixture test",
             "Define Entry type in types.ts (trad, simp, kind, freq, readings, mandarin, definitions, examples) matching the spec schema",
             "Write failing test: rime + words.hk keys in different character forms merge into one entry after OpenCC normalization",
             "Write failing test: reading priority rime > LSHK > Unihan; LSHK merged readings become rank 'variant', never default",
