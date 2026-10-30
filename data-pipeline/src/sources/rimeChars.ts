@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
+import { throwIfProblems, type Problem } from "./problems";
 import { RIME_CHARS_CACHE_NAME, RIME_CHARS_URL } from "./urls";
 import { splitLines } from "./text";
 import type { CharReading, ReadingRank } from "./types";
@@ -14,12 +15,6 @@ const RANK_BY_RIME_LABEL: ReadonlyMap<string, ReadingRank> = new Map<string, Rea
 ]);
 
 const HEADER_PREFIX = "char,jyutping,";
-const MAX_REPORTED_PROBLEMS = 20;
-
-interface Problem {
-  line: number;
-  message: string;
-}
 
 /**
  * Parses rime-cantonese char.csv: `char,jyutping,pron_rank,tone_var,literary_vernacular,comment`.
@@ -56,13 +51,7 @@ export function parseRimeChars(text: string): CharReading[] {
     if (problems.length === before) readings.push({ char, jyutping: syllables.join(" "), rank });
   });
 
-  if (problems.length > 0) {
-    const shown = problems
-      .slice(0, MAX_REPORTED_PROBLEMS)
-      .map((p) => `  line ${p.line}: ${p.message}`)
-      .join("\n");
-    throw new Error(`char.csv has ${problems.length} problem(s):\n${shown}`);
-  }
+  throwIfProblems("char.csv", problems);
   return readings;
 }
 
