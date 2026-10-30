@@ -34,6 +34,12 @@ describe("headwordKey", () => {
     expect(headwordKey("著數")).toBe(headwordKey("着數"));
   });
 
+  it("folds zyu3 著 to 着 in words OpenCC's phrase table lacks (土著 → 土着), the same for every spelling", () => {
+    expect(headwordKey("土著")).toBe("土着");
+    expect(headwordKey("原著")).toBe("原着");
+    expect(headwordKey("著作")).toBe("著作");
+  });
+
   it("leaves Latin and mixed headwords alone", () => {
     expect(headwordKey("DSE")).toBe("DSE");
     expect(headwordKey("T恤")).toBe("T恤");

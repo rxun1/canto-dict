@@ -3,9 +3,14 @@ import { isSingleCodePoint } from "../sources/codePoints";
 import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
 
 /**
- * The traditional-character convention a text is written in, which picks its OpenCC config:
- * "hk" for the Cantonese sources (words.hk, rime, LSHK, Unihan; rime mixes in HK forms such as 綫),
- * "tw" for the Taiwan sources (MoE, and Wiktionary's Mandarin words: 著涼, 睪丸).
+ * Which OpenCC traditional → simplified config toSimplified uses (headwordKey ignores it), named
+ * after the variant table the text's traditional forms are read with:
+ * - "hk": Hong Kong forms, OpenCC hk→cn (衞生 → 卫生; tw→cn would leave 衞). Used for Cantonese
+ *   text: the displayed headword (from words.hk, rime, LSHK or Unihan) and the words.hk dump's
+ *   definitions, examples and the examples' Mandarin translations.
+ * - "tw": Taiwan forms, OpenCC tw→cn, which reads 著 the Taiwan way (著急 → 着急; hk→cn keeps
+ *   著急). Used for MoE definitions and Wiktionary's Mandarin words (著涼 → 着凉).
+ * Kaifangcidian supplies its own simplified forms and is not converted.
  */
 export type Script = "hk" | "tw";
 
@@ -27,7 +32,13 @@ const TO_SIMPLIFIED: Readonly<Record<Script, (text: string) => string>> = {
  * HK 這裏/衞生/麪包/電綫/着急. Folding every source the same way makes the key one function of the
  * spelling, so two sources that agree on a spelling always agree on its key. On the pinned data, 1,128
  * keys collect more than one rime/words.hk spelling; every one checked is a variant spelling of one
- * word (為/爲, 台/臺, 着/著 zoek6, 群/羣, …), and OpenCC's phrase tables keep zyu3 著 (著名, 顯著).
+ * word (為/爲, 台/臺, 着/著 zoek6, 群/羣, …).
+ *
+ * zyu3 著 ("write", "notable") keeps its 著 in the key only in words OpenCC's tw→t phrase table
+ * lists (著名, 顯著, 著作, 名著); elsewhere tw→t turns 著 into 着 as for zoek6 (土著 → 土着,
+ * 原著 → 原着, 論著 → 論着). That changes only the key, and every spelling of such a word folds the
+ * same way, so its sources still join. On the pinned data 13 zyu3 words get a 着 key this way and
+ * none of them meets a 着-spelled word.
  *
  * A single character is its own key: character-level OpenCC maps 台→臺, 著→着 and 針→鍼, which would
  * merge different characters with different readings.
