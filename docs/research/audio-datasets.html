@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cantonese pronunciation audio for an offline dictionary app: sources, licenses, sizes</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <main id="doc">
+<h1>Cantonese pronunciation audio for an offline dictionary app: sources, licenses, sizes</h1>
+<p><em>Researched 2026-10-29. All coverage numbers were measured directly (HTTP HEAD/GET probes, GitHub tree listings, Hugging Face / Wikimedia APIs), not copied from marketing text. Small samples were inspected under <code>/tmp</code> only.</em></p>
+<hr>
+<h2>TL;DR</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Recommendation</th>
+<th>License status</th>
+<th>App-size impact</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>(a) Per-syllable audio</strong> (main approach)</td>
+<td><strong>words.hk female syllable set</strong> (3,902 files; 99.5% token coverage of the words.hk lexicon). Fallback: <strong>commission your own recordings</strong> of about 2,600 syllables. Open fallback: Ekho <code>jyutping-wong</code> (GPL-2.0, male).</td>
+<td>words.hk audio is <strong>not openly licensed</strong>. You need written permission from Hong Kong Lexicography Ltd. If you commission your own recordings, you own them outright.</td>
+<td>About 5–7 MB (AAC/MP3 at 32 kbps, 22 kHz mono, trimmed to about 2,600 syllables)</td>
+</tr>
+<tr>
+<td><strong>(b) Per-word audio</strong> (bonus)</td>
+<td><strong>Lingua Libre + Wikimedia Commons</strong> Cantonese recordings: about 7,400 + 800 files, about 5,000 distinct multi-character words. Later, maybe Common Voice clips cut out with forced alignment (CC0).</td>
+<td>CC BY-SA 4.0 (mostly) or CC BY-SA 3.0. Bundling is allowed in free and paid apps, with attribution and share-alike on the audio files. Common Voice is CC0.</td>
+<td>About 25–30 MB for all LL/Commons files after transcoding. Best shipped as an optional download pack.</td>
+</tr>
+<tr>
+<td><strong>(c) Sentence read-aloud, offline</strong></td>
+<td><strong>Platform TTS</strong> (iOS Sinji/Aasing, Android Google <code>yue-HK-x-*-local</code>) through <code>expo-speech</code> / <code>react-native-tts</code>. If no Cantonese voice is installed, <strong>fall back to syllable concatenation</strong>.</td>
+<td>OS-provided, so nothing to license or bundle</td>
+<td>0 MB</td>
+</tr>
+<tr>
+<td><strong>(d) Online / premium quality</strong></td>
+<td>Azure <code>zh-HK-HiuMaan/WanLung/HiuGaai</code> Neural, Google <code>yue-HK-Chirp3-HD-*</code> (30 voices), Amazon Polly <code>Hiujin</code>. Cache the results, or pre-generate a per-word pack.</td>
+<td>Commercial APIs. Polly says &quot;your Polly output belongs to you&quot; and allows cache/replay.</td>
+<td>0 MB (streamed), or about 4 KB per word if you pre-generate a pack</td>
+</tr>
+</tbody></table>
+<p><strong>Do not bundle</strong> the CUHK 粵語審音配詞字庫, EdUHK CKC, HK EDB 學習字詞表, CantoDict or Forvo audio. None of them grants a redistribution license; EDB and Forvo explicitly forbid commercial use.</p>
+<hr>
+<h2>1. Background: how many syllables do we need?</h2>
+<ul>
+<li>Every distinct toned syllable in the <strong>LSHK 電腦用漢字粵語拼音表</strong> (<code>lshk-org/jyutping-table</code>, <code>list.tsv</code>, CC BY 4.0) gives <strong>2,336 toned syllables</strong>. Of these, 1,825 occur in at least 3 characters (many of the rest are rare readings). Computed from the <code>JP</code> column of <a href="https://github.com/lshk-org/jyutping-table/blob/master/list.tsv">https://github.com/lshk-org/jyutping-table/blob/master/list.tsv</a>.</li>
+<li>The <strong>words.hk public-domain word list</strong> (<code>https://words.hk/faiman/analysis/wordslist.json</code>, &quot;Data License: public domain&quot;) has <strong>62,635 headwords</strong> that use <strong>2,519 distinct toned syllables</strong>. This includes colloquial and changed-tone syllables such as <code>lau2</code>, <code>lei2</code>, <code>em1</code>, <code>fen1</code>.</li>
+<li>So &quot;about 1,800&quot; covers the core. A dictionary that faithfully shows colloquial and changed-tone readings needs <strong>about 2,300–2,600</strong> syllables.</li>
+</ul>
+<p>Coverage below is given two ways. <strong>Types</strong> = how many of the 2,519 words.hk syllables have a recording. <strong>Token-weighted</strong> = the share of syllable occurrences across all 62,635 words.hk pronunciations that have a recording. The second number is what users actually experience.</p>
+<hr>
+<h2>2. Per-syllable recording sets (the core asset)</h2>
+<h3>2.1 words.hk female syllable set (also mirrored by wordshk_app and jyutping.org) ⭐ best coverage</h3>
+<ul>
+<li><strong>Where it lives (three copies of the same recordings):</strong><ul>
+<li>words.hk serves them for its own pages: <code>https://words.hk/static/jyutping/&lt;syllable&gt;.mp3</code>. The site&#39;s player concatenates syllables. From the words.hk entry page JS: <code>var url = &quot;/static/jyutping/&quot; + jp + ext;</code> and the comment <code>// TODO: Deal with audio-with-the-whole-phrase later.</code></li>
+<li><strong>AlienKevin/wordshk_app</strong> (official words.hk mobile app, Flutter, MIT for code): <code>assets/jyutping_female/*.mp3</code>, <strong>3,902 files, 9.78 MB</strong>. <a href="https://github.com/AlienKevin/wordshk_app/tree/main/assets/jyutping_female">https://github.com/AlienKevin/wordshk_app/tree/main/assets/jyutping_female</a>. The README describes loudness normalisation to −16 LUFS and silence trimming via <code>process_audios.sh</code>. The last edit to the words.hk static files (<code>Last-Modified: Sun, 03 Jul 2022</code>) matches the wordshk_app commit <code>579afc0d</code> on 2022-07-03 (&quot;Peak normalize jap6sing1 audios…&quot;).</li>
+<li><strong>CanCLID/jyutping.org</strong> (repo license MIT): <code>public/audio/*.mp3</code>, <strong>3,924 files, 17.7 MB</strong>. 3,884 of the syllable names overlap with wordshk_app; the files are processed differently. The site itself credits the source: <code>src/content/jyutping/yue/index.mdx:8</code> says &quot;錄音數據來源係粵典&quot; (&quot;the recordings come from words.hk&quot;).</li>
+</ul>
+</li>
+<li><strong>Contents:</strong> one female speaker, isolated citation syllables. The 3,902 names include many theoretically possible syllables that never occur, which is harmless. Estimated F0 is about 320 Hz on <code>si1</code> and 160 Hz on <code>si4</code>, consistent with a female voice. Format: MP3, 22.05 kHz mono, about 32 kbps, about 0.6 s per syllable.</li>
+<li><strong>Measured coverage:</strong><ul>
+<li>LSHK list: 2,285 / 2,336 on words.hk static. The 51 misses are mostly <code>gwu*</code>/<code>kwu*</code> spellings (words.hk writes <code>gu1</code>) plus rare syllabic nasals like <code>hm1</code> and <code>ngm4</code>.</li>
+<li>words.hk lexicon: <strong>2,282 / 2,519 types (90.6%), 99.52% token-weighted</strong>. The top misses are rare colloquial <code>e</code>-finals: <code>em1, en1, fen1, gat4, bet4, zeu1…</code>.</li>
+</ul>
+</li>
+<li><strong>License: ⚠️ none published for the audio.</strong><ul>
+<li>The words.hk &quot;open data&quot; page (<a href="https://words.hk/base/hoifong/">https://words.hk/base/hoifong/</a>) covers only content explicitly marked as open data. That content is under the <em>Non-Commercial Open Data License 1.0</em>, copyright 香港辭書有限公司 (Hong Kong Lexicography Ltd): &quot;除咗特別批准，你唔可以用本產品做商業用途&quot; (&quot;except with special permission, you may not use this product for commercial purposes&quot;).</li>
+<li>The syllable audio is not marked or mentioned anywhere. The wordshk_app README &quot;Legal&quot; section only says &quot;Dictionary: Copyright (C) 2014-2022 Hong Kong Lexicography Limited&quot;.</li>
+<li>jyutping.org&#39;s MIT license is CanCLID&#39;s and cannot relicense words.hk&#39;s recordings.</li>
+<li><strong>Treat it as all-rights-reserved until words.hk grants permission.</strong> They are approachable: the official app and jyutping.org already use the audio. Contact: the email on <a href="https://words.hk/base/about/">https://words.hk/base/about/</a>.</li>
+</ul>
+</li>
+<li><strong>Maintenance:</strong> stable since 2022. jyutping.org is active (pushed 2026-10-29).</li>
+</ul>
+<h3>2.2 HK Education Bureau 香港小學學習字詞表 (EDB)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://www.edbchinese.hk/lexlist_ch/">https://www.edbchinese.hk/lexlist_ch/</a>. Audio: <code>https://www.edbchinese.hk/EmbziciwebRes/jyutping/&lt;syllable&gt;.mp3</code>. The page JS (<code>doSoundyp</code>) also plays words by <strong>concatenating syllables</strong>.</li>
+<li><strong>Contents:</strong> female voice (F0 about 276 Hz on <code>si1</code>, 180 Hz on <code>si4</code>). MP3 at 44.1 kHz, 96 kbps (about 8 KB/syllable). <strong>2,487 syllables found.</strong> Coverage: 2,205 / 2,519 types (87.5%), <strong>99.26% token-weighted</strong>. A full set is about 18 MB as served.</li>
+<li><strong>License: ❌ not bundleable.</strong> The EDB Important Notices (<a href="https://www.edb.gov.hk/en/important-notices/index.html">https://www.edb.gov.hk/en/important-notices/index.html</a>) allow downloads only &quot;solely for personal or non-commercial internal use&quot;. Any other reproduction or distribution &quot;is strictly prohibited&quot; without prior written authorisation from EDB.</li>
+</ul>
+<h3>2.3 CUHK 粵語審音配詞字庫 (lexi-can)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://humanum.arts.cuhk.edu.hk/Lexis/lexi-can/">https://humanum.arts.cuhk.edu.hk/Lexis/lexi-can/</a>. Audio: <code>…/lexi-can/sound/&lt;syllable&gt;.wav</code>. This is what <code>sammyfung/playyue</code> and several scrapers hotlink.</li>
+<li><strong>Contents:</strong> recorded by 陳京英老師 (former tutor at CUHK&#39;s Yale-China Chinese Language Centre), per <code>main.php</code>: &quot;本校雅禮中國語文研習所前導師陳京英老師義務參與本網頁之錄音工作&quot;. <strong>8-bit unsigned PCM, 11.025 kHz</strong> (low fidelity, audible hiss), about 1.5 s per file including silence. <strong>1,867 syllables found.</strong> Coverage: 1,737 / 2,519 types (69%), 96.8% token-weighted.<ul>
+<li>Many misses are spelling-system differences. CUHK follows the &quot;正讀&quot; style: <code>ngok6</code> not <code>ok6</code>, <code>gu1</code> not <code>gwu1</code>.</li>
+<li>Many are also colloquial or changed-tone syllables (<code>lau2, lei2, lung2, laa4, deoi2…</code>).</li>
+</ul>
+</li>
+<li><strong>License: ❌ none.</strong> QEF-funded project (<code>team.php</code>: &quot;網頁製作所涉的所有資源，概由香港優質教育基金 (QEF) 提供&quot;). No license is given, so assume all rights reserved.</li>
+<li><strong>Maintenance:</strong> legacy site (frames, Big5), still online.</li>
+</ul>
+<h3>2.4 EdUHK 中台港常用字粵普聲韻調交互對照表 (CKC)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://ckc.eduhk.hk/ckc/can/">https://ckc.eduhk.hk/ckc/can/</a>. A copy of its syllable WAVs is in <code>handong66/Cantonese-Mandarin-Cross-Ref/sound/yue/</code> (<strong>1,260 WAVs, 52.5 MB</strong>, 16 kHz).</li>
+<li><strong>Speaker:</strong> female, 陳淑貞博士 (<code>credit.htm</code>).</li>
+<li><strong>Coverage:</strong> 1,258 / 2,519 types (50%), 90.3% token-weighted. Common syllables only.</li>
+<li><strong>License: ❌ none stated.</strong> Assume all rights reserved. The GitHub copy&#39;s MIT license does not cover EdUHK&#39;s audio.</li>
+</ul>
+<h3>2.5 Ekho TTS Cantonese voice &quot;jyutping-wong&quot; (Cameron Wong) ✅ open, with GPL strings attached</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://github.com/hgneng/ekho">https://github.com/hgneng/ekho</a> (1.2k★, active, pushed 2026-10-29).<ul>
+<li>Raw recordings: <a href="https://sourceforge.net/projects/e-guidedog/files/Ekho-Voice-Data/0.2/">https://sourceforge.net/projects/e-guidedog/files/Ekho-Voice-Data/0.2/</a>. <code>jyutping-wong-44100-v9.tar.bz2</code> is 103 MB; <code>jyutping-wong-16000-v6.tar.bz2</code> is 19.6 MB.</li>
+<li>The repo also ships a packed <code>ekho-data/jyutping.voice</code> (5.6 MB).</li>
+</ul>
+</li>
+<li><strong>Contents:</strong> one male speaker recording isolated Jyutping syllables. Ekho is a <em>concatenative</em> syllable TTS. Its Cantonese lexicon <code>zhy_list</code> uses 2,205 distinct toned syllables. I did not verify the exact recorded count; the download was blocked in this environment.</li>
+<li><strong>License:</strong> <code>ekho-data/jyutping/COPYING-cantonese-wong</code>: &quot;Copyright (C) 2008-2022 by Cameron Wong … GNU GENERAL PUBLIC LICENSE Version 2&quot;. The dictionary <code>zhy_list</code> is CC BY-SA 3.0.</li>
+<li><strong>Bundling:</strong><ul>
+<li>GPL-2.0 applies to the audio data. You must ship it under GPL, provide the &quot;source&quot; (the WAVs) and pass the license on.</li>
+<li>Shipping it as separate data files next to proprietary code is arguably &quot;mere aggregation&quot;. However, <strong>distributing GPL works through the Apple App Store is legally contentious</strong>, because App Store terms add restrictions (the 2011 VLC removal is the well-known case).</li>
+<li>Fine for Android/F-Droid or an open-source app. Risky for a closed-source iOS app.</li>
+</ul>
+</li>
+<li><strong>Quality:</strong> older recordings (2008–2011). Usable, but less polished than words.hk.</li>
+</ul>
+<h3>2.6 Not suitable / dead ends checked</h3>
+<ul>
+<li><strong>jyutping.org / LSHK sound charts:</strong> LSHK&#39;s own pages (<a href="https://lshk.org/jyutping-scheme/">https://lshk.org/jyutping-scheme/</a>) have no audio. jyutping.org&#39;s audio is the words.hk set (§2.1).</li>
+<li><strong>Shtooka/SWAC:</strong> no Cantonese pack.</li>
+<li><strong>Jyut Dictionary</strong> (<code>aaronhktan/jyut-dict</code>, MIT): plays OS TTS (<code>QTextToSpeech</code>). It can also download a ZIP of per-syllable clips it <strong>pre-generated with Google/Azure TTS</strong> (<code>src/dictionaries/tts/azure.py</code> uses <code>zh-HK-WanLungNeural</code> with <code>&lt;phoneme alphabet=&#39;sapi&#39; …&gt;</code>). Those clips are synthetic, not human. The technique is useful though (§6.3).</li>
+<li><strong>Pleco Cantonese audio:</strong> a commercial add-on, not licensable.</li>
+</ul>
+<hr>
+<h2>3. Per-word human recordings</h2>
+<h3>3.1 Lingua Libre (Wikimedia Commons, <code>Category:Lingua Libre pronunciation-other (Q9186)</code>) ✅</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://commons.wikimedia.org/wiki/Category:Lingua_Libre_pronunciation-other_(Q9186)">https://commons.wikimedia.org/wiki/Category:Lingua_Libre_pronunciation-other_(Q9186)</a>. File pattern: <code>LL-Q9186 (yue)-&lt;Speaker&gt;-&lt;word&gt;.wav</code>.</li>
+<li><strong>Contents (enumerated via API):</strong> <strong>7,410 files.</strong><ul>
+<li>By length: 1,488 single-character, 5,094 two-character, 347 three-character, 195 four-character, 276 longer phrases.</li>
+<li>1,082 distinct single characters. Many are polyphonic, so syllable coverage is only an estimated 500–800 of about 2,500.</li>
+</ul>
+</li>
+<li><strong>Speakers:</strong> Luilui6666 (5,393), Justinrleung (947), Jonashtand (617), Wandering Maiden (378), plus a few others. Mixed genders and mics; quality is generally good home-studio level.</li>
+<li><strong>Format/size:</strong> WAV (about 75 KB each, about 550 MB raw). About 4 KB each at 32 kbps AAC, so <strong>about 30 MB</strong> for everything.</li>
+<li><strong>License:</strong> <strong>CC BY-SA 4.0</strong> (checked via <code>extmetadata.LicenseShortName</code> on samples, e.g. <code>File:LL-Q9186 (yue)-Luilui6666-一.wav</code> → &quot;CC BY-SA 4.0&quot;; Artist &quot;Speaker: Luilui6666&quot;). Legal code: <a href="https://creativecommons.org/licenses/by-sa/4.0/">https://creativecommons.org/licenses/by-sa/4.0/</a>.<ul>
+<li><strong>Bundling in a free or paid app is allowed</strong> if you credit each speaker, link the license, and license any <em>adapted</em> audio under BY-SA.</li>
+<li>Plain transcoding or trimming arguably counts as a &quot;technical modification&quot; under CC 4.0 §2(a)(4), so it is not an adaptation. The app&#39;s code is not affected.</li>
+<li>Caveat: CC 4.0 §2(a)(5)(C) forbids imposing &quot;Effective Technological Measures&quot; on the material. Keep the audio as plain files, not DRM-wrapped. This is generally accepted for App Store distribution of CC-BY-SA assets, but document the attribution in-app.</li>
+</ul>
+</li>
+<li><strong>Maintenance:</strong> ongoing community recording.</li>
+</ul>
+<h3>3.2 Wikimedia Commons <code>Category:Cantonese pronunciation</code> / Wiktionary</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://commons.wikimedia.org/wiki/Category:Cantonese_pronunciation">https://commons.wikimedia.org/wiki/Category:Cantonese_pronunciation</a>. <strong>820 files</strong>, mostly <code>Yue-&lt;romanisation&gt;.ogg</code> by <strong>Jyugulik</strong> (CC BY-SA 4.0, 687 files: 105 single-syllable, 456 two-syllable) and <code>Zh-yue-*.opus</code> by <strong>Justinrleung</strong> (CC BY-SA 3.0, 114 files).</li>
+<li><strong>Licenses:</strong> mostly CC BY-SA 3.0/4.0, a few CC0 / CC BY 2.5 / CC BY-SA 1.0. Check per file.</li>
+<li>English Wiktionary has <strong>2,913 entries</strong> in &quot;Category:Cantonese terms with audio pronunciation&quot;. They draw on the files above plus Lingua Libre.</li>
+</ul>
+<h3>3.3 Forvo ❌</h3>
+<ul>
+<li>Pronunciations stay owned by their users. The public license lets users use them &quot;in any way as long as they are not used for commercial purposes&quot; (archived <a href="https://forvo.com/license/">https://forvo.com/license/</a>).</li>
+<li>API plans (<a href="https://api.forvo.com/plans-and-pricing/">https://api.forvo.com/plans-and-pricing/</a>): Non-Profit plan &quot;Commercial Use: Not Allowed&quot;; commercial plans cost $28.95+/month and are <strong>request-based (online), not a bulk offline license</strong>.</li>
+<li><strong>Not bundleable</strong> without a separate negotiated deal.</li>
+</ul>
+<h3>3.4 CantoDict ❌</h3>
+<ul>
+<li><a href="https://www.cantonese.sheik.co.uk">https://www.cantonese.sheik.co.uk</a> has only a small number of example-sentence MP3s (<code>/audio/exampleNN.mp3</code>). &quot;Copyright Adam Sheik 2003-2026&quot;. Not bundleable.</li>
+</ul>
+<hr>
+<h2>4. Sentence-level speech corpora (could be mined for words)</h2>
+<table>
+<thead>
+<tr>
+<th>Corpus</th>
+<th>Size</th>
+<th>License</th>
+<th>Bundle?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Mozilla Common Voice <code>yue</code></strong> (v27.0, 2026-09-11)</td>
+<td>279,396 clips, 210.8 validated h / 307 h total, 1,188 speakers, 6.4 GB; 62% female-tagged</td>
+<td><strong>CC0</strong></td>
+<td>✅ (public domain)</td>
+<td>Stats from <code>common-voice/cv-dataset</code> <code>datasets/scripted-speech/cv-corpus-27.0-2026-09-11.json</code>. Download now via <strong>Mozilla Data Collective</strong> (<a href="https://mozilladatacollective.com/">https://mozilladatacollective.com/</a>). Its download terms ask you not to try to identify speakers.</td>
+</tr>
+<tr>
+<td><strong>Common Voice <code>zh-HK</code></strong> (v27.0)</td>
+<td>124,379 clips, 108.6 validated h, 3,114 speakers, 3.7 GB</td>
+<td><strong>CC0</strong></td>
+<td>✅</td>
+<td>same</td>
+</tr>
+<tr>
+<td><strong>MDCC</strong> (HKUST)</td>
+<td>about 73 h</td>
+<td>Signed license, &quot;<strong>research purposes only</strong>&quot; (<a href="https://github.com/HLTCHKUST/cantonese-asr">https://github.com/HLTCHKUST/cantonese-asr</a> README)</td>
+<td>❌</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>CantoMap</strong></td>
+<td>12 h 48 min map-task dialogues</td>
+<td>Recordings &quot;available to academic researchers upon request&quot; (<a href="https://github.com/gwinterstein/CantoMap">https://github.com/gwinterstein/CantoMap</a>)</td>
+<td>❌</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>HKCanCor</strong></td>
+<td>transcripts CC BY; audio</td>
+<td>&quot;only samples of the sound are available for download, the complete files were not released&quot; (<a href="https://github.com/fcbond/hkcancor">https://github.com/fcbond/hkcancor</a>)</td>
+<td>❌</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>CanCLID/zoengjyutgaai</strong> 張悅楷講古</td>
+<td>storytelling, HF dataset</td>
+<td>Labelled <strong>CC0</strong> on HF</td>
+<td>⚠️</td>
+<td>1950s–90s Guangzhou storyteller. Wrong register for a dictionary, and the provenance of the CC0 claim (broadcast rights) is uncertain.</td>
+</tr>
+<tr>
+<td><code>AlienKevin/wordshk_cantonese_speech</code> (HF)</td>
+<td>114,988 clips, 2.3 GB</td>
+<td>Labelled CC BY 4.0</td>
+<td>⚠️</td>
+<td><strong>Synthetic.</strong> Its sibling tooling <code>wordshk-tools/tts/tts.py</code> generates audio with <strong>Amazon Polly</strong>. Not human recordings.</td>
+</tr>
+<tr>
+<td><code>alvanlii/cantonese-youtube</code>, <code>cantonese-radio</code> (HF)</td>
+<td>scraped media</td>
+<td>no license</td>
+<td>❌</td>
+<td></td>
+</tr>
+</tbody></table>
+<h3>4.1 Cutting word clips out of Common Voice with forced alignment: effort estimate</h3>
+<ul>
+<li><strong>Tools:</strong> Montreal Forced Aligner, plus the <strong>MIT-licensed HK Cantonese acoustic models and lexicons</strong> at <a href="https://github.com/chenchenzi/HKCantonese_models">https://github.com/chenchenzi/HKCantonese_models</a>. These are trained on CV zh-HK + yue v19 (308.7 h, 3,400 speakers) and come with Jyutping lexicons.</li>
+<li><strong>Pipeline:</strong><ol>
+<li>Convert CV sentences to Jyutping (ToJyutping/pycantonese).</li>
+<li>Run MFA align to get word/syllable TextGrids.</li>
+<li>Cut out dictionary words.</li>
+<li>Score each candidate (alignment log-likelihood, SNR, CV up/down votes, speaker consistency) and keep the best token per word, ideally from a few &quot;house&quot; speakers.</li>
+</ol>
+</li>
+<li><strong>Effort:</strong> about 1–2 weeks engineering plus significant manual QA listening. A realistic yield is a few thousand clean common words, but many dictionary words never appear in CV sentences.</li>
+<li><strong>Quality caveats:</strong><ul>
+<li>Words cut from running speech carry coarticulation and sentence prosody, and are often clipped at the edges.</li>
+<li>Mic quality varies wildly between speakers.</li>
+<li>The upside: natural changed tones (變調) are preserved.</li>
+</ul>
+</li>
+<li><strong>Verdict:</strong> a phase-2 project. Not a substitute for a clean syllable set.</li>
+</ul>
+<hr>
+<h2>5. Offline TTS for sentences</h2>
+<h3>5.1 Built-in platform voices (recommended for sentences)</h3>
+<ul>
+<li><strong>iOS/macOS (AVSpeechSynthesizer):</strong><ul>
+<li>Cantonese (Hong Kong) is listed under &quot;VoiceOver, Live Speech, Read &amp; Speak&quot; at <a href="https://www.apple.com/ios/feature-availability/">https://www.apple.com/ios/feature-availability/</a>.</li>
+<li>Voices: <strong>Sinji</strong> (female; compact/enhanced/premium tiers) and <strong>Aasing</strong> (male). Source: <code>readium/speech</code> <code>json/yue.json</code>, <a href="https://github.com/readium/speech/blob/main/json/yue.json">https://github.com/readium/speech/blob/main/json/yue.json</a>.</li>
+<li>Verified on this Mac: <code>AVSpeechSynthesisVoice.speechVoices()</code> returns <code>yue-HK Sinji com.apple.voice.super-compact.zh-HK.Sinji</code>. <strong>Recent OS versions report the language as <code>yue-HK</code>; older ones use <code>zh-HK</code>. Match both.</strong></li>
+<li>Enhanced/premium voices are user-downloaded (Settings › Accessibility › Spoken Content) and then work offline.</li>
+</ul>
+</li>
+<li><strong>Android (Google Speech Services):</strong> five Cantonese voices, each with an offline <code>-local</code> variant: <code>yue-hk-x-jar-local</code>, <code>yue-hk-x-yuc-local</code> (female), <code>yue-hk-x-yud-local</code>, <code>yue-hk-x-yue-local</code>, <code>yue-hk-x-yuf-local</code> (male) (readium <code>yue.json</code>).<ul>
+<li>Availability depends on the device. Phones without Google services (e.g. Huawei, many China-market ROMs) may have no Cantonese engine at all.</li>
+</ul>
+</li>
+<li><strong>React Native APIs:</strong><ul>
+<li><strong><code>expo-speech</code></strong> (<a href="https://docs.expo.dev/versions/latest/sdk/speech/">https://docs.expo.dev/versions/latest/sdk/speech/</a>): <code>Speech.speak(text, { language: &#39;zh-HK&#39; | &#39;yue-HK&#39;, voice })</code>, <code>getAvailableVoicesAsync()</code> → <code>{identifier, language, name, quality: Default|Enhanced}</code>. The docs do not say how it behaves offline.</li>
+<li><strong><code>react-native-tts</code></strong> (<a href="https://github.com/ak1394/react-native-tts">https://github.com/ak1394/react-native-tts</a>, last push 2024-06): <code>Tts.voices()</code> exposes <code>networkConnectionRequired</code> and <code>notInstalled</code> (Android only) and <code>quality</code> (300/500). <code>Tts.requestInstallData()</code> opens the voice download. That makes it easier to <strong>guarantee offline</strong>: filter out voices that need the network.</li>
+</ul>
+</li>
+<li><strong>Pros:</strong> 0 MB, natural sentence prosody.</li>
+<li><strong>Cons:</strong><ul>
+<li>Cannot be pinned to a Jyutping reading: polyphonic characters (行 hang4/hong4, 樂 lok6/ngok6) and colloquial characters may be misread.</li>
+<li>Changed tones are hit-or-miss.</li>
+<li>The voice varies by device.</li>
+<li>iOS 16+ has <code>AVSpeechSynthesisIPANotationAttribute</code> for IPA-forced pronunciation, but I did not test it with Cantonese, and expo-speech doesn&#39;t expose it.</li>
+</ul>
+</li>
+</ul>
+<h3>5.2 Open-source on-device neural TTS (not recommended to bundle yet)</h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Size</th>
+<th>License</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>sherpa-onnx <code>vits-cantonese-hf-xiaomaiiwn</code></strong> (<a href="https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models">https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models</a>; <code>csukuangfj/vits-cantonese-hf-xiaomaiiwn</code>)</td>
+<td>102 MB tar.bz2 / <strong>108.7 MB ONNX</strong></td>
+<td><strong>No license</strong> on upstream <code>xiaomaiiwn/vits-cantonese</code> (HF card missing)</td>
+<td>Runs on-device via sherpa-onnx (iOS/Android/RN bindings exist). Legally unusable without the author&#39;s permission.</td>
+</tr>
+<tr>
+<td><strong>hon9kon9ize/bert-vits-zoengjyutgaai-onnx</strong></td>
+<td><strong>213 MB</strong> ONNX (plus a BERT front-end)</td>
+<td>No license on the model repo; data labelled CC0</td>
+<td>Storyteller voice (old Guangzhou style). Too big, unclear terms.</td>
+</tr>
+<tr>
+<td><strong>hon9kon9ize/bert-vits2-cantonese</strong></td>
+<td>about 700 MB <code>.pth</code> checkpoints</td>
+<td>MIT</td>
+<td>Needs export and pruning; still far too large for mobile.</td>
+</tr>
+<tr>
+<td><strong>jmtl/hk-cantonese-cc0-qwen3-tts</strong> (LoRA on Qwen3-TTS 1.7B; GGUF build)</td>
+<td><strong>about 2.2 GB</strong> GGUF</td>
+<td>Apache-2.0 (base-model data undisclosed)</td>
+<td>Good quality, desktop-class only.</td>
+</tr>
+<tr>
+<td><strong>Ekho</strong> (concatenative, §2.5)</td>
+<td>about 6–20 MB voice</td>
+<td>GPL-2.0</td>
+<td>Robotic, but it is the only truly open <em>and</em> small option. Android APK <code>ekho-cantonese-9.0.apk</code> (22 MB).</td>
+</tr>
+<tr>
+<td>Piper / MeloTTS / Kokoro</td>
+<td>none</td>
+<td>—</td>
+<td>No Cantonese voices (Piper <code>voices.json</code> has only <code>zh_CN-*</code>).</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Approach trade-offs for words and sentences</h2>
+<h3>6.1 Syllable concatenation</h3>
+<ul>
+<li><strong>Pros:</strong><ul>
+<li>Real human voice, tiny (about 5–7 MB), works 100% offline on every device.</li>
+<li>Exactly matches the dictionary&#39;s Jyutping, including the reading chosen for a polyphonic character.</li>
+<li>If the dictionary marks <strong>changed tones</strong> explicitly (words.hk writes e.g. <code>ngan4 zi2</code>, 仔女 <code>zai2 neoi2</code>), you just play the changed-tone syllable.</li>
+</ul>
+</li>
+<li><strong>Cons:</strong><ul>
+<li>Each syllable is a citation-form, full-length recording. There is no coarticulation, no phrase-final lengthening and no sentence intonation, so the result sounds choppy.</li>
+<li>Entering tones (-p/-t/-k) and short particles (咗, 嘅) sound unnaturally isolated.</li>
+<li>Fine for <strong>words of 2–4 syllables</strong>, poor for sentences.</li>
+</ul>
+</li>
+<li><strong>Mitigations:</strong><ul>
+<li>Trim leading/trailing silence (wordshk_app already does).</li>
+<li>Overlap syllables by about 30–60 ms with a short crossfade.</li>
+<li>Speed up non-final syllables slightly (about 0.85× duration).</li>
+<li>Normalise loudness (−16 LUFS).</li>
+<li>Changed-tone syllables (e.g. <code>*2</code>, high-level <code>*1</code>) must exist in the set, which is why ≥2,300 syllables matter.</li>
+</ul>
+</li>
+</ul>
+<h3>6.2 Platform TTS</h3>
+<ul>
+<li>Natural prosody and free. However, coverage depends on the device, you can&#39;t control the reading, and the voice is inconsistent across devices. Best for example sentences, with a &quot;TTS&quot; label.</li>
+</ul>
+<h3>6.3 Cloud TTS, pre-generated</h3>
+<ul>
+<li>You can ask the cloud engine for exact phonemes:<ul>
+<li>Polly SSML <code>&lt;phoneme alphabet=&quot;x-amazon-jyutping&quot; ph=&quot;…&quot;&gt;</code>, used in <code>wordshk-tools/tts/tts.py</code>.</li>
+<li>Azure <code>&lt;phoneme alphabet=&#39;sapi&#39;&gt;</code>, used in <code>jyut-dict/src/dictionaries/tts/azure.py</code>.</li>
+</ul>
+</li>
+<li>That gives correct readings with natural prosody. Generate every headword once and ship it as an optional pack, or stream and cache.</li>
+<li>Synthetic, but the most natural-sounding <em>controllable</em> option.</li>
+</ul>
+<hr>
+<h2>7. Comparison table</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Level</th>
+<th>Items</th>
+<th>Coverage of 2,519 words.hk syllables (types / token-weighted)</th>
+<th>Speaker</th>
+<th>Format (as served)</th>
+<th>Total size</th>
+<th>License</th>
+<th>Bundle free app?</th>
+<th>Bundle paid app?</th>
+<th>Maintained</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>words.hk female set</strong> (words.hk / wordshk_app / jyutping.org)</td>
+<td>syllable</td>
+<td>3,902</td>
+<td><strong>90.6% / 99.52%</strong></td>
+<td>1 F</td>
+<td>MP3 22 kHz ~32 kbps</td>
+<td>9.8 MB</td>
+<td>None published (© HK Lexicography Ltd presumed)</td>
+<td>⚠️ ask</td>
+<td>⚠️ ask</td>
+<td>stable (2022)</td>
+</tr>
+<tr>
+<td>EDB 學習字詞表</td>
+<td>syllable</td>
+<td>2,487</td>
+<td>87.5% / 99.26%</td>
+<td>1 F</td>
+<td>MP3 44.1 kHz 96 kbps</td>
+<td>~19 MB</td>
+<td>© HKSAR EDB, personal/non-commercial only</td>
+<td>❌</td>
+<td>❌</td>
+<td>active site</td>
+</tr>
+<tr>
+<td>CUHK lexi-can</td>
+<td>syllable</td>
+<td>1,867</td>
+<td>69.0% / 96.79%</td>
+<td>1 (陳京英)</td>
+<td>WAV 8-bit 11 kHz</td>
+<td>~30 MB</td>
+<td>none (QEF-funded)</td>
+<td>❌</td>
+<td>❌</td>
+<td>legacy</td>
+</tr>
+<tr>
+<td>EdUHK CKC</td>
+<td>syllable</td>
+<td>1,260</td>
+<td>49.9% / 90.28%</td>
+<td>1 F (陳淑貞)</td>
+<td>WAV 16 kHz</td>
+<td>52 MB</td>
+<td>none</td>
+<td>❌</td>
+<td>❌</td>
+<td>legacy</td>
+</tr>
+<tr>
+<td>Ekho jyutping-wong</td>
+<td>syllable</td>
+<td>~2,200 (unverified)</td>
+<td>not measured</td>
+<td>1 M (Cameron Wong)</td>
+<td>WAV 16k/44.1k; packed .voice</td>
+<td>19.6 / 103 MB raw; 5.6 MB packed</td>
+<td><strong>GPL-2.0</strong></td>
+<td>✅ (GPL duties)</td>
+<td>⚠️ GPL + App Store conflict</td>
+<td>active repo</td>
+</tr>
+<tr>
+<td>Lingua Libre yue</td>
+<td>char/word</td>
+<td>7,410 (5,094 two-char)</td>
+<td>~500–800 syllables (est.)</td>
+<td>~10 speakers</td>
+<td>WAV</td>
+<td>~550 MB raw → ~30 MB AAC</td>
+<td><strong>CC BY-SA 4.0</strong></td>
+<td>✅ attribution</td>
+<td>✅ attribution</td>
+<td>ongoing</td>
+</tr>
+<tr>
+<td>Commons Cantonese pronunciation</td>
+<td>syllable/word</td>
+<td>820</td>
+<td>small</td>
+<td>Jyugulik, Justinrleung…</td>
+<td>OGG/Opus</td>
+<td>small</td>
+<td>CC BY-SA 3.0/4.0 (per file)</td>
+<td>✅</td>
+<td>✅</td>
+<td>ongoing</td>
+</tr>
+<tr>
+<td>Forvo</td>
+<td>word</td>
+<td>many</td>
+<td>—</td>
+<td>many</td>
+<td>MP3 via API</td>
+<td>—</td>
+<td>User-owned, non-commercial; paid API</td>
+<td>❌</td>
+<td>❌ (no offline license)</td>
+<td>active</td>
+</tr>
+<tr>
+<td>Common Voice yue + zh-HK</td>
+<td>sentence</td>
+<td>403k clips / 319 validated h</td>
+<td>via alignment</td>
+<td>4,300 volunteers</td>
+<td>MP3</td>
+<td>~10 GB</td>
+<td><strong>CC0</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>active</td>
+</tr>
+<tr>
+<td>MDCC / CantoMap / HKCanCor</td>
+<td>sentence</td>
+<td>73 h / 13 h / samples</td>
+<td>—</td>
+<td>many</td>
+<td>WAV</td>
+<td>—</td>
+<td>research-only / on request / unreleased</td>
+<td>❌</td>
+<td>❌</td>
+<td>—</td>
+</tr>
+<tr>
+<td>iOS Sinji/Aasing; Android yue-HK local</td>
+<td>TTS</td>
+<td>—</td>
+<td>full</td>
+<td>F/M</td>
+<td>OS</td>
+<td>0</td>
+<td>OS-provided</td>
+<td>✅</td>
+<td>✅</td>
+<td>OS</td>
+</tr>
+<tr>
+<td>sherpa-onnx vits-cantonese</td>
+<td>TTS</td>
+<td>—</td>
+<td>full</td>
+<td>1</td>
+<td>ONNX</td>
+<td>109 MB</td>
+<td><strong>none</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>2023</td>
+</tr>
+<tr>
+<td>bert-vits zoengjyutgaai ONNX</td>
+<td>TTS</td>
+<td>—</td>
+<td>full</td>
+<td>1 M</td>
+<td>ONNX</td>
+<td>213 MB</td>
+<td>unclear</td>
+<td>⚠️</td>
+<td>⚠️</td>
+<td>2024</td>
+</tr>
+<tr>
+<td>Qwen3-TTS HK LoRA</td>
+<td>TTS</td>
+<td>—</td>
+<td>full</td>
+<td>1 F</td>
+<td>GGUF</td>
+<td>2.2 GB</td>
+<td>Apache-2.0</td>
+<td>size-prohibitive</td>
+<td>size-prohibitive</td>
+<td>active</td>
+</tr>
+<tr>
+<td>Azure / Google Chirp3-HD / Polly Hiujin</td>
+<td>cloud TTS</td>
+<td>—</td>
+<td>full</td>
+<td>many</td>
+<td>API</td>
+<td>0 (stream)</td>
+<td>commercial ToS</td>
+<td>online</td>
+<td>online</td>
+<td>active</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. Recommendation</h2>
+<h3>(a) Per-syllable audio (primary)</h3>
+<ol>
+<li><strong>First choice: ask words.hk (Hong Kong Lexicography Ltd) for a written license to the female syllable set.</strong><ul>
+<li>Best measured coverage: 99.5% of syllable tokens in their 62k-word lexicon.</li>
+<li>Already loudness-normalised and trimmed for mobile by the official app, and consistent with the words.hk data you are likely to use for definitions anyway.</li>
+<li>Their open-data license is non-commercial by default, so a <strong>paid app needs explicit commercial permission</strong>. A free app still needs permission because the audio isn&#39;t marked open.</li>
+<li>Credit as jyutping.org does (&quot;錄音數據來源係粵典&quot;).</li>
+</ul>
+</li>
+<li><strong>If permission is refused or slow: commission your own syllable recordings</strong> (one native HK speaker, ideally female/male pair).<ul>
+<li>Build the list from the words.hk lexicon (2,519 syllables) ∪ LSHK (2,336), about 2,600 items.</li>
+<li>At roughly 6–10 s per take including retakes, that&#39;s about 4–7 hours of studio time plus editing.</li>
+<li>Use a work-for-hire/assignment contract so you own the copyright and could even release it CC BY. Budget: low thousands of USD.</li>
+<li>Record citation form <strong>and</strong> the common changed-tone variants.</li>
+</ul>
+</li>
+<li><strong>Open interim fallback:</strong> Ekho <code>jyutping-wong</code> (GPL-2.0) if the app is Android-only or open source. Avoid it in a closed-source iOS build.</li>
+<li><strong>Do not ship</strong> CUHK, EdUHK or EDB recordings. EDB is explicitly non-commercial/personal; the others have no license.</li>
+</ol>
+<p><strong>Size:</strong> about 2,600 syllables × about 2.4 KB (measured: ADTS AAC 32 kbps, 22 kHz mono averaged 2,395 B per words.hk syllable; MP3 32 kbps averaged 2,526 B) ≈ <strong>6 MB</strong>.</p>
+<ul>
+<li>Avoid per-file MP4/M4A containers: the M4A header overhead made each clip about <strong>6.4 KB</strong> in testing, almost 3× the size.</li>
+<li>Pack all syllables into one audio &quot;sprite&quot; plus an offset index, or use raw ADTS/MP3. This also avoids thousands of tiny files in the app bundle.</li>
+</ul>
+<h3>(b) Per-word audio</h3>
+<ul>
+<li><strong>Bundle or offer as a download pack: Lingua Libre (7,410) + Commons (820) CC BY-SA recordings.</strong> That&#39;s about 5,000 multi-character words (common vocabulary is over-represented), about 25–30 MB as AAC.<ul>
+<li>Show the speaker and license on the entry, plus an attributions screen.</li>
+<li>Keep the audio files un-DRM&#39;d and separately licensed (CC BY-SA). App code stays proprietary.</li>
+</ul>
+</li>
+<li>Phase 2: mine <strong>Common Voice (CC0)</strong> with MFA + <code>chenchenzi/HKCantonese_models</code> for more words.</li>
+<li>Optionally, pre-generate the rest with cloud TTS using explicit Jyutping phonemes, labelled &quot;synthetic&quot;.</li>
+</ul>
+<h3>(c) Sentence read-aloud offline</h3>
+<ul>
+<li><strong>Primary: platform TTS</strong> (iOS Sinji/Aasing; Android <code>yue-HK-x-*-local</code>).<ul>
+<li>Use <code>react-native-tts</code> if you need <code>networkConnectionRequired</code>/<code>notInstalled</code> filtering to guarantee offline; <code>expo-speech</code> works if you&#39;re on Expo.</li>
+<li>Detect both <code>zh-HK</code> and <code>yue-HK</code> voice codes.</li>
+<li>Prompt the user to download the enhanced voice.</li>
+</ul>
+</li>
+<li><strong>Fallback: syllable concatenation</strong> with crossfades, from the dictionary&#39;s own Jyutping, which already carries changed tones. Always available and always reads the correct syllables, but robotic for long sentences.</li>
+<li><strong>Trade-off summary:</strong><ul>
+<li>TTS: better prosody and intonation, but may misread polyphonic and colloquial characters and changed tones, and isn&#39;t guaranteed to be installed.</li>
+<li>Concatenation: always correct per syllable (including written changed tones), but no coarticulation or intonation.</li>
+<li>Don&#39;t bundle a neural model now: the small ones (109–213 MB) have no clear license, and the licensed one is 2.2 GB.</li>
+</ul>
+</li>
+</ul>
+<h3>(d) Online-quality option</h3>
+<ul>
+<li>Azure <code>zh-HK-HiuMaanNeural</code> / <code>WanLungNeural</code> / <code>HiuGaaiNeural</code>, Google <code>yue-HK-Chirp3-HD-*</code> (30 voices; <code>yue-HK-Standard-A..D</code> cheaper), Amazon Polly <strong>Hiujin</strong> (neural; Polly FAQ: &quot;You can cache and replay Amazon Polly&#39;s generated speech at no additional cost&quot;; &quot;your Polly output belongs to you&quot;).</li>
+<li>Use SSML phonemes so the audio follows the dictionary&#39;s Jyutping. Cache on device.</li>
+<li>Can also be used offline-first by <strong>pre-rendering a per-word pack</strong>: about 60k headwords × about 4 KB ≈ 240 MB, so make it an optional download. A top-10k pack is about 40 MB.</li>
+</ul>
+<h3>App-size budget (suggested)</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Syllable sprite (~2,600 syllables, AAC 32 kbps)</td>
+<td>~6 MB, bundled</td>
+</tr>
+<tr>
+<td>LL/Commons human word pack</td>
+<td>~25–30 MB, optional download</td>
+</tr>
+<tr>
+<td>Platform TTS</td>
+<td>0 MB</td>
+</tr>
+<tr>
+<td>Cloud-TTS pre-rendered word pack (optional)</td>
+<td>~40 MB (top 10k) to ~240 MB (all)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>9. License caveats checklist</h2>
+<ul>
+<li><strong>words.hk audio:</strong> no public license, so get written permission (commercial permission if the app is paid). The jyutping.org repo&#39;s MIT license does <strong>not</strong> cover these recordings.</li>
+<li><strong>CC BY-SA (Lingua Libre/Commons):</strong><ul>
+<li>Credit the speaker or uploader, the license and the source URL for each file.</li>
+<li>Edited audio (adaptations) must stay BY-SA. Transcoding/trimming is arguably only a technical modification.</li>
+<li>Don&#39;t wrap the files in DRM.</li>
+<li>Some older files are BY-SA 3.0 or 1.0, so check per file via the Commons API (<code>prop=imageinfo&amp;iiprop=extmetadata</code>).</li>
+</ul>
+</li>
+<li><strong>GPL-2.0 (Ekho):</strong> ship the license and the WAV &quot;source&quot;. The conflict with App Store terms is unresolved; prefer Android/open-source distribution.</li>
+<li><strong>Common Voice:</strong> CC0, but respect the dataset terms (no attempts to identify speakers) and consider speaker privacy when extracting clips.</li>
+<li><strong>EDB / CUHK / EdUHK / Forvo / CantoDict / MDCC / CantoMap:</strong> not redistributable in an app without explicit permission.</li>
+<li><strong>Neural TTS models:</strong> check both the model license and the training-data license. <code>xiaomaiiwn</code> has neither.</li>
+<li><strong>Cloud TTS:</strong> read each provider&#39;s terms on storing and redistributing output (Polly explicitly allows caching and replay).</li>
+</ul>
+<hr>
+<h2>10. Method notes / reproducibility</h2>
+<ul>
+<li><strong>Coverage probes:</strong> <code>curl -I</code> for each of the 2,336 LSHK syllables against words.hk, EDB and CUHK, plus GET for the 509 extra words.hk syllables against EDB and CUHK. EDB and words.hk return 404 for nonsense syllables (<code>zzz9</code>), so 200s are genuine.</li>
+<li><strong>GitHub tree listings:</strong> <code>gh api repos/&lt;repo&gt;/git/trees/HEAD?recursive=1</code> for <code>AlienKevin/wordshk_app</code>, <code>CanCLID/jyutping.org</code>, <code>handong66/Cantonese-Mandarin-Cross-Ref</code>, <code>hgneng/ekho</code>.</li>
+<li><strong>Commons:</strong> <code>list=categorymembers</code> and <code>prop=imageinfo&amp;iiprop=extmetadata</code> (rate-limited; enumerated in two directions to get all 7,410).</li>
+<li><strong>Speaker F0:</strong> a crude autocorrelation estimate on <code>si1</code>/<code>si4</code> samples, used only for gender plausibility. The CUHK result was inconclusive because of 8-bit noise.</li>
+<li><strong>Size measurements:</strong> <code>afconvert</code> on 30 random words.hk syllables. ADTS-AAC 32 kbps averaged 2,395 B; M4A averaged 6,385 B (container overhead).</li>
+</ul>
+
+  </main>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "audio-datasets.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "audio-datasets.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = localStorage.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+</body>
+</html>

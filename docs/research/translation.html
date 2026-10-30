@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mandarin → Cantonese translation (offline + online) research</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <main id="doc">
+<h1>Mandarin → Cantonese translation (offline + online) research</h1>
+<p><em>Researched 2026-10-29. Scope: translate a Mandarin / Standard Written Chinese sentence (simplified or traditional input) into natural Hong Kong Cantonese characters plus per-character Jyutping, inside a React Native app. Offline is required. An optional online tier uses the user&#39;s own OpenAI API key.</em></p>
+<hr>
+<h2>0. TL;DR</h2>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>What ships</th>
+<th>Expected quality (honest)</th>
+<th>Size cost</th>
+<th>License risk</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>v1 offline baseline</strong> (ships in the app)</td>
+<td>OpenCC-style script normalisation, a curated Mandarin→Cantonese <strong>phrase table</strong> with longest-match replacement, a few dozen <strong>regex grammar rules</strong> (比→過, 先 placement, 畀 word order, 在→喺/緊, 了→咗/喇, A-not-A questions), then <strong>to-jyutping</strong> for Jyutping</td>
+<td>Short everyday sentences often come out right. Longer or idiomatic input gives &quot;Cantonese-flavoured written Chinese&quot;. Expect roughly 25–50% of short sentences to need no edits, much lower for long ones. Label it in the UI as &quot;quick offline conversion&quot;.</td>
+<td>&lt; 3 MB total (JS + data)</td>
+<td>Low <strong>if</strong> you build your own table from CC0 / CC-BY data. Do <strong>not</strong> bundle the GPL <code>cmn2yue.dic</code> or the NC-licensed words.hk data in a closed-source app.</td>
+</tr>
+<tr>
+<td><strong>v1.x optional offline download</strong></td>
+<td>One neural model (~0.25–1.3 GB). Pick by license: <strong>(a)</strong> commercial app: fine-tune your own small model (e.g. Qwen3.5-0.8B or 2B, Apache-2.0) on CC-BY/CC0 parallel data (HKAllen 472k pairs, raptorkwok-base 110k pairs), run it with <code>llama.rn</code>; <strong>(b)</strong> non-commercial app: ship <code>hon9kon9ize/bart-translation-zh-yue-onnx</code> (~220 MB int8, CC-BY-NC-SA) with <code>onnxruntime-react-native</code>, or NLLB-200-distilled-600M (CC-BY-NC).</td>
+<td>Better fluency than rules, but small models change meaning (they drop clauses, answer the question instead of translating it, keep Mandarin words). Out-of-the-box Qwen3.5 ≤2B was <strong>worse than rules</strong> in my test. Only 4B started to look usable, and it is a 2.7 GB download.</td>
+<td>0.25–2.7 GB download plus 13–35 MB native runtime</td>
+<td>The NC licenses (NLLB, BART zh-yue) rule out a paid or ad-supported app. Qwen3.5 is Apache-2.0.</td>
+</tr>
+<tr>
+<td><strong>Online tier (user&#39;s key)</strong></td>
+<td>OpenAI Responses API, Structured Outputs (JSON schema), model <strong><code>gpt-6-luna</code></strong> by default (US$0.10 / 1M input tokens, US$0.50 / 1M output) with an optional &quot;quality&quot; model (<code>gpt-6.1-terra</code>). The LLM returns <strong>characters only</strong>. Jyutping is always computed locally by to-jyutping.</td>
+<td>Best authenticity available. Still check it against the local dictionary (flag Mandarin-only words, simplified characters).</td>
+<td>none</td>
+<td>None for you. The user pays OpenAI. Store the key with <code>expo-secure-store</code> (iOS Keychain / Android Keystore).</td>
+</tr>
+</tbody></table>
+<p>The single biggest design decision is to <strong>always derive Jyutping locally</strong> (to-jyutping, BSD-2-Clause) from the final Cantonese characters, whichever tier produced them. LLM-generated Jyutping is unreliable: a local 4B model got 36 of 49 syllables wrong (§6.3).</p>
+<hr>
+<h2>1. Why Mandarin → Cantonese is harder than &quot;swap some characters&quot;</h2>
+<p><em>Beginner context: &quot;Standard Written Chinese&quot; (書面語) is the Mandarin-based written language used in Hong Kong newspapers and schools. Written colloquial Cantonese (粵文/口語) is how people write the way they speak (WhatsApp, LIHKG forums, subtitles on some shows). The two share most characters but differ in:</em></p>
+<ol>
+<li><strong>Vocabulary</strong>: 是→係, 不→唔, 没有→冇, 他/她→佢, 的→嘅, 在→喺, 看→睇, 吃→食, 喝→飲, 说→講, 东西→嘢, 这/那→呢/嗰, 谁→邊個, 什么→乜嘢, 为什么→點解, 今天/明天/昨天→今日/聽日/琴日, 一起→一齊, 抽烟→食煙.</li>
+<li><strong>Grammar and word order</strong>:<ul>
+<li>Comparatives: 我比你高 → 我高過你.</li>
+<li>Adverb 先: 你先走 → 你行先.</li>
+<li>Double object: 给我一杯水 → 畀杯水我 (theme before recipient, and the 一 numeral is often dropped).</li>
+<li>Aspect: 了 → 咗 (perfective) or 喇 (change of state); 在看 → 睇緊 (progressive).</li>
+<li>Questions: 你会不会 / 你知道…吗 → 你識唔識 / 你知唔知 (A-not-A instead of 吗); 你吃饭了吗 → 你食咗飯未.</li>
+<li>Classifiers: 一辆车 → 架車 (classifier without 一).</li>
+</ul>
+</li>
+<li><strong>Sentence-final particles</strong> (啦, 喇, 呀, 㗎, 咩, 囉…). They have no 1:1 Mandarin source, so you have to <em>generate</em> them.</li>
+<li><strong>Word sense depends on context</strong>: 谢谢 becomes 多謝 for a gift but 唔該 for a service. 告诉我 → 話畀我知. 走 can mean 行 (&quot;walk/leave&quot;) or 走 (&quot;run away&quot;).</li>
+<li><strong>Orthography is not standardised</strong>, and there are variant characters. HK-standard 説/爲/裏 vs 說/為/裡. This matters for dictionary lookups (§3.4 pitfall).</li>
+</ol>
+<p>This is why pure dictionary substitution plateaus quickly, and why the online LLM tier is worth having.</p>
+<hr>
+<h2>2. Hands-on smoke test (run locally for this report)</h2>
+<p>I could not find a public benchmark covering <em>all</em> the candidates. So I ran a small, <strong>non-authoritative</strong> test on a Mac (M-series, CPU/Metal) with:</p>
+<ul>
+<li><strong>Set A</strong>: 16 everyday sentences. <strong>Caveat:</strong> I wrote the rule table while looking at these, so the rule score is optimistic.</li>
+<li><strong>Set B</strong>: 12 <em>held-out</em> sentences, written after the rule table was frozen. This is the fairer check.</li>
+<li>References are my own colloquial HK Cantonese translations. They have <strong>not</strong> been validated by a native-speaker panel, and many valid alternatives exist. The metric is corpus <strong>chrF</strong> (character n-gram F-score, 0–100, higher is better; punctuation stripped) plus exact-match counts. With 28 sentences, treat differences under about 10 points as noise.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Set A chrF</th>
+<th>Set A exact</th>
+<th><strong>Set B chrF (held-out)</strong></th>
+<th>Set B exact</th>
+<th>Size</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Identity (OpenCC s2hk only, no translation)</td>
+<td>10.9</td>
+<td>0/16</td>
+<td>12.9</td>
+<td>0/12</td>
+<td>~1 MB</td>
+</tr>
+<tr>
+<td>Rules: my ~100-entry core table + 4 regex rules</td>
+<td>65.9*</td>
+<td>6/16</td>
+<td><strong>54.3</strong></td>
+<td>3/12</td>
+<td>&lt; 10 KB</td>
+</tr>
+<tr>
+<td>Rules: <code>cmn2yue.dic</code> only (19.5k entries, GPL)</td>
+<td>22.1</td>
+<td>0/16</td>
+<td>27.9</td>
+<td>0/12</td>
+<td>358 KB</td>
+</tr>
+<tr>
+<td>Rules: <code>cmn2yue.dic</code> + core + regex</td>
+<td>38.7</td>
+<td>2/16</td>
+<td>33.9</td>
+<td>1/12</td>
+<td>358 KB</td>
+</tr>
+<tr>
+<td>Qwen3.5-0.8B Q4_K_M, prompted (2-shot)</td>
+<td>17.1</td>
+<td>1/16</td>
+<td>10.9</td>
+<td>0/12</td>
+<td>533 MB</td>
+</tr>
+<tr>
+<td>Qwen3.5-2B Q4_K_M, prompted</td>
+<td>18.0</td>
+<td>1/16</td>
+<td>20.5</td>
+<td>0/12</td>
+<td>1.28 GB</td>
+</tr>
+<tr>
+<td>Qwen3.5-4B Q4_K_M, prompted</td>
+<td>30.3</td>
+<td>2/16</td>
+<td>36.2</td>
+<td>1/12</td>
+<td>2.74 GB</td>
+</tr>
+<tr>
+<td>NLLB-200-distilled-600M (fp32, beam 4, <code>zho_Hans</code>→<code>yue_Hant</code>)</td>
+<td>35.3</td>
+<td>3/16</td>
+<td>25.2</td>
+<td>2/12</td>
+<td>2.46 GB fp32 / ~0.6–0.9 GB int8</td>
+</tr>
+</tbody></table>
+<p>* Optimistic, because the rules were tuned on Set A.</p>
+<p>Not tested: <code>indiejoseph/bart-translation-zh-yue</code>, its ONNX export, <code>botisan-ai/mt5-translate-zh-yue</code>, <code>hou000123/zh2yue-translation</code>, <code>ERNIE-4.5-0.3B-Yue</code>. The corporate proxy blocked Hugging Face LFS downloads (<code>Bloomberg Proxy Exception Page - Access Denied</code>), and those models are not mirrored on ModelScope. The Qwen GGUFs and NLLB weights came from ModelScope mirrors.</p>
+<h3>Representative outputs (held-out Set B)</h3>
+<pre><code>IN   你会不会说广东话？          REF 你識唔識講廣東話？
+RULE 你會唔會説廣東話？          (說→講 missed: OpenCC s2hk emitted 説, my table key was 說)
+0.8B 我唔會說廣東話，但我會講粵語。 (answered the question instead of translating)
+2B   我話廣東話呀。
+4B   你會講廣東話嗎？
+NLLB 你會話廣東嗎?
+
+IN   你为什么不告诉我？          REF 你點解唔話畀我知？
+RULE 你點解唔告訴我？
+4B   你點解唔同我講呀？           (good)
+NLLB 你點解唔話俾我知?            (good)
+
+IN   那边的人很多，我们走这边吧。  REF 嗰邊好多人，我哋行呢邊啦。
+RULE 嗰邊嘅人好多，我哋行呢邊啦。
+NLLB 我哋可以走到呢度              (dropped the first clause: meaning loss)
+
+IN   你住在哪里？                REF 你住喺邊度？
+RULE 你住喺邊度？
+0.8B 我住住住住住住住…             (degenerate repetition)
+4B   你喺邊度度？
+</code></pre>
+<p>From Set A, the small Qwen models also changed meaning (<code>你在哪里？</code> → 0.8B <code>我喺香港。</code>, 2B <code>我喺邊度呀？</code>), and NLLB inverted one (<code>便宜一点好不好？</code> → <code>太便宜,唔好嗎?</code>).</p>
+<p><strong>Takeaways</strong></p>
+<ul>
+<li>A hand-curated rule baseline is competitive with every on-device neural option I could run, and it never invents content. Its failure mode is <em>under</em>-translation (leaving Mandarin words in), which is safer than hallucination.</li>
+<li>Generic small LLMs (≤2B) are <strong>not</strong> good Mandarin→Cantonese translators out of the box. They mix in Mandarin (們, 吧, 這, simplified characters), answer instead of translating, and loop. 4B is noticeably better but still makes errors.</li>
+<li>NLLB-600M produces real Cantonese function words (佢/喺/咗/啲/冇) but sometimes drops or inverts clauses. Its own published FLORES-200 score for <code>zho_Hans-yue_Hant</code> is chrF++ <strong>16.8</strong> (from Meta&#39;s metrics CSV for this checkpoint: <a href="https://dl.fbaipublicfiles.com/large_objects/nllb/models/nllb_200_dense_distill_600m/metrics.csv">https://dl.fbaipublicfiles.com/large_objects/nllb/models/nllb_200_dense_distill_600m/metrics.csv</a>, line <code>zho_Hans-yue_Hant,16.8</code>; compare <code>eng_Latn-zho_Hans,19.6</code>).</li>
+<li>A big general phrase table is <strong>not</strong> automatically better. <code>cmn2yue.dic</code> made output worse because of over-eager, slangy, or wrong mappings (§3.1).</li>
+</ul>
+<hr>
+<h2>3. Offline option A: rule / dictionary conversion</h2>
+<h3>3.1 Existing open-source converters and tables</h3>
+<table>
+<thead>
+<tr>
+<th>Project</th>
+<th>What it is</th>
+<th>Quality notes (my inspection)</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>bluebat/msgchi <code>cmn2yue.dic</code></strong><br><a href="https://github.com/bluebat/msgchi/blob/master/cmn2yue.dic">https://github.com/bluebat/msgchi/blob/master/cmn2yue.dic</a></td>
+<td>19,582-line <code>mandarin|cantonese</code> phrase table (traditional characters) used by the <code>msgchi</code> gettext translator. Also used by AlienKevin&#39;s phrase-based experiment.</td>
+<td>Broad coverage but noisy. Examples from the file: <code>一向|不摟</code>, <code>得病|唔精神</code>, <code>號|碼</code>. In my test: <code>不在家→出門</code>, <code>好不好→正斗苴斗嘎</code>, <code>玩→撚</code> (vulgar!), <code>問題→阻滯</code>. Usable only as a <em>candidate source</em> for human curation, not as-is.</td>
+<td><strong>GPL-3.0</strong> (repo <code>LICENSE</code>). Bundling it in a closed-source app is a problem.</td>
+</tr>
+<tr>
+<td><strong>douglaswzs/mandarin-cantonese-converter</strong><br><a href="https://github.com/douglaswzs/mandarin-cantonese-converter">https://github.com/douglaswzs/mandarin-cantonese-converter</a></td>
+<td>Toy web page: <code>data.txt</code> holds a few dozen pairs (<code>是→係</code>, <code>不→唔</code>, <code>没有→冇</code>, <code>什么→乜嘢</code>…) with plain replacement</td>
+<td>Too small. Demo only.</td>
+<td>GPL-2.0</td>
+</tr>
+<tr>
+<td><strong>lenchan139/cantoneseConvertMandarinNodejs</strong><br><a href="https://github.com/lenchan139/cantoneseConvertMandarinNodejs">https://github.com/lenchan139/cantoneseConvertMandarinNodejs</a></td>
+<td>Small Node/Express Cantonese⇄Mandarin demo (2019)</td>
+<td>Tiny and unmaintained</td>
+<td>GPL-3.0</td>
+</tr>
+<tr>
+<td><strong>AlienKevin/canto_mando_phrased_based_with_gpt</strong><br><a href="https://github.com/AlienKevin/canto_mando_phrased_based_with_gpt">https://github.com/AlienKevin/canto_mando_phrased_based_with_gpt</a></td>
+<td>Notebook doing phrase-table translation (Cantonese→Mandarin) re-ranked by a Mandarin GPT. Ships <code>can2man_phrase_table*.txt</code> (1.2–1.4 MB) derived from cmn2yue + words.hk</td>
+<td>Wrong direction (yue→zh), but the phrase tables can be inverted for ideas. Data inherits GPL / words.hk NC terms.</td>
+<td>no license file</td>
+</tr>
+<tr>
+<td><strong>kiking0501/Cantonese-Chinese-Translation</strong><br><a href="https://github.com/kiking0501/Cantonese-Chinese-Translation">https://github.com/kiking0501/Cantonese-Chinese-Translation</a></td>
+<td>2019–2020 student study: copy-enriched seq2seq + translation-matrix dictionary, then Transformer/GRU NMT on movie transcripts</td>
+<td>Research code, not a product</td>
+<td>no license</td>
+</tr>
+<tr>
+<td><strong>sophia-chingyan/Cantonese_Converter</strong><br><a href="https://github.com/sophia-chingyan/Cantonese_Converter">https://github.com/sophia-chingyan/Cantonese_Converter</a></td>
+<td>Flask app that calls LLM providers (Poe/Gemini/OpenRouter) to convert 書面語 → 粵文</td>
+<td>Online LLM only. Its README notes &quot;Nobody has published a benchmark for sustained 粵文 generation quality, so this can only be checked by reading real output.&quot;</td>
+<td>no license</td>
+</tr>
+<tr>
+<td><strong>GGJason/CantoneseMandarinWords</strong></td>
+<td>Small categorised word lists (Catering/Foods/Tools)</td>
+<td>Tiny</td>
+<td>MIT</td>
+</tr>
+</tbody></table>
+<p>GitHub searches for &quot;mandarin cantonese converter&quot;, &quot;zh2yue&quot;, &quot;普通話 轉 粵語&quot;, &quot;cantonese converter&quot;, &quot;OpenCC cantonese&quot;, and &quot;書面語 粵語&quot; returned <strong>no</strong> mature, maintained, permissively licensed rule-based converter. OpenCC itself only does script and regional-variant conversion (s2hk, s2tw…), not Cantonese vocabulary. <strong>You will be building the rule engine yourself.</strong> It is small, though (my prototype is about 100 lines).</p>
+<h3>3.2 Data you can legally build a phrase table from</h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Content</th>
+<th>License</th>
+<th>Usable in a commercial closed-source app?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>HKAllen/cantonese-chinese-parallel-corpus</strong><br><a href="https://huggingface.co/datasets/HKAllen/cantonese-chinese-parallel-corpus">https://huggingface.co/datasets/HKAllen/cantonese-chinese-parallel-corpus</a></td>
+<td>472,298 <code>{yue, zh}</code> sentence pairs (zh in simplified), &quot;most has been improved through manual correction and translation&quot;. Paper: Dai et al. 2025, <em>Next-Level Cantonese-to-Mandarin Translation</em> (LoResLM). Sampled rows are Wikipedia/news-style.</td>
+<td><strong>CC-BY-4.0</strong> (dataset card)</td>
+<td>Yes, with attribution. The best source for mining phrase pairs (word alignment) or fine-tuning.</td>
+</tr>
+<tr>
+<td><strong>raptorkwok/cantonese-chinese-parallel-corpus-base</strong><br><a href="https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus-base">https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus-base</a></td>
+<td>&quot;130k+ pairs of Cantonese and Traditional Chinese parallel sentences&quot; (datasets-server reports 109,942 train / 6,545 val / 13,743 test). Mixed quality: includes dictionary-gloss pairs like <code>{&quot;yue&quot;: &quot;不可&quot;, &quot;zh&quot;: &quot;不可、不能&quot;}</code>.</td>
+<td><strong>CC0-1.0</strong></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>raptorkwok/cantonese-chinese-parallel-corpus (CCPC v2)</td>
+<td>160k/20k/5,461 pairs. Test set &quot;translated by a group of professional human translators&quot;. Training zh side machine-translated by Bing/DeepSeek V3 from LIHKG, HKCanCor, etc.</td>
+<td>CC-BY-NC-SA-4.0</td>
+<td>No (NC)</td>
+</tr>
+<tr>
+<td>botisan-ai/cantonese-mandarin-translations</td>
+<td>Machine-translated parallel corpus (yue ↔ simplified zh)</td>
+<td>CC-BY-NC-SA-4.0</td>
+<td>No</td>
+</tr>
+<tr>
+<td>hon9kon9ize/38k-zh-yue-translation-llm-generated</td>
+<td>38,142 train / 12,170 test. ChatGPT-generated zh sentences, translated by Palm2. &quot;has not undergone manual proofreading&quot;.</td>
+<td>CC-BY-NC-SA-4.0</td>
+<td>No</td>
+</tr>
+<tr>
+<td>indiejoseph/yue-zh-translation</td>
+<td>169,949 / 42,361 pairs. Crawled + machine-translated + <strong>includes botisan-ai data and AlienKevin/LIHKG</strong></td>
+<td>Card says CC-BY-4.0, but it re-mixes an NC-SA dataset, so the license is questionable</td>
+<td>Risky</td>
+</tr>
+<tr>
+<td>Paper: <em>Low-Resource NMT: A Case Study on the Written and Spoken Languages in Hong Kong</em> (arXiv 2505.17816)</td>
+<td>28K curated pairs + 72K pairs mined from zh/yue Wikipedia. Their zh→yue Transformer &quot;outperforms Baidu Fanyi&#39;s Chinese-to-Cantonese translation on 6 out of 8 test sets in BLEU&quot;.</td>
+<td>Data release not confirmed</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>meganndare/cantonese-nlp (arXiv 2301.03971)</td>
+<td>~1M monolingual Cantonese sentences + small parallel dev/test sets. Unsupervised MT reached char-BLEU 25.1 (zh→yue)</td>
+<td>Google Drive, no license</td>
+<td>Unclear</td>
+</tr>
+<tr>
+<td><strong>rime/rime-cantonese</strong><br><a href="https://github.com/rime/rime-cantonese">https://github.com/rime/rime-cantonese</a></td>
+<td>Large Cantonese word list with Jyutping (input-method lexicon)</td>
+<td><strong>CC-BY-4.0</strong></td>
+<td>Yes. Good for segmentation and for checking &quot;is this a Cantonese word&quot;.</td>
+</tr>
+<tr>
+<td><strong>words.hk (粵典)</strong></td>
+<td>Best open Cantonese dictionary, with examples and Jyutping</td>
+<td>&quot;Non-Commercial Open Data License 1.0&quot;. Section 1(a): &quot;You do not use the Licensed Work for Commercial Purposes&quot; (<a href="https://words.hk/base/hoifong/">https://words.hk/base/hoifong/</a>)</td>
+<td>No, unless you license it separately</td>
+</tr>
+<tr>
+<td>CC-Canto / CC-CEDICT Cantonese readings (<a href="https://cantonese.org/download.html">https://cantonese.org/download.html</a>)</td>
+<td>Cantonese–English dictionary + Jyutping for CC-CEDICT</td>
+<td>CC-BY-SA 3.0</td>
+<td>Yes, but share-alike applies to the <em>data file</em> you ship</td>
+</tr>
+<tr>
+<td>HKCanCor (via PyCantonese) <a href="https://github.com/fcbond/hkcancor">https://github.com/fcbond/hkcancor</a></td>
+<td>Transcribed spoken Cantonese corpus (POS-tagged, Jyutping)</td>
+<td>&quot;released under a CC BY license&quot;</td>
+<td>Yes. Good for frequency and particle statistics.</td>
+</tr>
+<tr>
+<td>ABC Cantonese dictionary examples</td>
+<td>Commercial dictionary</td>
+<td>Not openly licensed (not pursued)</td>
+<td>No</td>
+</tr>
+</tbody></table>
+<h3>3.3 Recommended rule-engine design (v1)</h3>
+<ol>
+<li><strong>Normalise script.</strong> Convert input to a <em>single</em> traditional form (OpenCC <code>s2t</code> or <code>hk2t</code>, not <code>s2hk</code>). For display, optionally convert the output to HK forms with <code>t2hk</code>. <code>opencc-js</code> (npm, &quot;MIT AND Apache-2.0&quot;, 6 MB unpacked, but you can import only the needed dictionaries) runs in pure JS.</li>
+<li><strong>Segment and replace by longest match</strong> using a curated phrase table (start with ~1–3k high-precision entries). Order the entries so that multi-character phrases win (<code>没有→冇</code> before <code>有</code>, <code>是不是→係唔係</code> before <code>是→係</code>).</li>
+<li><strong>Apply grammar rules</strong> as ordered regex/token rules on the result, in priority order: comparatives (<code>X比Y+ADJ → X+ADJ+過+Y</code>), <code>先</code> post-position, <code>畀我+CL+N → 畀+CL+N+我</code>, <code>在+V → 喺度+V+緊</code>, <code>V+了+O → V+咗+O</code>, sentence-final <code>了 → 喇</code>, <code>…吗？ → A唔A</code> for common verbs (知道/会/可以/是/有/要), <code>…了吗？ → …咗未？</code>, drop <code>一</code> before a classifier.</li>
+<li><strong>Add particles</strong> conservatively. For example, imperative <code>吧 → 啦</code> and question <code>呢 → 呢</code>. Do not invent particles otherwise.</li>
+<li><strong>Jyutping</strong>: run <code>to-jyutping</code> on the final string (§6).</li>
+<li><strong>Mark low-confidence spans.</strong> For example, if the output still contains Mandarin-only words (們, 的, 這, 那, 在, 了, 嗎, 吧, 什麼, 沒) from a stop-list, show a hint like &quot;partially converted. Go online for a natural translation.&quot;</li>
+</ol>
+<p><strong>Pitfall I hit:</strong> OpenCC <code>s2hk</code> turns 说 into <strong>説</strong> (HK form), so my table key <strong>說</strong> never matched (<code>你會唔會説廣東話</code>). Normalise both the table keys and the input with the same OpenCC config.</p>
+<p><strong>Building the table:</strong> mine candidate pairs from HKAllen (CC-BY) and raptorkwok-base (CC0) using word alignment (e.g. <code>fast_align</code> / <code>eflomal</code> on character-segmented text, or simply diffing aligned sentence pairs). Count the frequency of each zh-phrase → yue-phrase pair. Then have a native speaker approve the top ~2–5k. You can use <code>cmn2yue.dic</code> only as a <em>checklist of ideas</em> that a human re-authors, never copied wholesale, because of GPL-3.0.</p>
+<p><strong>Expected quality:</strong> good for short conversational sentences that only need common substitutions and a handful of patterns. Poor on idioms, register (news-style input), word-sense choices (谢谢→多謝/唔該), long-distance reordering, and particles. Be explicit in the UI that this is a quick conversion.</p>
+<hr>
+<h2>4. Offline option B: small seq2seq neural MT models</h2>
+<p><em>Beginner context: a &quot;seq2seq&quot; (encoder–decoder) model like BART, mT5, Marian, or NLLB reads the whole source sentence and then writes the translation token by token. &quot;Quantized int8/int4&quot; means the weights are stored in 8-bit or 4-bit integers instead of 32-bit floats, making the file 4–8× smaller with a small quality loss. ONNX and GGUF are file formats that mobile runtimes can load.</em></p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Params / files</th>
+<th>Training data &amp; quality evidence</th>
+<th>License</th>
+<th>RN path</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>indiejoseph/bart-translation-zh-yue</strong><br><a href="https://huggingface.co/indiejoseph/bart-translation-zh-yue">https://huggingface.co/indiejoseph/bart-translation-zh-yue</a></td>
+<td>BART-base (fnlp/bart-base-chinese → bart-base-cantonese). <code>model.safetensors</code> 561 MB fp32.</td>
+<td>~40k sentences generated by ChatGPT, translated by Palm2 &quot;while dedicating attention to manually rectifying any typos&quot;. Eval BLEU <strong>36.35</strong> on a similarly synthetic eval set. The card&#39;s own example output (news paragraph) is fluent HK Cantonese (<code>市議會喺11月29號宣佈破產，係繼…</code>). Known quirk: the whitespace tokenizer inserts spaces between characters (the card uses a custom pipeline).</td>
+<td><strong>CC-BY-NC-SA-4.0</strong></td>
+<td>ONNX export already exists (next row). Tokenizer is BERT WordPiece (<code>vocab.txt</code>), which for Chinese is essentially one token per character, so it is <strong>trivial to reimplement in JS</strong>.</td>
+</tr>
+<tr>
+<td><strong>hon9kon9ize/bart-translation-zh-yue-onnx</strong><br><a href="https://huggingface.co/hon9kon9ize/bart-translation-zh-yue-onnx">https://huggingface.co/hon9kon9ize/bart-translation-zh-yue-onnx</a></td>
+<td><code>encoder_model_quantized.onnx</code> 83.2 MB + <code>decoder_model_quantized.onnx</code> 137.4 MB (+ <code>decoder_with_past_model_quantized.onnx</code> 130.2 MB for KV-cache)</td>
+<td>ONNX/Optimum export of the above</td>
+<td><strong>CC-BY-NC-SA-4.0</strong></td>
+<td><code>onnxruntime-react-native</code>. You write the greedy/beam decode loop in JS (encoder once, then decoder per token). About <strong>220–350 MB</strong> download. Best size/quality <em>if</em> non-commercial.</td>
+</tr>
+<tr>
+<td><strong>facebook/nllb-200-distilled-600M</strong><br><a href="https://huggingface.co/facebook/nllb-200-distilled-600M">https://huggingface.co/facebook/nllb-200-distilled-600M</a></td>
+<td>600M. fp32 2.46 GB. CTranslate2 int8 single file <strong>622.6 MB</strong> (<code>JustFrederik/nllb-200-distilled-600M-ct2-int8</code>). ONNX quantized (Xenova) <code>encoder_model_quantized</code> 419 MB + <code>decoder_model_merged_quantized</code> 475.5 MB ≈ 0.9 GB (the 256k-token embedding table is duplicated across files).</td>
+<td>Supports <code>yue_Hant</code>. FLORES chrF++ <code>zho_Hans-yue_Hant</code> <strong>16.8</strong>. My test: real Cantonese function words, some clause drops and one inversion. 0.5–1 s per sentence on a Mac CPU in fp32.</td>
+<td><strong>CC-BY-NC-4.0</strong> (&quot;License: CC-BY-NC&quot; on the card)</td>
+<td>ONNX via <code>onnxruntime-react-native</code> (needs a SentencePiece tokenizer in JS). CTranslate2 has <strong>no RN binding</strong>. Vocabulary trimming (keep only CJK tokens) could cut size a lot, but that is non-trivial.</td>
+</tr>
+<tr>
+<td>facebook/nllb-200-distilled-1.3B</td>
+<td>5.48 GB fp32</td>
+<td>Better than 600M in general</td>
+<td>CC-BY-NC-4.0</td>
+<td>Too big for phones</td>
+</tr>
+<tr>
+<td><strong>botisan-ai/mt5-translate-zh-yue</strong><br><a href="https://huggingface.co/botisan-ai/mt5-translate-zh-yue">https://huggingface.co/botisan-ai/mt5-translate-zh-yue</a></td>
+<td>mT5-base, 2.33 GB fp32 (~600 MB int8)</td>
+<td>Trained on botisan-ai/cantonese-mandarin-translations. &quot;we do not have any training results yet.&quot; Prefix <code>translate mandarin to cantonese: </code></td>
+<td>Apache-2.0 <em>weights</em>, but trained on CC-BY-NC-SA data</td>
+<td>ONNX export possible. Large, with no quality evidence.</td>
+</tr>
+<tr>
+<td>indiejoseph/mbart-translation-zh-yue</td>
+<td>mBART, 2.44 GB</td>
+<td>Card is empty (&quot;More information needed&quot;)</td>
+<td>MIT</td>
+<td>Too big, unknown quality</td>
+</tr>
+<tr>
+<td><strong>hou000123/zh2yue-translation</strong><br><a href="https://huggingface.co/hou000123/zh2yue-translation">https://huggingface.co/hou000123/zh2yue-translation</a></td>
+<td>MarianMT (6+6 layers, d_model 512, ~77M params). <code>model.safetensors</code> 310 MB fp32 → ~80 MB int8</td>
+<td>Fine-tuned from <code>Helsinki-NLP/opus-mt-zh-en</code> on <code>indiejoseph/yue-zh-translation</code>. README example <code>今天天气很好 → 今日天氣好好</code>. No evaluation. <strong>Untested.</strong> Possible issue: the target SentencePiece of opus-mt-zh-en is English-oriented.</td>
+<td>MIT (base opus-mt-zh-en is CC-BY-4.0; the data&#39;s provenance is questionable, see §3.2)</td>
+<td>Smallest candidate. ONNX export + ORT. Worth a quick eval before relying on it.</td>
+</tr>
+<tr>
+<td>HaohuaLv/mt5_large-lora_rank_16-yue_zh_translation</td>
+<td>LoRA adapter (19 MB) for mT5-large</td>
+<td>Wrong direction (yue→zh)</td>
+<td>openrail</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>Helsinki-NLP opus-mt</td>
+<td>No zh→yue model. <code>opus-mt-en-zh</code> lists <code>yue_Hant</code> as a <em>target token</em> but takes English source only.</td>
+<td>n/a</td>
+<td>Apache-2.0 / CC-BY</td>
+<td>Not applicable</td>
+</tr>
+<tr>
+<td><em>Novel TTS-frontend NAR model</em> (arXiv 2206.04922)</td>
+<td>Non-autoregressive Mandarin→Cantonese translation for TTS; &quot;+2.56 BLEU&quot;</td>
+<td>Paper only</td>
+<td>n/a</td>
+<td>n/a</td>
+</tr>
+</tbody></table>
+<p><strong>Bottom line for seq2seq:</strong> the only ready-to-run, phone-sized zh→yue model is the <strong>BART zh-yue ONNX (~220–350 MB)</strong>, and it is <strong>NC-SA</strong>. NLLB works but is roughly 0.6–0.9 GB, NC-licensed, and drops clauses. A clean commercial path means fine-tuning your own (§8).</p>
+<hr>
+<h2>5. Offline option C: small on-device LLMs</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Size (Q4)</th>
+<th>Cantonese evidence</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Qwen3.5-0.8B / 2B / 4B</strong> (Feb 2026)<br><a href="https://huggingface.co/Qwen/Qwen3.5-2B">https://huggingface.co/Qwen/Qwen3.5-2B</a></td>
+<td>GGUF Q4_K_M: <strong>533 MB / 1.28 GB / 2.74 GB</strong> (<code>unsloth/Qwen3.5-*-GGUF</code>)</td>
+<td>My test (§2): 0.8B and 2B are poor (meaning changes, Mandarin leakage, loops). 4B is usable-ish (held-out chrF 36.2).</td>
+<td><strong>Apache-2.0</strong></td>
+</tr>
+<tr>
+<td>Qwen2.5-0.5B/1.5B, Qwen3-0.6B/1.7B</td>
+<td>~0.4–1.3 GB</td>
+<td>Older generation than 3.5. Expect similar or worse.</td>
+<td>Apache-2.0</td>
+</tr>
+<tr>
+<td><strong>hon9kon9ize/ERNIE-4.5-0.3B-Yue</strong><br><a href="https://huggingface.co/hon9kon9ize/ERNIE-4.5-0.3B-Yue">https://huggingface.co/hon9kon9ize/ERNIE-4.5-0.3B-Yue</a></td>
+<td>721 MB bf16 safetensors (~200 MB Q4 after conversion)</td>
+<td>CPT on HK corpus + SFT. The card lists &quot;translations (e.g. from English/Mandarin to local Cantonese expressions)&quot; as an intended use. Benchmarks are knowledge-oriented (CantoMMLU 0.328, HK Law 0.743). No translation metric. <strong>Untested.</strong></td>
+<td>card says <code>other</code>. Base ERNIE-4.5-0.3B is Apache-2.0.</td>
+</tr>
+<tr>
+<td>hon9kon9ize/CantoneseLLM-v2.0-8B-Thinking / 30B-A3B (2026)</td>
+<td>8B ≈ 5 GB Q4</td>
+<td>The v2 tech report says SFT was &quot;meant to install… translation between written Chinese and Cantonese&quot;. Strong, but too big for phones.</td>
+<td>see repo</td>
+</tr>
+<tr>
+<td>CantoneseLLMChat-v1.0-7B, Qwen2-Cantonese-7B, Llama-3-Cantonese-8B, Liujgoj-Cantonese-Qwen3-8B / Gemma-4-12B</td>
+<td>4–8 GB</td>
+<td>7–12B class</td>
+<td>various</td>
+</tr>
+<tr>
+<td>Hercules628/gemma-3-1b-Mandarin-Cantonese-FineTuned*</td>
+<td>104 MB LoRA adapter on Gemma-3-1B</td>
+<td>0 downloads, no card details</td>
+<td>Apache-2.0 (Gemma terms for the base)</td>
+</tr>
+<tr>
+<td>hon9kon9ize/cantonese-gemma-2-2b-lora-preview20240929</td>
+<td>LoRA for Gemma-2-2B</td>
+<td>Preview</td>
+<td>Gemma terms</td>
+</tr>
+</tbody></table>
+<p><strong>Phone speed reference.</strong> Measured by Software Mansion for react-native-executorch, from <code>docs/docs/04-benchmarks/measured.json</code> in <a href="https://github.com/software-mansion/react-native-executorch">https://github.com/software-mansion/react-native-executorch</a>. Tokens/s are decode speed. A 20-character Cantonese sentence is about 20–35 output tokens.</p>
+<table>
+<thead>
+<tr>
+<th>Model (ExecuTorch)</th>
+<th>iPhone 17, MLX int4</th>
+<th>Galaxy S24, XNNPACK 8da4w</th>
+<th>Galaxy S20+, XNNPACK</th>
+<th>File size</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>qwen2.5-0.5B</td>
+<td>157.5 tok/s</td>
+<td>100.3 tok/s</td>
+<td>52.3 tok/s</td>
+<td>419–517 MB</td>
+</tr>
+<tr>
+<td>qwen3-0.6B</td>
+<td>83.9 (int8)</td>
+<td>81.0</td>
+<td>40.5</td>
+<td>505–894 MB</td>
+</tr>
+<tr>
+<td>qwen2.5-1.5B</td>
+<td>60.0</td>
+<td>38.0</td>
+<td>19.2</td>
+<td>1.1–1.2 GB</td>
+</tr>
+<tr>
+<td>qwen3-1.7B</td>
+<td>55.6</td>
+<td>35.5</td>
+<td>18.8</td>
+<td>1.26–1.48 GB</td>
+</tr>
+<tr>
+<td>qwen3-4B</td>
+<td>22.6</td>
+<td>15.8</td>
+<td>8.6</td>
+<td>2.6–2.8 GB</td>
+</tr>
+</tbody></table>
+<p>So even a 4B model translates one sentence in about 1–3 s on a 2024+ flagship, and the ≤1.7B ones in under 1 s. The binding constraints are <strong>download size, RAM (peak 0.9–4 GB), and quality</strong>, not latency.</p>
+<p><strong>Bottom line for LLMs:</strong> generic small LLMs are not good enough at ≤2B. A <strong>fine-tuned</strong> 0.8–2B model trained on tens of thousands of clean zh→yue pairs would probably beat both rules and NLLB. That is plausible from the BART-base result (36 BLEU from 40k synthetic pairs) but <strong>not verified</strong>. The fine-tune is the most promising license-clean offline upgrade (§8).</p>
+<hr>
+<h2>6. Jyutping (all tiers)</h2>
+<h3>6.1 Options</h3>
+<table>
+<thead>
+<tr>
+<th>Library</th>
+<th>Platform</th>
+<th>Quality evidence</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>to-jyutping</strong> (npm 3.1.1, 1.28 MB unpacked)<br><a href="https://github.com/CanCLID/to-jyutping">https://github.com/CanCLID/to-jyutping</a></td>
+<td>Pure JS/TS: <code>getJyutpingList</code>, <code>getJyutpingText</code>, <code>getJyutpingCandidates</code>, and <code>customize({...})</code> for overrides</td>
+<td>README claims &quot;an accuracy rate of 99%&quot; (general text). On hon9kon9ize&#39;s <strong>polyphonic-character</strong> benchmark: <strong>90.79% accuracy, PER 0.0305</strong> (vs PyCantonese 83.83%, g2pW-Cantonese 91.17%). <a href="https://github.com/hon9kon9ize/yue-g2p-benchmark">https://github.com/hon9kon9ize/yue-g2p-benchmark</a> (result.png)</td>
+<td><strong>BSD-2-Clause</strong></td>
+</tr>
+<tr>
+<td>ToJyutping (PyPI)</td>
+<td>Python twin of the above. Useful for build-time checks.</td>
+<td>same</td>
+<td>BSD-2-Clause</td>
+</tr>
+<tr>
+<td>PyCantonese</td>
+<td>Python</td>
+<td>83.83% on the same benchmark</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>g2pW-Cantonese (BERT)</td>
+<td>Python/ONNX</td>
+<td>91.17%, but the benchmark repo warns the referenced ONNX build &quot;has been reported to have a backdoor threat&quot;</td>
+<td>—</td>
+</tr>
+<tr>
+<td>rime-cantonese lexicon</td>
+<td>Data (word → Jyutping)</td>
+<td>Large, community-curated</td>
+<td>CC-BY-4.0</td>
+</tr>
+</tbody></table>
+<p>Example (run locally): <code>ToJyutping.get_jyutping_text(&quot;呢樣嘢幾多錢&quot;)</code> → <code>ni1 joeng6 je5 gei2 do1 cin2</code>.</p>
+<h3>6.2 Per-character output</h3>
+<p>Use <code>getJyutpingList(text)</code>. It returns <code>[[char, jyutping|null], …]</code>, so you can render ruby text (Jyutping above each character) directly. Punctuation comes back as <code>null</code>. Use <code>getJyutpingCandidates</code> to show alternative readings when a user taps a character. Use <code>customize({詞: &quot;jyut ping&quot;})</code> to fix known errors from your own word list.</p>
+<h3>6.3 Why not let the LLM write the Jyutping?</h3>
+<p>I asked the local Qwen3.5-4B for Jyutping of six correct Cantonese sentences and compared it with to-jyutping: <strong>36 of 49 syllables differed</strong>. Examples: <code>佢→goi1</code> (should be keoi5), <code>喺→hei1</code> (hai2), <code>啱啱→ging1 ging1</code> (ngaam1 ngaam1), <code>聽日→sang1 zeoi2</code> (ting1 jat6). Frontier cloud models are far better than a 4B model (not measured here, since I had no API key), but Jyutping is still a memorisation task where any slip produces a wrong tone. A deterministic dictionary is cheaper, consistent, and works offline. <strong>Design rule:</strong> the LLM produces characters only, and Jyutping always comes from to-jyutping. Optionally, ask the LLM for readings <em>only</em> for words to-jyutping returns <code>null</code> for, and show those flagged.</p>
+<hr>
+<h2>7. React Native on-device runtimes</h2>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Fits which model</th>
+<th>Integration notes</th>
+<th>App-size impact</th>
+<th>License</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>onnxruntime-react-native</strong> 1.24.x (npm) <a href="https://onnxruntime.ai/docs/get-started/with-javascript/react-native.html">https://onnxruntime.ai/docs/get-started/with-javascript/react-native.html</a></td>
+<td>BART / Marian / NLLB / mT5 exported to ONNX</td>
+<td><code>import * as ort from &#39;onnxruntime-react-native&#39;</code>. Needs a dev build (not Expo Go). You implement tokenizer + decode loop in JS. Optional ORT-Extensions via <code>&quot;onnxruntimeExtensionsEnabled&quot;: &quot;true&quot;</code> in package.json.</td>
+<td>Android arm64 <code>libonnxruntime.so</code> = <strong>34.2 MB</strong> uncompressed (~12.9 MB gzipped), measured from <code>onnxruntime-android-1.31.1.aar</code>. Can shrink with a custom ops-only build.</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><strong>llama.rn</strong> 0.13 (npm) <a href="https://github.com/mybigday/llama.rn">https://github.com/mybigday/llama.rn</a></td>
+<td>Any GGUF LLM (Qwen3.5, fine-tunes)</td>
+<td>Requires New Architecture. Has an Expo config plugin. Metal on iOS, OpenCL/Hexagon on Android. Supports <strong>GBNF / JSON-schema constrained output</strong>.</td>
+<td>Native libs of roughly 10–20 MB per ABI (llama.cpp macOS dylibs total ~16 MB for comparison)</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td><strong>react-native-executorch</strong> 0.11 <a href="https://github.com/software-mansion/react-native-executorch">https://github.com/software-mansion/react-native-executorch</a></td>
+<td>Pre-exported LLMs (Qwen2.5/3, Llama 3.2, LFM2.5, Gemma 4…) or custom <code>.pte</code></td>
+<td>Requires New Architecture, RN 0.83+ / Expo SDK 55+ dev build, iOS 17+ / Android 13+. <code>useLLMChatSession(models.llm.…)</code>. Sends an anonymous download-telemetry event (<code>setTelemetryEnabled(false)</code> to opt out).</td>
+<td>ExecuTorch runtime (npm unpacked 10 MB). Benchmarks above.</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>@react-native-ai/mlc (callstack) <a href="https://github.com/callstackincubator/ai">https://github.com/callstackincubator/ai</a></td>
+<td>MLC-compiled LLMs</td>
+<td>Vercel AI SDK compatible</td>
+<td>npm package is 179 MB unpacked (includes prebuilt libs)</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>react-native-fast-tflite <a href="https://github.com/margelo/react-native-fast-tflite">https://github.com/margelo/react-native-fast-tflite</a></td>
+<td>TFLite models</td>
+<td>Seq2seq generation loops in TFLite are awkward. No zh→yue TFLite model exists.</td>
+<td>small</td>
+<td>MIT</td>
+</tr>
+<tr>
+<td>CTranslate2</td>
+<td>NLLB / Marian (fastest CPU MT engine)</td>
+<td><strong>No React Native binding</strong> (only an unofficial Android build repo, <code>jemenn/ctranslate2-android-build</code>, 0 stars). You would need custom JSI/Turbo-module work.</td>
+<td>—</td>
+<td>MIT</td>
+</tr>
+</tbody></table>
+<p><em>Beginner context: &quot;New Architecture&quot; is React Native&#39;s newer native-module system (JSI/TurboModules/Fabric). Libraries with heavy C++ (llama.rn, executorch) require it. &quot;Dev build&quot; means you compile your own app binary instead of using the Expo Go sandbox app. Expo Go can&#39;t load custom native code.</em></p>
+<p><strong>Delivering big models:</strong> never put a 0.2–2.7 GB model in the app binary. Download it on demand (on Wi-Fi, with a progress UI) to the app&#39;s document directory (e.g. <code>expo-file-system</code> / <code>react-native-blob-util</code>), verify a SHA-256, and allow deletion. Apple&#39;s On-Demand Resources / Google Play Asset Delivery are alternatives.</p>
+<hr>
+<h2>8. Recommended offline roadmap</h2>
+<ol>
+<li><strong>v1 (ships):</strong> rules + curated table + to-jyutping (§3.3). Under 3 MB, instant, and no license problems if the table is self-authored from CC0/CC-BY data.</li>
+<li><strong>v1.x optional download, commercial-safe:</strong> fine-tune <strong>Qwen3.5-0.8B</strong> (or 2B for better quality) on HKAllen (472k, CC-BY-4.0) + raptorkwok-base (110k, CC0). Filter out Wikipedia-style long sentences, keep conversational ones, add your curated table as extra pairs. Optionally distil from GPT outputs, but check the OpenAI terms on using outputs to train models first. Quantize to Q4_K_M GGUF (~0.5 / 1.3 GB) and run with <code>llama.rn</code> using a fixed prompt and grammar-constrained output. Then evaluate against the CCPC human-translated test set (5,461 pairs, NC licence is fine for internal evaluation) and a native-speaker review. Ship only if it clearly beats the rules.<ul>
+<li>Alternative small model: fine-tune a Marian or BART-base on the same CC-BY data, export to ONNX int8 (~80–150 MB), and run with ORT. Smaller download, but you write the decoder loop yourself.</li>
+</ul>
+</li>
+<li><strong>If the app is strictly non-commercial:</strong> you can offer <code>hon9kon9ize/bart-translation-zh-yue-onnx</code> (~220 MB) right away under CC-BY-NC-SA (attribution + share-alike + non-commercial). Evaluate it first; I could not download it through the proxy.</li>
+<li><strong>Always post-process neural output:</strong> run the rule engine&#39;s &quot;Mandarin leftovers&quot; detector, convert any simplified characters to traditional (OpenCC), and compute Jyutping locally.</li>
+</ol>
+<hr>
+<h2>9. Online tier: OpenAI with the user&#39;s own key</h2>
+<h3>9.1 Model choice and cost (from <a href="https://developers.openai.com/api/docs/pricing">https://developers.openai.com/api/docs/pricing</a>, Standard tier, per 1M tokens)</h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Input</th>
+<th>Cached input</th>
+<th>Output</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>gpt-6-luna</strong></td>
+<td>$0.10</td>
+<td>$0.01</td>
+<td>$0.50</td>
+<td>&quot;Our most efficient model for focused, high-volume tasks.&quot; Supports structured outputs, streaming, prompt caching. <code>reasoning.effort</code> accepts <code>none</code> … <code>max</code> (default <code>medium</code>). Knowledge cutoff May 18 2026. (<a href="https://developers.openai.com/api/docs/models/gpt-6-luna">https://developers.openai.com/api/docs/models/gpt-6-luna</a>)</td>
+</tr>
+<tr>
+<td>gpt-6.1-terra</td>
+<td>$1.00</td>
+<td>$0.05</td>
+<td>$5.00</td>
+<td>&quot;clear, natural writing&quot;. Use as an opt-in &quot;best quality&quot; setting.</td>
+</tr>
+<tr>
+<td>gpt-5-nano</td>
+<td>$0.05</td>
+<td>$0.005</td>
+<td>$0.40</td>
+<td>Cheapest overall, older generation</td>
+</tr>
+<tr>
+<td>gpt-5.4-mini / gpt-5.4-nano</td>
+<td>$0.75 / $0.20</td>
+<td></td>
+<td>$4.50 / $1.25</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>Estimated cost per translation with <code>gpt-6-luna</code>, <code>reasoning.effort: &quot;none&quot;</code>: ~350 input tokens (system prompt + few-shot + sentence) and ~80 output tokens works out to 350×$0.10/1M + 80×$0.50/1M ≈ <strong>$0.000075</strong>, or about 13,000 translations per US$1 (less with prompt caching, which applies to the repeated system prompt). If you leave reasoning on, reasoning tokens are billed as output, so set effort to <code>none</code> or <code>low</code> for this task.</p>
+<p><em>I did not have an API key, so I could not measure GPT translation quality. Run the §2 sentences plus the CCPC test set through the chosen model before launch. Independent evidence that frontier models lead on Cantonese but still struggle with colloquialisms: arXiv 2511.10664 (&quot;all models struggle… such as… Cantonese colloquialisms&quot;). arXiv 2408.16756 (Yue-TRANS) recommends GPT-4-class models for Mandarin→Cantonese conversion.</em></p>
+<h3>9.2 Request shape (Responses API + Structured Outputs)</h3>
+<p>Structured Outputs: <code>text.format = { type: &quot;json_schema&quot;, name, schema, strict: true }</code>. Docs: &quot;all fields or function parameters must be specified as <code>required</code>&quot; and &quot;set <code>additionalProperties: false</code>&quot; (<a href="https://developers.openai.com/api/docs/guides/structured-outputs">https://developers.openai.com/api/docs/guides/structured-outputs</a>).</p>
+<pre><code class="language-ts">// Minimal sketch: plain fetch works in React Native; no SDK needed.
+const SCHEMA = {
+  type: &quot;object&quot;,
+  additionalProperties: false,
+  required: [&quot;cantonese&quot;, &quot;alternatives&quot;, &quot;notes&quot;],
+  properties: {
+    cantonese: { type: &quot;string&quot;, description: &quot;Natural spoken Hong Kong Cantonese, Traditional characters&quot; },
+    alternatives: { type: &quot;array&quot;, items: { type: &quot;string&quot; }, description: &quot;0-2 other natural phrasings&quot; },
+    notes: { type: &quot;string&quot;, description: &quot;Brief English note on word choices, or empty string&quot; },
+  },
+};
+
+const SYSTEM = [
+  &quot;You translate Standard Written Chinese / Mandarin into natural, colloquial Hong Kong Cantonese as people actually speak it.&quot;,
+  &quot;Rules: use Traditional characters (HK forms); use Cantonese vocabulary and grammar (係, 唔, 冇, 佢, 喺, 嘅, 咗, 緊, 啲, 畀, 睇, 食, 講, 嘢, 點解, 邊個, 乜嘢);&quot;,
+  &quot;use Cantonese word order (我高過你, 你行先, 畀杯水我); add sentence-final particles only where natural;&quot;,
+  &quot;keep the meaning exactly - never answer or comment on the sentence, just translate it; keep names, numbers and English words as-is.&quot;,
+  &quot;Do NOT output Jyutping.&quot;,
+].join(&quot;\n&quot;);
+
+async function translateOnline(apiKey: string, zh: string, model = &quot;gpt-6-luna&quot;) {
+  const res = await fetch(&quot;https://api.openai.com/v1/responses&quot;, {
+    method: &quot;POST&quot;,
+    headers: { Authorization: `Bearer ${apiKey}`, &quot;Content-Type&quot;: &quot;application/json&quot; },
+    body: JSON.stringify({
+      model,
+      reasoning: { effort: &quot;none&quot; },
+      input: [
+        { role: &quot;system&quot;, content: SYSTEM },
+        // few-shot pairs teach register better than instructions alone
+        { role: &quot;user&quot;, content: &quot;你吃过饭没有？&quot; },
+        { role: &quot;assistant&quot;, content: JSON.stringify({ cantonese: &quot;你食咗飯未呀？&quot;, alternatives: [], notes: &quot;&quot; }) },
+        { role: &quot;user&quot;, content: &quot;给我一杯水。&quot; },
+        { role: &quot;assistant&quot;, content: JSON.stringify({ cantonese: &quot;畀杯水我。&quot;, alternatives: [&quot;唔該畀杯水我。&quot;], notes: &quot;唔該 adds politeness&quot; }) },
+        { role: &quot;user&quot;, content: zh },
+      ],
+      text: { format: { type: &quot;json_schema&quot;, name: &quot;yue_translation&quot;, schema: SCHEMA, strict: true } },
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI ${res.status}`); // 401 = bad key, 429 = quota/rate limit
+  const data = await res.json();
+  // Inspect for refusal / incomplete status, then read the output text item and JSON.parse it.
+  return data;
+}
+</code></pre>
+<p>Then run <code>ToJyutping.getJyutpingList(result.cantonese)</code> locally.</p>
+<h3>9.3 Prompting best practices and caveats</h3>
+<ul>
+<li><strong>Few-shot beats long instructions</strong> for register. Keep 3–6 short pairs covering 咗/緊/未/A-not-A/比較/畀 word order. Put them in the stable prefix so prompt caching kicks in.</li>
+<li><strong>Ask for characters only.</strong> Derive Jyutping locally (§6.3).</li>
+<li><strong>Guard against the common LLM failures</strong> seen in testing and in the literature: simplified-character leakage (run OpenCC <code>s2hk</code> on the output anyway), Mandarin words left in (run the same leftovers detector as offline), answering instead of translating (the &quot;never answer&quot; rule, plus a length-ratio sanity check), and over-slangy or vulgar output (add &quot;neutral, everyday register; avoid vulgar slang&quot; if your audience needs it).</li>
+<li><strong>Offer a register toggle</strong> (&quot;colloquial&quot; vs &quot;semi-formal&quot;) instead of trying to guess.</li>
+<li><strong>Handle errors:</strong> 401 means invalid key (send the user to settings), 429 means quota or rate limit, a network failure means fall back to the offline result automatically.</li>
+<li><strong>Privacy:</strong> tell the user their text is sent to OpenAI under their own account.</li>
+</ul>
+<h3>9.4 Storing the user&#39;s API key</h3>
+<ul>
+<li>Use <strong><code>expo-secure-store</code></strong> (<code>setItemAsync</code> / <code>getItemAsync</code> / <code>deleteItemAsync</code>). From the docs (<a href="https://docs.expo.dev/versions/latest/sdk/securestore/">https://docs.expo.dev/versions/latest/sdk/securestore/</a>): iOS stores values in the Keychain as <code>kSecClassGenericPassword</code>, and Android stores them in SharedPreferences &quot;encrypted with Android&#39;s Keystore system&quot;. The iOS default accessibility is <code>WHEN_UNLOCKED</code>. Android data is wiped on uninstall, while iOS Keychain items &quot;will persist across app uninstallations&quot; (don&#39;t rely on either). The optional <code>requireAuthentication</code> adds biometrics. Non-Expo alternative: <code>react-native-keychain</code> (MIT, v10).</li>
+<li>Never put the key in AsyncStorage, Redux persist, logs, crash reports, or analytics. Mask it in the UI (show the last 4 characters), provide &quot;Remove key&quot;, and validate it once with a cheap call (e.g. <code>GET /v1/models</code>).</li>
+<li>Calling OpenAI directly from the device is acceptable here <strong>because the key belongs to the user</strong>. Never ship <em>your own</em> key in the app. If you ever offer a hosted tier, proxy it through your backend instead.</li>
+</ul>
+<hr>
+<h2>10. Master comparison table</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Type</th>
+<th>Size on device</th>
+<th>Latency (phone)</th>
+<th>Quality (Mandarin→colloquial yue)</th>
+<th>License</th>
+<th>RN path</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Curated table + regex + to-jyutping</td>
+<td>Rules</td>
+<td>&lt; 3 MB</td>
+<td>&lt; 10 ms</td>
+<td>OK for short everyday sentences, weak beyond</td>
+<td>Self-authored + CC0/CC-BY sources; to-jyutping BSD-2</td>
+<td>Pure JS</td>
+<td><strong>v1 baseline</strong></td>
+</tr>
+<tr>
+<td>bluebat <code>cmn2yue.dic</code></td>
+<td>Phrase table</td>
+<td>358 KB</td>
+<td>&lt; 10 ms</td>
+<td>Noisy; made output worse in test</td>
+<td>GPL-3.0</td>
+<td>Pure JS</td>
+<td>Ideas only</td>
+</tr>
+<tr>
+<td>hon9kon9ize BART zh-yue ONNX</td>
+<td>Seq2seq</td>
+<td>~220–350 MB</td>
+<td>~0.2–1 s (est.)</td>
+<td>Fluent in card examples; BLEU 36 on synthetic eval; untested here</td>
+<td>CC-BY-NC-SA-4.0</td>
+<td>onnxruntime-react-native</td>
+<td>Non-commercial download option</td>
+</tr>
+<tr>
+<td>NLLB-200-distilled-600M</td>
+<td>Seq2seq</td>
+<td>~0.6–0.9 GB int8</td>
+<td>~0.5–1.5 s (est.)</td>
+<td>Real Cantonese words, clause drops; FLORES chrF++ 16.8</td>
+<td>CC-BY-NC-4.0</td>
+<td>ORT (+ JS SentencePiece)</td>
+<td>Not recommended (NC, big)</td>
+</tr>
+<tr>
+<td>botisan mT5-base zh-yue</td>
+<td>Seq2seq</td>
+<td>~0.6 GB int8</td>
+<td>~1 s</td>
+<td>No metrics</td>
+<td>Apache-2.0 weights / NC data</td>
+<td>ORT</td>
+<td>Skip</td>
+</tr>
+<tr>
+<td>hou000123 Marian zh2yue</td>
+<td>Seq2seq</td>
+<td>~80 MB int8</td>
+<td>&lt; 0.3 s</td>
+<td>Unknown</td>
+<td>MIT (data provenance questionable)</td>
+<td>ORT</td>
+<td>Quick eval candidate</td>
+</tr>
+<tr>
+<td>Qwen3.5-0.8B / 2B (generic)</td>
+<td>LLM</td>
+<td>0.53 / 1.28 GB</td>
+<td>&lt; 1 s</td>
+<td>Poor: meaning changes, loops</td>
+<td>Apache-2.0</td>
+<td>llama.rn / executorch</td>
+<td>Not without fine-tuning</td>
+</tr>
+<tr>
+<td>Qwen3.5-4B (generic)</td>
+<td>LLM</td>
+<td>2.74 GB</td>
+<td>1–3 s</td>
+<td>Fair</td>
+<td>Apache-2.0</td>
+<td>llama.rn</td>
+<td>High-end opt-in only</td>
+</tr>
+<tr>
+<td><strong>Fine-tuned Qwen3.5-0.8B/2B on CC-BY/CC0 pairs</strong></td>
+<td>LLM</td>
+<td>0.53–1.28 GB</td>
+<td>&lt; 1 s</td>
+<td>Likely &gt; rules (unverified)</td>
+<td>Apache-2.0 + CC-BY attribution</td>
+<td>llama.rn</td>
+<td><strong>Best offline upgrade</strong></td>
+</tr>
+<tr>
+<td>ERNIE-4.5-0.3B-Yue</td>
+<td>LLM</td>
+<td>~0.2 GB Q4</td>
+<td>&lt; 0.5 s</td>
+<td>Untested; Cantonese-adapted</td>
+<td>&quot;other&quot; (base Apache-2.0)</td>
+<td>llama.rn after GGUF conversion</td>
+<td>Worth a quick eval</td>
+</tr>
+<tr>
+<td>OpenAI <code>gpt-6-luna</code></td>
+<td>Cloud LLM</td>
+<td>0</td>
+<td>~1 s network</td>
+<td>Best available (verify)</td>
+<td>User&#39;s account</td>
+<td>fetch + expo-secure-store</td>
+<td><strong>Online tier default</strong></td>
+</tr>
+<tr>
+<td>OpenAI <code>gpt-6.1-terra</code></td>
+<td>Cloud LLM</td>
+<td>0</td>
+<td>~1–2 s</td>
+<td>Higher</td>
+<td>User&#39;s account</td>
+<td>same</td>
+<td>Optional &quot;quality&quot;</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>11. License caveats (summary)</h2>
+<ul>
+<li><strong>NC licenses block monetised apps:</strong> NLLB-200 (CC-BY-NC-4.0), indiejoseph/hon9kon9ize BART zh-yue (CC-BY-NC-SA-4.0), words.hk (Non-Commercial Open Data License), CCPC v2 / botisan / hon9kon9ize-38k datasets (CC-BY-NC-SA). Ads and paid tiers count as commercial.</li>
+<li><strong>Copyleft:</strong> <code>cmn2yue.dic</code> (GPL-3.0), douglaswzs (GPL-2.0). Don&#39;t bundle them in a closed-source app. CC-Canto (CC-BY-SA 3.0) requires the shipped data file to stay share-alike.</li>
+<li><strong>Permissive:</strong> to-jyutping / ToJyutping (BSD-2-Clause, keep the notice), OpenCC (Apache-2.0) / opencc-js (MIT AND Apache-2.0), rime-cantonese (CC-BY-4.0, attribution), HKAllen corpus (CC-BY-4.0, attribution), raptorkwok-base (CC0), HKCanCor (CC BY), Qwen3.5 (Apache-2.0), onnxruntime / llama.rn / react-native-executorch (MIT).</li>
+<li><strong>Provenance risk:</strong> datasets that re-mix machine translations or NC data under a permissive label (e.g. <code>indiejoseph/yue-zh-translation</code> includes botisan&#39;s NC-SA data). Prefer HKAllen + raptorkwok-base for anything you ship.</li>
+<li><strong>OpenAI:</strong> the user&#39;s key means the user&#39;s account and terms. Disclose that text is sent to OpenAI.</li>
+</ul>
+<hr>
+<h2>Appendix A: how the smoke test was run</h2>
+<ul>
+<li>Scratch environment under <code>/tmp/cantotr</code> (nothing in the repo): uv venv with <code>opencc</code>, <code>ToJyutping</code>, <code>sacrebleu</code>, <code>torch</code>, <code>transformers</code>. llama.cpp release <code>b11985</code> macOS arm64 (<code>llama-server</code>). Qwen3.5 GGUFs from ModelScope <code>unsloth/Qwen3.5-*-GGUF</code>. NLLB weights from ModelScope <code>facebook/nllb-200-distilled-600M</code>.</li>
+<li>LLM prompt: a Cantonese system prompt (&quot;你係一個香港粵語翻譯員…只輸出譯文&quot;) + 2 few-shot pairs, temperature 0.2, thinking disabled.</li>
+<li>NLLB: <code>src_lang=zho_Hans</code> (or <code>zho_Hant</code> for traditional input), <code>forced_bos_token_id=yue_Hant</code>, beam 4.</li>
+<li>Scoring: <code>sacrebleu.metrics.CHRF(word_order=0)</code> corpus score after stripping punctuation and whitespace.</li>
+</ul>
+<p>Core rule table excerpt (the regex rules that mattered):</p>
+<pre><code class="language-python">re.sub(rf&quot;(\w{{1,3}})比(\w{{1,3}}?)([{ADJ}])&quot;, r&quot;\1\3過\2&quot;, s)      # 我比你高 -&gt; 我高過你
+re.sub(r&quot;先(\w)(啦|吧|。|，|$)&quot;, r&quot;\1先\2&quot;, s)                        # 你先行啦 -&gt; 你行先啦
+re.sub(r&quot;畀我(一?[杯碗個張本件啲])(\w{1,2})&quot;, r&quot;畀\1\2我&quot;, s)         # 畀我一杯水 -&gt; 畀一杯水我
+re.sub(r&quot;喺(睇|食|飲|講|玩|做|瞓)&quot;, r&quot;喺度\1緊&quot;, s)                    # 喺睇電視 -&gt; 喺度睇緊電視
+</code></pre>
+<p>Test sentences (Set A, 16) included: 你吃饭了吗？ / 他不在家，他去上班了。 / 我没有钱，你可以借给我一点吗？ / 这个东西多少钱？ / 你先走吧，我等一下再来。 / 我比你高。 / 给我一杯水。 / 他们在看电视。 / 你知道他是谁吗？ / … Held-out Set B (12): 我明天要去医院看医生。 / 你会不会说广东话？ / 他昨天买了一辆新车。 / 那边的人很多，我们走这边吧。 / 我已经吃饱了，谢谢。 / 她的妈妈是老师。 / 你为什么不告诉我？ / 别担心，没问题的。 / 我们一起去喝茶吧。 / 这里不可以抽烟。 / 他跑得比我快。 / 你住在哪里？</p>
+<h2>Appendix B: key links</h2>
+<ul>
+<li>to-jyutping: <a href="https://github.com/CanCLID/to-jyutping">https://github.com/CanCLID/to-jyutping</a> · G2P benchmark: <a href="https://github.com/hon9kon9ize/yue-g2p-benchmark">https://github.com/hon9kon9ize/yue-g2p-benchmark</a></li>
+<li>Parallel data: <a href="https://huggingface.co/datasets/HKAllen/cantonese-chinese-parallel-corpus">https://huggingface.co/datasets/HKAllen/cantonese-chinese-parallel-corpus</a> · <a href="https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus-base">https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus-base</a> · <a href="https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus">https://huggingface.co/datasets/raptorkwok/cantonese-chinese-parallel-corpus</a></li>
+<li>Models: <a href="https://huggingface.co/hon9kon9ize/bart-translation-zh-yue-onnx">https://huggingface.co/hon9kon9ize/bart-translation-zh-yue-onnx</a> · <a href="https://huggingface.co/facebook/nllb-200-distilled-600M">https://huggingface.co/facebook/nllb-200-distilled-600M</a> · <a href="https://huggingface.co/Qwen/Qwen3.5-0.8B">https://huggingface.co/Qwen/Qwen3.5-0.8B</a> · <a href="https://huggingface.co/hon9kon9ize/ERNIE-4.5-0.3B-Yue">https://huggingface.co/hon9kon9ize/ERNIE-4.5-0.3B-Yue</a></li>
+<li>Runtimes: <a href="https://github.com/mybigday/llama.rn">https://github.com/mybigday/llama.rn</a> · <a href="https://github.com/software-mansion/react-native-executorch">https://github.com/software-mansion/react-native-executorch</a> · <a href="https://onnxruntime.ai/docs/get-started/with-javascript/react-native.html">https://onnxruntime.ai/docs/get-started/with-javascript/react-native.html</a></li>
+<li>OpenAI: <a href="https://developers.openai.com/api/docs/pricing">https://developers.openai.com/api/docs/pricing</a> · <a href="https://developers.openai.com/api/docs/models/gpt-6-luna">https://developers.openai.com/api/docs/models/gpt-6-luna</a> · <a href="https://developers.openai.com/api/docs/guides/structured-outputs">https://developers.openai.com/api/docs/guides/structured-outputs</a></li>
+<li>Key storage: <a href="https://docs.expo.dev/versions/latest/sdk/securestore/">https://docs.expo.dev/versions/latest/sdk/securestore/</a></li>
+<li>Papers: arXiv 2505.17816 (zh→yue NMT, beats Baidu on 6/8 sets) · 2301.03971 (unsupervised zh↔yue) · 2408.16756 (Yue-Benchmark incl. Yue-TRANS) · 2511.10664 (LLMs on Cantonese colloquialisms) · 2503.03702 (2B-token Cantonese corpus)</li>
+</ul>
+
+  </main>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "translation.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "translation.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = localStorage.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+</body>
+</html>

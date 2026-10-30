@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>canto-dict — Design Spec</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <main id="doc">
+<h1>canto-dict — Design Spec</h1>
+<p>Date: 2026-10-29
+Status: Approved in brainstorming; awaiting written-spec review</p>
+<h2>1. Goal</h2>
+<p>A personal iPhone app (React Native / Expo) that:</p>
+<ol>
+<li>Looks up Cantonese characters (字) and words (詞) <strong>offline</strong>, showing Jyutping (e.g. <code>sik6</code>), a Mandarin meaning, English, example sentences, and real-person pronunciation audio.</li>
+<li>Translates a Mandarin sentence into Cantonese with Jyutping and reads it aloud. Works offline with a rule-based converter; when online, upgrades the result using a free LLM API (Gemini by default).</li>
+</ol>
+<h2>2. Decisions and constraints</h2>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Audience</td>
+<td>Personal / sideload only. Non-commercial data (words.hk) is allowed. Nothing is published to an app store.</td>
+</tr>
+<tr>
+<td>Platform</td>
+<td>iPhone only</td>
+</tr>
+<tr>
+<td>Stack</td>
+<td>Expo (latest SDK, confirmed when the plan is written), dev build via <code>npx expo run:ios --device</code>, Expo Router, TypeScript</td>
+</tr>
+<tr>
+<td>Script</td>
+<td>Input accepted in simplified or traditional. Display in <strong>simplified</strong>. Characters with no simplified form (嘅, 冇, 喺) display unchanged.</td>
+</tr>
+<tr>
+<td>App size</td>
+<td>&lt; 200 MB. No on-device neural translation model.</td>
+</tr>
+<tr>
+<td>v1 extras</td>
+<td>Search history, favorites, search by Jyutping / English, example sentences</td>
+</tr>
+<tr>
+<td>Online translation</td>
+<td>OpenAI-compatible client. Default preset: Gemini API free tier. Presets for Z.ai GLM-4.7-Flash and Custom. Key stored in the iOS Keychain.</td>
+</tr>
+<tr>
+<td>Sentence read-aloud</td>
+<td>Default: iOS Cantonese voice. Toggle: real-person syllable playback.</td>
+</tr>
+<tr>
+<td>Jyutping source</td>
+<td>Always computed locally (dictionary first, <code>to-jyutping</code> fallback), never taken from an LLM</td>
+</tr>
+</tbody></table>
+<p>Research behind these decisions lives in <code>docs/research/</code>:
+<code>lexical-datasets.html</code>, <code>audio-datasets.html</code>, <code>translation.html</code>, <code>free-llm-apis.html</code>.</p>
+<h2>3. Repository layout</h2>
+<pre><code>canto-dict/
+├── data-pipeline/        Node/TypeScript build scripts (not shipped)
+│   ├── src/sources/      One module per source: download + parse
+│   ├── src/merge/        Merge, normalize (OpenCC), rank readings
+│   ├── src/build/        Write canto.db, syllables.pack, syllables.json, phrase table
+│   ├── fixtures/         Small sample files for parser tests
+│   └── .cache/           Downloaded raw data (git-ignored)
+├── app/                  Expo Router screens
+│   ├── (tabs)/lookup.tsx
+│   ├── (tabs)/translate.tsx
+│   ├── (tabs)/saved.tsx
+│   ├── (tabs)/settings.tsx
+│   └── entry/[id].tsx
+├── src/
+│   ├── db/               Opens canto.db; all dictionary SQL; DB interface for tests
+│   ├── dictionary/       Input classification, search, ranking
+│   ├── jyutping/         Text → Jyutping; syllable parser/normalizer
+│   ├── audio/            Syllable player; sentence speaker (expo-speech)
+│   ├── translate/
+│   │   ├── offline/      Phrase table + reorder rules
+│   │   ├── online/       OpenAI-compatible client, presets, prompt
+│   │   └── index.ts      translate(text) orchestrator
+│   ├── settings/         Provider config; expo-secure-store key storage
+│   └── userdata/         user.db: history + favorites
+├── assets/               Generated canto.db, syllables.pack, syllables.json (git-ignored)
+├── dashboard/            Progress dashboard (index.html + progress.js)
+└── docs/
+</code></pre>
+<p>Screens hold no business logic. Each <code>src/</code> module exposes a small typed API and is unit-testable without a device.</p>
+<h2>4. Data pipeline</h2>
+<p>Run on the Mac with <code>npm run data:build</code>. Steps: download → parse → merge → validate → build. Any download or validation failure stops the build.</p>
+<h3>4.1 Sources</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Source</th>
+<th>License (personal use OK for all)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Character readings, ranked</td>
+<td>rime-cantonese <code>char.csv</code> → LSHK <code>list.tsv</code> → Unihan <code>kCantonese</code> (priority order)</td>
+<td>CC BY 4.0 / CC BY 4.0 / Unicode v3</td>
+</tr>
+<tr>
+<td>Word readings</td>
+<td>rime <code>jyut6ping3.words.dict.yaml</code> + words.hk public word list</td>
+<td>CC BY 4.0 / public domain</td>
+</tr>
+<tr>
+<td>Definitions (yue + eng), examples (yue / zho / eng)</td>
+<td>words.hk full dump (<code>all-*.csv.gz</code> via the request form)</td>
+<td>words.hk NC-ODL 1.0</td>
+</tr>
+<tr>
+<td>Mandarin equivalents of Cantonese words</td>
+<td>Kaifangcidian 開放詞典 (Yale → Jyutping) + Wiktionary dialect-synonym tables (reversed)</td>
+<td>CC BY 3.0 / CC BY-SA</td>
+</tr>
+<tr>
+<td>Mandarin definitions of standard words</td>
+<td>MoE 國語辭典 via g0v/moedict-data</td>
+<td>CC BY-ND 3.0 TW</td>
+</tr>
+<tr>
+<td>English fallback</td>
+<td>CC-Canto, CC-CEDICT Cantonese readings</td>
+<td>CC BY-SA 3.0</td>
+</tr>
+<tr>
+<td>Syllable audio</td>
+<td>words.hk female syllable set (3,902 clips) from <code>AlienKevin/wordshk_app</code> <code>assets/jyutping_female</code></td>
+<td>No published license. Personal use only; never redistribute.</td>
+</tr>
+<tr>
+<td>Translation test set</td>
+<td>HKAllen corpus sample + raptorkwok-base sample</td>
+<td>CC BY 4.0 / CC0</td>
+</tr>
+</tbody></table>
+<h3>4.2 Merge rules</h3>
+<ul>
+<li>Normalize every headword key with OpenCC so rime (OpenCC forms) and words.hk (HK forms) join correctly. Store <code>trad</code> and <code>simp</code> for every headword and example.</li>
+<li>Reading rank from rime (預設 default / 常用 common / 罕見 rare / 棄用 obsolete). LSHK merged &quot;lazy&quot; readings (e.g. <code>m5</code>/<code>ng5</code>) become <code>variant</code>, never default.</li>
+<li>Strip or translate source-specific markers: CC-Canto <code>dou3*2</code> changed tones, words.hk <code>!</code> loan-syllable markers.</li>
+<li>Validate every Jyutping against the syllable inventory, allowing sentence particles (<code>la1</code>, <code>ga3</code>, …).</li>
+</ul>
+<h3>4.3 <code>canto.db</code> schema</h3>
+<pre><code class="language-sql">entries     (id INTEGER PK, trad TEXT, simp TEXT, kind TEXT CHECK(kind IN (&#39;char&#39;,&#39;word&#39;)), freq REAL)
+readings    (entry_id, jyutping TEXT, rank TEXT, source TEXT)
+mandarin    (entry_id, word_simp TEXT, word_trad TEXT, source TEXT)
+definitions (entry_id, sense INTEGER, pos TEXT, yue TEXT, eng TEXT, zho TEXT, source TEXT)
+examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT, zho TEXT, eng TEXT)
+search_keys (key TEXT, entry_id, type TEXT CHECK(type IN (&#39;toned&#39;,&#39;toneless&#39;,&#39;joined&#39;)))
+english_fts USING fts5(entry_id UNINDEXED, text)
+-- indexes on entries(trad), entries(simp), search_keys(key)
+</code></pre>
+<h3>4.4 Audio pack</h3>
+<p>All syllable clips are re-encoded to 32 kbps mono AAC/MP3 and concatenated into <code>syllables.pack</code> (~6 MB). <code>syllables.json</code> maps <code>jyutping → [offset, length]</code>. Syllables with no clip are listed in the build report.</p>
+<h3>4.5 Phrase table</h3>
+<p>Generated by reversing Kaifangcidian + Wiktionary mappings (Mandarin → Cantonese), then merged with a hand-curated list of ~300 high-frequency phrases in <code>src/translate/offline/curated.ts</code>. The curated list wins on conflict.</p>
+<h3>4.6 Build report</h3>
+<p><code>data-pipeline/build-report.html</code>: entry counts per source, reading coverage, audio coverage (types and token-weighted), DB size, and validation warnings. Key numbers are copied onto the dashboard.</p>
+<h2>5. Lookup</h2>
+<h3>5.1 Input classification and search</h3>
+<p>Debounced 150 ms; top 50 results.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Type</th>
+<th>Matching</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Contains CJK</td>
+<td>Characters</td>
+<td>Exact (<code>trad</code> or <code>simp</code>) → prefix → contains</td>
+</tr>
+<tr>
+<td>Latin with tone digits that splits into valid Jyutping syllables (<code>sik6</code>, <code>sik6 faan6</code>)</td>
+<td>Jyutping only</td>
+<td>Prefix on <code>search_keys</code>. Spaces are ignored.</td>
+</tr>
+<tr>
+<td>Latin without digits that splits into valid Jyutping syllables (<code>sik</code>, <code>sikfaan</code>, <code>sin</code>)</td>
+<td>Jyutping <strong>and</strong> English</td>
+<td>Two labelled groups, Jyutping first. Toneless syllables match all tones.</td>
+</tr>
+<tr>
+<td>Any other Latin text (<code>eat</code>)</td>
+<td>English only</td>
+<td>FTS5 on <code>english_fts</code></td>
+</tr>
+</tbody></table>
+<p>Ranking: match quality (exact &gt; prefix &gt; contains) → <code>freq</code> (rime weights) → shorter headword.</p>
+<h3>5.2 Entry screen</h3>
+<ul>
+<li>Headword in simplified (large) + traditional (small) when different.</li>
+<li>Each reading with 🔊 (real-person syllables) and its rank tag.</li>
+<li>Mandarin line, in fallback order: (1) <code>mandarin</code> table equivalents; (2) MoE definition (<code>definitions.zho</code>); (3) words.hk Cantonese explanation, labelled 粤语释义.</li>
+<li>English, definitions by sense, examples with Jyutping, Mandarin and 🔊.</li>
+<li>For words: each character links to its own entry.</li>
+<li>☆ toggles favorite. Opening an entry appends to history.</li>
+</ul>
+<h3>5.3 Saved</h3>
+<p><code>user.db</code> (writable, separate from <code>canto.db</code>):</p>
+<pre><code class="language-sql">favorites (entry_id PK, added_at)
+history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39;)), entry_id NULL, input TEXT NULL, output TEXT NULL, at)
+</code></pre>
+<p>History is newest first and capped at 500 rows, with a Clear button. Tapping a translation reopens it on the Translate tab.</p>
+<h2>6. Translation</h2>
+<h3>6.1 Flow</h3>
+<p><code>translate(text) → { cantonese, jyutping[], source: &#39;offline&#39; | &#39;online&#39;, note? }</code></p>
+<ol>
+<li>Validate: trimmed, non-empty, ≤ 500 characters.</li>
+<li><strong>Offline (always, immediate):</strong> OpenCC s2t → phrase table (longest match) → reorder rules → Jyutping via <code>src/jyutping</code> → OpenCC t2s for display. Tagged 离线.</li>
+<li><strong>Online (if a connection and key are present, started in parallel):</strong> on success, replace the offline result and tag it AI. On failure, keep the offline result and show a note.</li>
+</ol>
+<h3>6.2 Offline rules (initial set)</h3>
+<p>Word substitutions (的→嘅, 是→係, 没有→冇, 他/她→佢, 在→喺, 看→睇, 什么→乜嘢, 吃→食, …) plus reorder rules: comparatives (A比B高 → A高過B), 先 placement (你先走 → 你行先), 给我 → 畀我, progressive 在V → V緊, 了 → 咗/喇, A-not-A questions.</p>
+<h3>6.3 Online client</h3>
+<ul>
+<li><code>POST {baseURL}/chat/completions</code> (OpenAI-compatible), <code>Authorization: Bearer &lt;key&gt;</code>, 15 s timeout.</li>
+<li>Presets:<ul>
+<li><strong>Gemini (default):</strong> base <code>https://generativelanguage.googleapis.com/v1beta/openai/</code>, model <code>gemini-3.8-flash</code>. On HTTP 429, retry once with <code>gemini-3.5-flash-lite</code>.</li>
+<li><strong>Z.ai:</strong> base <code>https://api.z.ai/api/paas/v4/</code>, model <code>glm-4.7-flash</code>.</li>
+<li><strong>Custom:</strong> user-entered base URL, model and key.</li>
+</ul>
+</li>
+<li>Prompt: translate into natural Hong Kong colloquial Cantonese in traditional characters, with few-shot examples. Request JSON <code>{&quot;cantonese&quot;: &quot;...&quot;}</code>. If parsing fails, accept raw text only if it contains CJK.</li>
+<li>The key is stored with <code>expo-secure-store</code> and never logged.</li>
+</ul>
+<h3>6.4 Read-aloud</h3>
+<ul>
+<li>Default: <code>expo-speech</code> with the first installed voice whose language is <code>yue-HK</code> or <code>zh-HK</code>.</li>
+<li>Toggle: real-person syllables in sequence, using the displayed Jyutping.</li>
+<li>Dictionary characters and words always use real-person syllables.</li>
+</ul>
+<h2>7. Error handling</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>canto.db</code> fails to open/copy</td>
+<td>Full-screen error + Retry</td>
+</tr>
+<tr>
+<td>Syllable has no clip</td>
+<td>Speak that character with iOS TTS; show a small &quot;TTS&quot; tag</td>
+</tr>
+<tr>
+<td>No Cantonese voice installed</td>
+<td>Show download steps (Settings → Accessibility → Spoken Content → Voices)</td>
+</tr>
+<tr>
+<td>No API key</td>
+<td>Offline result + hint to Settings</td>
+</tr>
+<tr>
+<td>401</td>
+<td>&quot;API key invalid&quot; + link to Settings; keep offline result</td>
+</tr>
+<tr>
+<td>429</td>
+<td>Retry once with the fallback model, then keep offline result</td>
+</tr>
+<tr>
+<td>Timeout / bad JSON / no CJK in reply</td>
+<td>Keep offline result + note</td>
+</tr>
+<tr>
+<td>Input &gt; 500 characters</td>
+<td>Ask the user to shorten it</td>
+</tr>
+<tr>
+<td>Pipeline download or validation failure</td>
+<td>Build stops with a clear message; no partial outputs</td>
+</tr>
+</tbody></table>
+<h2>8. Testing</h2>
+<ul>
+<li><strong>Unit (Jest, <code>jest-expo</code>):</strong> input classifier, Jyutping parser/normalizer, search ranking, offline rules (golden input→output pairs), online client (mocked fetch: 200 / 401 / 429 / timeout / bad JSON), history cap.</li>
+<li><strong>DB tests:</strong> <code>src/db</code> depends on a small <code>Db</code> interface; tests use <code>better-sqlite3</code> against a fixture DB built by the pipeline from <code>data-pipeline/fixtures/</code>.</li>
+<li><strong>Pipeline tests:</strong> each source parser against fixture files (e.g. Yale → Jyutping).</li>
+<li><strong>Translation eval:</strong> <code>npm run eval:translate</code> prints chrF of the offline converter on the test set; the score is tracked on the dashboard.</li>
+<li><strong>Device QA checklist:</strong> search (characters / Jyutping / English), syllable and sentence audio, translate in airplane mode, online upgrade replaces the offline result.</li>
+<li>Development is test-first.</li>
+</ul>
+<h2>9. Out of scope for v1</h2>
+<ul>
+<li>Android, App Store distribution.</li>
+<li>On-device neural translation models (size budget).</li>
+<li>Per-word recordings (Lingua Libre / Commons) and Common Voice alignment. Possible v1.x add-on.</li>
+<li>Cloud TTS (Azure / Google / Polly).</li>
+<li>Favoriting translations; flashcards; sync across devices.</li>
+</ul>
+<h2>10. Risks</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Gemini free-tier limits or model names change</td>
+<td>Presets are data, not code; Custom preset; Z.ai fallback</td>
+</tr>
+<tr>
+<td>Gemini unavailable in HK / mainland China</td>
+<td>Z.ai preset works there</td>
+</tr>
+<tr>
+<td>Offline translation sounds stiff</td>
+<td>Labelled 离线; online upgrade; chrF eval to track improvements</td>
+</tr>
+<tr>
+<td><code>to-jyutping</code> uses JS syntax Hermes may not support</td>
+<td>Verify early in the plan; transpile or vendor if needed</td>
+</tr>
+<tr>
+<td>words.hk dump requires a manual request form</td>
+<td>Pipeline accepts a manually downloaded file path if automated download fails</td>
+</tr>
+<tr>
+<td><code>expo-sqlite</code> FTS5 availability</td>
+<td>Confirm in the first plan task; fall back to <code>LIKE</code> on a lowercase English column</td>
+</tr>
+</tbody></table>
+
+  </main>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "2026-10-29-canto-dict-design.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "2026-10-29-canto-dict-design.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = localStorage.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+</body>
+</html>

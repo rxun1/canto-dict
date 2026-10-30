@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Free / near-free LLM APIs for Mandarin → colloquial Cantonese (personal iPhone app)</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <main id="doc">
+<h1>Free / near-free LLM APIs for Mandarin → colloquial Cantonese (personal iPhone app)</h1>
+<p>Research date: <strong>2026-10-29</strong>. Free tiers change often, so recheck the linked pages before you rely on any number here.
+Use case: one person, about 20–100 short sentences a day, called <strong>directly from a React Native iPhone app</strong> (no backend). The owner signs up for keys personally.</p>
+<blockquote>
+<p><strong>How this was researched (and what&#39;s missing).</strong> All evidence came from fetching provider docs, arXiv papers and Hugging Face pages directly. No web-search tool was available, and a corporate proxy blocked several provider domains: <code>console.groq.com</code>, <code>groq.com</code>, <code>api-docs.deepseek.com</code>, <code>openrouter.ai/api</code>, <code>siliconflow.cn</code>, <code>open.bigmodel.cn</code> and <code>build.nvidia.com</code>. Anything marked <strong>UNVERIFIED</strong> below could not be checked against a primary source this session. Check those from a non-corporate network before you depend on them.</p>
+</blockquote>
+<hr>
+<h2>TL;DR recommendation</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Provider + model</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Default (free)</strong></td>
+<td><strong>Google Gemini API free tier (AI Studio key)</strong>, <code>gemini-3.8-flash</code>, with <code>gemini-3.5-flash-lite</code> as an in-provider fallback when you hit a 429</td>
+<td>Best published Cantonese evidence of any model family: Gemini 2.5 Pro tops the HKCanto-Eval leaderboard (87.3 % Cantonese linguistics), and even Gemini 2.0 Flash beats GPT-4o there. The free tier needs no card. There&#39;s an OpenAI-compatible endpoint.</td>
+</tr>
+<tr>
+<td><strong>Fallback (free, no card)</strong></td>
+<td><strong>Z.ai <code>glm-4.7-flash</code></strong>, listed &quot;Free&quot; for input and output</td>
+<td>Permanently free in the docs. OpenAI-compatible. Reachable from HK and mainland China. Its Cantonese quality isn&#39;t benchmarked; the older GLM-4 was mid-pack on Yue-TRANS.</td>
+</tr>
+<tr>
+<td><strong>Fallback (near-free, best value if you add $2–5)</strong></td>
+<td><strong>DeepSeek V4.x Flash</strong>, via DeepSeek&#39;s own API or OpenRouter (<code>deepseek/deepseek-v4.1-flash</code>)</td>
+<td>DeepSeek-V3 is #2 on the HKMMLU Mandarin→Cantonese translation table and DeepSeek-R1 is #2 on HKCanto-Eval. Costs fractions of a cent a day at this volume.</td>
+</tr>
+<tr>
+<td><strong>Offline / private</strong></td>
+<td>Ollama on your Mac (<code>qwen3</code> or a hon9kon9ize CantoneseLLM GGUF), over Tailscale</td>
+<td>Free and private, but only works when the Mac is on. Quality is below the frontier models.</td>
+</tr>
+</tbody></table>
+<p><strong>Architecture:</strong> yes, build <strong>one OpenAI-compatible client</strong> and make <strong>Base URL + API key + model</strong> (plus a few optional fields) editable in Settings. Every recommended provider exposes <code>POST {baseURL}/chat/completions</code> with <code>Authorization: Bearer &lt;key&gt;</code>. That lets you change providers without changing code. Generate <strong>Jyutping locally</strong>, using CanCLID <code>to-jyutping</code>, not with the LLM; the evidence is below.</p>
+<hr>
+<h2>1. Comparison table</h2>
+<p>&quot;OpenAI-compat&quot; means the provider accepts the standard <code>/chat/completions</code> request shape with a Bearer key, so a single client can talk to all of them.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>OpenAI-compat base URL</th>
+<th>Free models (exact IDs)</th>
+<th>Free limits</th>
+<th>Key / signup</th>
+<th>Training / data terms (free tier)</th>
+<th>Region notes</th>
+<th>Cantonese evidence</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Google Gemini (AI Studio)</strong></td>
+<td><code>https://generativelanguage.googleapis.com/v1beta/openai/</code></td>
+<td><code>gemini-3.8-flash</code>, <code>gemini-3.6-flash</code>, <code>gemini-3.5-flash-lite</code>, <code>gemini-3-flash-preview</code>, <code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.5-flash-lite</code>, Gemma 4</td>
+<td>Per-model RPM/RPD are <strong>no longer published in the docs</strong>; they appear only in AI Studio (<code>aistudio.google.com/rate-limit</code>). Limits apply per project and RPD resets at midnight Pacific.</td>
+<td>Google account, AI Studio key, no card</td>
+<td><strong>Free-tier data &quot;used to improve our products&quot;</strong>, and human reviewers may read it. Paid tier: not used.</td>
+<td>Not offered in <strong>HK, mainland China or Macau</strong>. Fine in the US/EU/UK/TW.</td>
+<td><strong>Strongest</strong>: HKCanto-Eval leaderboard has Gemini 2.5 Pro at 92.1 / 87.3 (culture / linguistics) and Gemini 2.0 Flash at 80.2 / 75.3, both ahead of GPT-4o at 77.5 / 63.8</td>
+<td><strong>Default</strong></td>
+</tr>
+<tr>
+<td><strong>GitHub Models</strong></td>
+<td>was <code>https://models.github.ai/inference</code></td>
+<td>none</td>
+<td>none</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>n/a</td>
+<td><strong>Retired 2026-07-30</strong>. Don&#39;t build on it.</td>
+</tr>
+<tr>
+<td><strong>Z.ai (Zhipu, international)</strong></td>
+<td><code>https://api.z.ai/api/paas/v4/</code></td>
+<td><code>glm-4.7-flash</code>, <code>glm-4.5-flash</code> (both listed &quot;Free&quot; for every price field)</td>
+<td>Rate limits not published in docs (console only). UNVERIFIED.</td>
+<td>Z.ai account</td>
+<td>Not found</td>
+<td>Works from HK/China. The China site is <code>open.bigmodel.cn</code>.</td>
+<td>Older GLM-4 scored 82.82 ROUGE-L on Yue-TRANS (GPT-4o 89.69). No data for GLM-4.7.</td>
+<td><strong>Free fallback</strong></td>
+</tr>
+<tr>
+<td><strong>Zhipu bigmodel.cn (China)</strong></td>
+<td><code>https://open.bigmodel.cn/api/paas/v4/</code></td>
+<td><code>glm-4.7-flash</code>, <code>glm-4-flash-250414</code>, <code>glm-z1-flash</code></td>
+<td>Concurrency-based, shown in the console</td>
+<td>Account; the FAQ says real-name verification is not currently required for the API</td>
+<td>Not found</td>
+<td>China-hosted</td>
+<td>as above</td>
+<td>Use Z.ai instead if you&#39;re outside China</td>
+</tr>
+<tr>
+<td><strong>DeepSeek API</strong></td>
+<td><code>https://api.deepseek.com</code> (from memory, UNVERIFIED)</td>
+<td>none free</td>
+<td>Pay as you go</td>
+<td>Account plus prepaid top-up</td>
+<td>DeepSeek ToS (China-hosted). UNVERIFIED.</td>
+<td>Works from HK/China</td>
+<td>DeepSeek-V3: HKMMLU M→C average 59.5 (#2), ahead of Claude 3.7 (48.3) and GPT-4o (41.1). DeepSeek-R1: 88.8 / 77.5 on HKCanto-Eval.</td>
+<td><strong>Best near-free</strong></td>
+</tr>
+<tr>
+<td><strong>OpenRouter</strong></td>
+<td><code>https://openrouter.ai/api/v1</code></td>
+<td>Current <code>:free</code> text models are Nemotron, Inkling, Laguna, Flint, LFM and similar. <strong>No Qwen, DeepSeek, Llama, Gemma, GLM or Kimi <code>:free</code> variants.</strong></td>
+<td>20 RPM. <strong>50 RPD</strong> if you&#39;ve bought less than $10 of credits; 1000 RPD with $10 or more.</td>
+<td>Account; buying $10 of credits raises the cap</td>
+<td>Free endpoints often require you to opt in to providers that train on your data</td>
+<td>Global</td>
+<td>No evidence for the current free models</td>
+<td>Useful as a <strong>paid aggregator</strong>, for example DeepSeek V4.1 Flash at about $0.03 / $0.13 per 1M tokens (discounted). Not useful as a free source.</td>
+</tr>
+<tr>
+<td><strong>Groq</strong></td>
+<td><code>https://api.groq.com/openai/v1</code> (from memory)</td>
+<td>UNVERIFIED. Its catalog as seen on OpenRouter: <code>llama-3.1-8b</code>, <code>llama-3.3-70b</code>, <code>gpt-oss-120b/20b</code>, MiniMax M2.7. <strong>Qwen/Kimi no longer listed.</strong></td>
+<td>UNVERIFIED (docs blocked)</td>
+<td>Account, no card (historically)</td>
+<td>UNVERIFIED</td>
+<td>Global</td>
+<td>Llama-3.1-70B: 85.05 ROUGE-L on Yue-TRANS. gpt-oss untested.</td>
+<td>Optional extra. Lower quality for Cantonese.</td>
+</tr>
+<tr>
+<td><strong>Cerebras</strong></td>
+<td><code>https://api.cerebras.ai/v1</code></td>
+<td><code>gpt-oss-120b</code>, <code>qwen-3.8-27b</code></td>
+<td>5 RPM, 1M tokens a day, but only as a <strong>one-time $5 credit that expires after 30 days</strong>, and it needs a payment method</td>
+<td>Card required</td>
+<td>n/a</td>
+<td>Global</td>
+<td>Qwen family is historically weaker on colloquial Cantonese (see §3)</td>
+<td>Trial only, not a lasting free tier</td>
+</tr>
+<tr>
+<td><strong>SambaNova</strong></td>
+<td><code>https://api.sambanova.ai/v1</code></td>
+<td><code>DeepSeek-V3.1</code>, <code>Meta-Llama-3.3-70B-Instruct</code>, <code>gpt-oss-120b</code>, <code>DeepSeek-V3.2</code>, <code>gemma-4-31B-it</code></td>
+<td><strong>20 RPM / 20 RPD / 200K TPD</strong> per model on the &quot;Free tier (no payment method)&quot;. The plans page contradicts this and says you need a card plus credits.</td>
+<td>Account (card is ambiguous)</td>
+<td>n/a</td>
+<td>Global</td>
+<td>DeepSeek-V3 is good (see above)</td>
+<td>20 RPD is too low on its own; could be a secondary source of DeepSeek-V3.1</td>
+</tr>
+<tr>
+<td><strong>Cloudflare Workers AI</strong></td>
+<td><code>https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/v1</code></td>
+<td><code>@cf/openai/gpt-oss-120b</code>, <code>@cf/meta/llama-3.3-70b-instruct-fp8-fast</code>, <code>@cf/qwen/qwen3-30b-a3b-fp8</code>, <code>glm-4.7-flash</code>, <code>gemma-4-26b-a4b-it</code>, … (DeepSeek V4, GLM-5.x and Kimi need paid billing)</td>
+<td><strong>10,000 neurons a day</strong> free. About 100 sentences × ~150 tokens costs roughly 1–3k neurons on gpt-oss-120b (31,818 in / 68,182 out neurons per 1M tokens), so it fits.</td>
+<td>Cloudflare account; the URL contains your account ID</td>
+<td>Cloudflare terms</td>
+<td>Global</td>
+<td>No Cantonese evidence for these models</td>
+<td>Decent free backup; account ID goes in the base URL</td>
+</tr>
+<tr>
+<td><strong>Hugging Face Inference Providers</strong></td>
+<td><code>https://router.huggingface.co/v1</code></td>
+<td>Any routed model</td>
+<td><strong>Free users: no monthly credits.</strong> PRO ($9/month) gets $2.</td>
+<td>HF token</td>
+<td>Per provider</td>
+<td>Global</td>
+<td>depends on model</td>
+<td>Not free</td>
+</tr>
+<tr>
+<td><strong>Mistral</strong></td>
+<td><code>https://api.mistral.ai/v1</code> (from memory)</td>
+<td>&quot;Free mode&quot; includes some monthly API usage, but <strong>no numbers are published</strong> (console only). The old &quot;Experiment&quot; plan name is gone.</td>
+<td>Unknown</td>
+<td>Account</td>
+<td>Pricing page shows a &quot;Model training: Opt-out&quot; row</td>
+<td>EU-hosted</td>
+<td>Mixtral-large-2: 85.71 ROUGE-L on Yue-TRANS. Mistral-Small: HKMMLU M→C average 43.6.</td>
+<td>Maybe; check the console</td>
+</tr>
+<tr>
+<td><strong>Cohere</strong></td>
+<td>Compatibility API (not checked this session)</td>
+<td>Trial key: Command A and similar</td>
+<td><strong>20 RPM, 1,000 calls/month</strong></td>
+<td>Account</td>
+<td>n/a</td>
+<td>Global</td>
+<td>none</td>
+<td>Too small and no evidence</td>
+</tr>
+<tr>
+<td><strong>Alibaba Model Studio (Qwen, international)</strong></td>
+<td><code>https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1</code></td>
+<td>As of <strong>2026-10-29</strong> the new-user free quota was <strong>removed</strong> for qwen-flash/plus/max/turbo, qwen-mt-turbo, all open qwen2.5/3/3.5/3.6 models, deepseek-v4-flash and others</td>
+<td>Was 1M tokens per model for 90 days</td>
+<td>Alibaba Cloud account</td>
+<td>n/a</td>
+<td>Singapore/US</td>
+<td>Qwen2.5-72B: HKCanto-Eval linguistics 45.9 (weak)</td>
+<td>Effectively not free any more</td>
+</tr>
+<tr>
+<td><strong>SiliconFlow (.com)</strong></td>
+<td><code>https://api.siliconflow.com/v1</code></td>
+<td>No $0 models on the international site; new users get a <strong>$1 credit</strong>. The .cn site&#39;s free Qwen-7B models are UNVERIFIED.</td>
+<td>L0: 1,000 RPM</td>
+<td>Account (.cn needs a +86 phone and real name for some features)</td>
+<td>n/a</td>
+<td>.cn is China-focused</td>
+<td>Small Qwen models are weak at Cantonese</td>
+<td>Skip</td>
+</tr>
+<tr>
+<td><strong>NVIDIA NIM</strong></td>
+<td><code>https://integrate.api.nvidia.com/v1</code></td>
+<td>Many open models</td>
+<td>Free &quot;for prototyping&quot; (around 40 RPM); credits UNVERIFIED</td>
+<td>NVIDIA developer account</td>
+<td>Prototyping-only terms</td>
+<td>Global</td>
+<td>depends</td>
+<td>Allowed for personal tinkering; terms say prototyping only</td>
+</tr>
+<tr>
+<td><strong>Ollama on your Mac</strong></td>
+<td><code>http://&lt;mac&gt;:11434/v1</code></td>
+<td>Anything you pull</td>
+<td>Unlimited (your hardware)</td>
+<td>none</td>
+<td>Fully private</td>
+<td>n/a</td>
+<td>See §3 for Qwen3 and CantoneseLLM</td>
+<td>Offline/private option</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>2. Provider details and evidence</h2>
+<h3>2.1 Google Gemini API (free tier): recommended default</h3>
+<ul>
+<li><strong>Free models.</strong> The pricing page (<code>https://ai.google.dev/gemini-api/docs/pricing</code>, last updated 2026-10-28) marks these as Free Tier &quot;Yes&quot;: <code>gemini-3.8-flash</code>, <code>gemini-3.6-flash</code>, <code>gemini-3.5-flash-lite</code>, <code>gemini-3-flash-preview</code>, <code>gemini-2.5-pro</code>, <code>gemini-2.5-flash</code>, <code>gemini-2.5-flash-lite</code>, and Gemma 4. <code>gemini-4-argon</code> and <code>gemini-3.1-pro-preview</code> are <strong>not</strong> on the free tier (&quot;Gemini 4 Argon is not available on the Free tier&quot;).</li>
+<li><strong>Rate limits.</strong> <code>https://ai.google.dev/gemini-api/docs/rate-limits</code> no longer prints per-model numbers. It says &quot;View your active rate limits in AI Studio&quot;. Also: &quot;Rate limits are applied per project, not per API key&quot;, RPD resets at midnight Pacific, and Free tier qualification is &quot;Active project or free trial&quot;. <strong>Action:</strong> after creating the key, open <code>aistudio.google.com/rate-limit</code> and check the RPD for <code>gemini-3.8-flash</code> and <code>gemini-3.5-flash-lite</code>. Flash-Lite models have historically had the larger free daily quota. If Flash allows fewer than ~100 requests a day, make Flash-Lite the default and Flash the &quot;quality&quot; option.</li>
+<li><strong>OpenAI compatibility.</strong> From <code>https://ai.google.dev/gemini-api/docs/openai</code>: base URL <code>https://generativelanguage.googleapis.com/v1beta/openai/</code>, with <code>Authorization: Bearer $GEMINI_API_KEY</code>, and the docs&#39; example uses <code>&quot;model&quot;: &quot;gemini-3.8-flash&quot;</code>. <code>reasoning_effort</code> accepts <code>minimal|low|medium|high</code>, and thinking &quot;can&#39;t be turned off for Gemini 2.5 Pro or Gemini 3 models&quot;. Use <code>low</code> to keep latency down.</li>
+<li><strong>Data terms.</strong> From <code>https://ai.google.dev/gemini-api/terms</code>:<ul>
+<li>Unpaid Services: &quot;Google uses the content you submit to the Services and any generated responses to provide, improve, and develop…&quot;</li>
+<li>&quot;human reviewers may read, annotate, and process your API input and output.&quot;</li>
+<li>&quot;Do not submit sensitive, confidential, or personal information to the Unpaid Services.&quot;</li>
+<li>Dictionary sentences are fine, but avoid sending private text.</li>
+</ul>
+</li>
+<li><strong>Regions.</strong> <code>https://ai.google.dev/gemini-api/docs/available-regions</code> does not list Hong Kong, mainland China or Macau; Taiwan is listed. The terms say &quot;You may only access the Services … within an available region.&quot; If you&#39;re in the US/EU this doesn&#39;t matter. If you travel to HK, requests may fail (<code>FAILED_PRECONDITION</code> / &quot;User location is not supported&quot;). That&#39;s one reason to keep a Z.ai/DeepSeek fallback configured.</li>
+</ul>
+<h3>2.2 GitHub Models: retired</h3>
+<p><code>https://docs.github.com/en/github-models</code> (fetched 2026-10-29): <em>&quot;GitHub Models has been retired. As of July 30, 2026, GitHub Models has been fully retired. The playground, model catalog, inference API, and bring your own key (BYOK) are no longer available to any customer.&quot;</em> GitHub points to Azure AI Foundry instead. So the <code>rxun1</code> account plus a <code>models:read</code> PAT no longer gives you anything.</p>
+<h3>2.3 Z.ai GLM-4.7-Flash: free fallback</h3>
+<ul>
+<li><code>https://docs.z.ai/guides/overview/pricing.md</code>: <code>| GLM-4.7-Flash | Free | Free | Free | Free |</code> and <code>| GLM-4.5-Flash | Free | Free | Free | Free |</code>. GLM-5.3-Flash is paid ($0.15 in / $0.50 out).</li>
+<li>OpenAI-SDK compatible at <code>https://api.z.ai/api/paas/v4/</code> (<code>https://docs.z.ai/api-reference/introduction.md</code>).</li>
+<li>The China twin, <code>docs.bigmodel.cn</code>, lists <code>glm-4.7-flash</code>, <code>glm-4-flash-250414</code> and <code>glm-z1-flash</code> as free. Its FAQ says &quot;目前调用 API 并不强制要求实名认证&quot; (&quot;calling the API does not currently require real-name verification&quot;).</li>
+<li>Rate limits are only visible in the console (UNVERIFIED). Cantonese quality is unbenchmarked; test it with your own sentences.</li>
+</ul>
+<h3>2.4 DeepSeek: cheapest strong option (not free)</h3>
+<ul>
+<li>Current models on Hugging Face and OpenRouter: V4-Flash, V4-Pro, and <strong>V4.1-Flash(-1017)</strong> (Oct 2026). OpenRouter lists <code>deepseek/deepseek-v4.1-flash</code> at <strong>$0.0324 / $0.1296 per 1M tokens</strong> (in/out, shown as a discount) at <code>https://openrouter.ai/deepseek/deepseek-v4.1-flash/providers</code>.</li>
+<li>At 100 sentences × ~300 tokens a day that&#39;s about 1M tokens a month, <strong>under $0.15/month</strong>. DeepSeek&#39;s own price page was blocked (UNVERIFIED).</li>
+<li>Quality evidence: see §3. DeepSeek-V3 is #2 of the tested models on HKMMLU Mandarin→Cantonese.</li>
+</ul>
+<h3>2.5 OpenRouter</h3>
+<ul>
+<li>Limits (<code>https://openrouter.ai/docs/api-reference/limits</code>): with less than $10 of credits purchased, <strong>20 RPM, 50 RPD</strong>; with $10 or more, <strong>20 RPM, 1,000 RPD</strong>.</li>
+<li>The current free collection (<code>https://openrouter.ai/collections/free-models</code>) is NVIDIA Nemotron 3/3.5, Thinking Machines Inkling, Poolside Laguna, Recursive Flint, Liquid LFM, Xing 4.0 and others. <strong>No Qwen or DeepSeek <code>:free</code></strong> (<code>/qwen</code> and <code>/deepseek</code> pages show none). There&#39;s also an <code>openrouter/free</code> auto-router.</li>
+<li>Best use: a single paid key that reaches DeepSeek, Gemini, Qwen and others through one OpenAI-compatible URL.</li>
+</ul>
+<h3>2.6 Groq (UNVERIFIED)</h3>
+<p>Every Groq domain was blocked by the proxy. Indirect evidence (<code>https://openrouter.ai/provider/groq</code>): Groq currently serves Llama 3.1 8B, Llama 3.3 70B, gpt-oss-120b/20b and MiniMax M2.7. Qwen and Kimi weren&#39;t listed. Groq has historically offered a no-card free plan with per-model daily caps, but that isn&#39;t confirmed for late 2026. Even if it&#39;s still free, none of those models has strong Cantonese evidence.</p>
+<h3>2.7 Cerebras, SambaNova, Cloudflare, HF, Mistral, Cohere, Alibaba, SiliconFlow, NVIDIA</h3>
+<ul>
+<li><strong>Cerebras.</strong> <code>https://inference-docs.cerebras.ai/support/rate-limits</code> lists Free Trial models <code>gpt-oss-120b</code> and <code>qwen-3.8-27b</code> at 5 RPM and 1M TPD. <code>https://www.cerebras.ai/pricing</code>: &quot;Add a valid payment method to receive a one-time $5 promotional credit… The credit expires 30 days after activation.&quot;</li>
+<li><strong>SambaNova.</strong> <code>https://docs.sambanova.ai/docs/en/models/rate-limits.md</code>: Free tier &quot;no payment method linked&quot;, 20 RPM / <strong>20 RPD</strong> / 200K TPD on DeepSeek-V3.1, Llama-3.3-70B, gpt-oss-120b, DeepSeek-V3.2 and gemma-4-31B-it. <code>cloud.sambanova.ai/plans</code> contradicts this (&quot;Add a payment method and purchase credits to run your first requests&quot;).</li>
+<li><strong>Cloudflare Workers AI.</strong> <code>https://developers.cloudflare.com/workers-ai/platform/pricing/</code>: &quot;10,000 Neurons per day at no charge&quot;, resetting at 00:00 UTC. The OpenAI-compatible URL includes your account ID (<code>/client/v4/accounts/{account_id}/ai/v1</code>). DeepSeek V4, GLM-5.x and Kimi K2.6+ need paid billing.</li>
+<li><strong>Hugging Face.</strong> <code>https://huggingface.co/docs/inference-providers/pricing</code>: Free Users get &quot;None&quot; monthly credits; PRO gets $2.00.</li>
+<li><strong>Mistral.</strong> <code>docs.mistral.ai/admin/billing-usage/usage-limits.md</code>: Free mode lets you &quot;create API keys and use included monthly usage within the limits shown on the Limits page&quot;. No public numbers.</li>
+<li><strong>Cohere.</strong> <code>https://docs.cohere.com/docs/rate-limits</code>: &quot;Trial keys … are limited to 1,000 API calls a month&quot;, 20 RPM for chat.</li>
+<li><strong>Alibaba Model Studio.</strong> <code>https://www.alibabacloud.com/help/en/model-studio/new-free-quota</code> (updated Oct 29, 2026): &quot;The free quotas of some models have been removed by the platform&quot;. The list includes <code>qwen-flash</code>, <code>qwen-plus</code>, <code>qwen-max</code>, <code>qwen-turbo</code>, <code>qwen-mt-turbo</code>, <code>qwen3-*</code>, <code>qwen3.5-*</code>, <code>qwen3.6-*</code> and <code>deepseek-v4-flash</code>.</li>
+<li><strong>SiliconFlow.</strong> The <code>.com</code> site has no $0 models and gives a $1 sign-up credit; the <code>.cn</code> site is UNVERIFIED.</li>
+<li><strong>NVIDIA NIM.</strong> Free credits &quot;for prototyping&quot; (<code>https://developer.nvidia.com/nim</code>).</li>
+</ul>
+<h3>2.8 Self-hosting on your Mac (Ollama)</h3>
+<ul>
+<li>Expose Ollama on the LAN (<code>https://docs.ollama.com/faq</code>): <code>launchctl setenv OLLAMA_HOST &quot;0.0.0.0:11434&quot;</code>, then restart the Ollama app. Ollama serves an OpenAI-compatible API at <code>http://&lt;mac-ip&gt;:11434/v1</code> (any non-empty key works).</li>
+<li><strong>iOS gotcha:</strong> App Transport Security blocks plain <code>http://</code>. Either add <code>NSAppTransportSecurity → NSAllowsLocalNetworking = YES</code> to Info.plist, or (better) run <strong>Tailscale</strong> on both devices and use <code>tailscale serve</code> to get an HTTPS URL that works away from home. iOS also shows a Local Network permission prompt.</li>
+<li>Models to try:<ul>
+<li><code>qwen3:8b</code> / <code>qwen3:30b-a3b</code>.</li>
+<li>hon9kon9ize CantoneseLLM GGUFs (<code>ollama run hf.co/mradermacher/CantoneseLLMChat-v1.0-7B-GGUF</code> or the v2.0 8B/30B-A3B quantized builds).</li>
+<li>Quality is below Gemini/DeepSeek (see §3), so treat this as an offline/private fallback.</li>
+</ul>
+</li>
+</ul>
+<h3>2.9 Cantonese-specialised models: no free hosted endpoint</h3>
+<ul>
+<li><strong>hon9kon9ize CantoneseLLM v2.0</strong> (Sept 2026; Qwen3-8B / Qwen3-30B-A3B base, Apache-2.0). The card says &quot;This model isn&#39;t deployed by any Inference Provider.&quot; Its HKCanto-Eval average is <strong>62.80 vs 67.36 for base Qwen3-8B</strong>, so it trails its own base on that benchmark (<code>https://huggingface.co/hon9kon9ize/CantoneseLLM-v2.0-8B-Thinking</code>, arXiv 2609.06970).</li>
+<li><strong>CantoneseLLMChat v1.0</strong> (7B/32B/72B, Qwen2.5 base). GGUFs exist. All hon9kon9ize HF Spaces show &quot;Runtime error&quot; (<code>https://huggingface.co/hon9kon9ize</code>). The org links a chat demo at <code>chat.hon9kon9ize.com</code>, but there&#39;s no API.</li>
+<li>Others: Llama-3-Cantonese-8B-Instruct, Qwen2-Cantonese-7B-Instruct, and &quot;Liujgoj-Cantonese&quot; (Qwen3/Qwen3.5/Gemma-4 bases). All are self-host only.</li>
+<li>SenseChat-5 (SenseTime) did well on Yue-TRANS, but it&#39;s commercial and its API terms couldn&#39;t be verified.</li>
+</ul>
+<hr>
+<h2>3. Cantonese quality evidence</h2>
+<p>No published benchmark measures <strong>colloquialness</strong> directly (using 佢/係/嘅/唔/冇/喺/睇 instead of drifting into 書面語), and none covers Gemini 3.x, GPT-5.x, Claude 4.x, Qwen3.5+ or DeepSeek V4. The evidence below is the best available. Run your own 20-sentence comparison before committing.</p>
+<p><strong>A. Yue-Benchmark / Yue-TRANS</strong> (Jiang et al., &quot;How Well Do LLMs Handle Cantonese?&quot;, NAACL 2025, <code>https://arxiv.org/html/2408.16756</code>, Table 21, Mandarin→Cantonese):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>0-shot ROUGE-L / BLEU-4 / BERTScore</th>
+<th>5-shot ROUGE-L / BLEU-4 / BERTScore</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPT-4o</td>
+<td><strong>89.69 / 73.70 / 93.34</strong></td>
+<td><strong>91.16 / 79.06 / 94.21</strong></td>
+</tr>
+<tr>
+<td>SenseChat-5</td>
+<td>88.92 / 72.78 / 94.00</td>
+<td>90.94 / 77.65 / 95.05</td>
+</tr>
+<tr>
+<td>GPT-4</td>
+<td>87.11 / 68.25 / 92.52</td>
+<td>89.24 / 75.65 / 93.92</td>
+</tr>
+<tr>
+<td>Mixtral-large-2</td>
+<td>85.71 / 64.83 / 91.99</td>
+<td>88.55 / 72.70 / 93.42</td>
+</tr>
+<tr>
+<td>Qwen-2.5-72B</td>
+<td>85.11 / 61.81 / 91.78</td>
+<td>87.90 / 69.39 / 93.28</td>
+</tr>
+<tr>
+<td>Llama-3.1-70B</td>
+<td>85.05 / 63.23 / 91.86</td>
+<td>89.80 / 76.17 / 94.45</td>
+</tr>
+<tr>
+<td>GLM-4</td>
+<td>82.82 / 59.53 / 89.67</td>
+<td>84.26 / 64.87 / 89.83</td>
+</tr>
+<tr>
+<td>Gemma-2-27B</td>
+<td>9.16 / 11.30 / 62.11</td>
+<td>7.39 / 8.56 / 59.14</td>
+</tr>
+</tbody></table>
+<p>Takeaways: few-shot examples help every model (put 3–5 examples in the prompt), and Gemini was not tested.</p>
+<p><strong>B. HKCanto-Eval</strong> (hon9kon9ize/HKUST, <code>https://arxiv.org/html/2503.12440</code>, plus the updated leaderboard on <code>https://huggingface.co/hon9kon9ize/CantoneseLLMChat-v1.0-72B</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>HK culture (0-shot)</th>
+<th>Cantonese linguistics</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Gemini 2.5 Pro</strong></td>
+<td><strong>92.1 %</strong></td>
+<td><strong>87.3 %</strong></td>
+</tr>
+<tr>
+<td>DeepSeek R1</td>
+<td>88.8 %</td>
+<td>77.5 %</td>
+</tr>
+<tr>
+<td>Gemini 2.0 Flash</td>
+<td>80.2 %</td>
+<td>75.3 %</td>
+</tr>
+<tr>
+<td>GPT-4o</td>
+<td>77.5 %</td>
+<td>63.8 %</td>
+</tr>
+<tr>
+<td>Claude 3.5 Sonnet</td>
+<td>71.7 %</td>
+<td>63.2 %</td>
+</tr>
+<tr>
+<td>Qwen2.5-72B-Instruct</td>
+<td>65.9 %</td>
+<td>45.9 %</td>
+</tr>
+<tr>
+<td>GPT-4o-mini</td>
+<td>55.6 %</td>
+<td>57.3 %</td>
+</tr>
+<tr>
+<td>Qwen2.5-7B-Instruct</td>
+<td>51.2 %</td>
+<td>30.3 %</td>
+</tr>
+</tbody></table>
+<p>This measures knowledge and understanding of Cantonese, not output style, but the linguistics column is the closest proxy for &quot;knows Cantonese grammar and particles&quot;. <strong>This is the main reason to pick Gemini.</strong></p>
+<p><strong>C. HKMMLU</strong> (<code>https://arxiv.org/html/2505.02177</code>, Table 2, Mandarin→Cantonese, BLEU / METEOR / ROUGE-L / average):</p>
+<ul>
+<li>Llama-3-Taiwan-70B: 45.1 / 69.8 / 71.4 / <strong>62.1</strong></li>
+<li><strong>DeepSeek-V3</strong>: 41.9 / 67.1 / 69.4 / <strong>59.5</strong></li>
+<li>Claude 3.7 Sonnet: 29.1 / 57.0 / 58.7 / 48.3</li>
+<li>Qwen2.5-72B: 25.7 / 52.6 / 56.1 / 44.8</li>
+<li>GPT-4o: 20.9 / 49.0 / 53.5 / 41.1</li>
+</ul>
+<p>The paper says GPT-4o &quot;performs poorly in the Mandarin-to-Cantonese task&quot;. Gemini wasn&#39;t tested. Together with B, this supports DeepSeek as the strong cheap fallback.</p>
+<p><strong>D. Jyutping should not come from the LLM.</strong> HKCanto-Eval Table 3 (character → Jyutping CER, lower is better):</p>
+<ul>
+<li>GPT-4o 5.4 %</li>
+<li>Claude 3.5 Sonnet 7.9 %</li>
+<li>GPT-4o-mini 12.0 %</li>
+<li>Gemini 1.5 Pro 15.3 %</li>
+<li>Qwen2 72B 74.0 %</li>
+<li><strong>Rule-based 0.8 %</strong></li>
+</ul>
+<p>Use a local converter: CanCLID <strong><code>to-jyutping</code></strong> (JS/TS, <code>https://github.com/CanCLID/to-jyutping</code>), ToJyutping (Python), or PyCantonese. If the LLM also returns Jyutping, treat it as a hint only.</p>
+<p><strong>E. Community signal</strong> (thin; Hacker News only, since LIHKG, Reddit and X were unreachable):</p>
+<ul>
+<li>&quot;they do sometimes get confused with Mandarin or go to a more &#39;formal&#39; Cantonese&quot; (2024, <code>https://news.ycombinator.com/item?id=41744415</code>).</li>
+<li>&quot;Until recent months, LLMs couldn&#39;t even write a proper children&#39;s story in Cantonese without inadvertently code switching to SWC&quot; (2026-02, <code>https://news.ycombinator.com/item?id=46847735</code>).</li>
+</ul>
+<p>Conclusion: explicitly tell the model to avoid 書面語 and give few-shot examples.</p>
+<p><strong>F. Qwen caveat.</strong> Qwen is Chinese-made but tends to score <em>lower</em> on Cantonese linguistics (45.9 % for 72B), and small Qwen models were unstable on Yue-TRANS. Don&#39;t assume &quot;Chinese model = better Cantonese&quot;.</p>
+<hr>
+<h2>4. App design recommendation</h2>
+<ol>
+<li><strong>One OpenAI-compatible client.</strong> In Settings, store these fields and save presets for Gemini / Z.ai / DeepSeek / OpenRouter / Ollama:<ul>
+<li><code>baseURL</code></li>
+<li><code>apiKey</code></li>
+<li><code>model</code></li>
+<li>optional <code>reasoning_effort</code></li>
+<li>optional <code>extraHeaders</code> (OpenRouter likes <code>HTTP-Referer</code> / <code>X-Title</code>)</li>
+<li>&quot;supports JSON mode&quot; toggle</li>
+</ul>
+</li>
+<li><strong>Fallback chain.</strong> On HTTP 429/5xx or a region error, retry once with the next preset, e.g. Gemini Flash → Gemini Flash-Lite → Z.ai GLM-4.7-Flash.</li>
+<li><strong>Key storage.</strong> The owner pastes the key at runtime, and it goes into the iOS Keychain (<code>react-native-keychain</code> or <code>expo-secure-store</code>). Never put a key in the JS bundle or in <code>.env</code> files that get compiled into the app; anyone with the IPA can extract those.</li>
+<li><strong>Cache translations</strong> locally (keyed by input sentence + model) so repeats are free and work offline.</li>
+<li><strong>Prompt.</strong> Use a system prompt with explicit colloquial markers plus 3–5 few-shot pairs (Yue-TRANS shows few-shot helps), and ask for JSON. Run <code>to-jyutping</code> on the result locally.</li>
+</ol>
+<h3>Suggested prompt</h3>
+<pre><code>System: You translate Mandarin (Standard Written Chinese) into natural, spoken Hong Kong Cantonese written in Traditional characters.
+Use colloquial forms: 佢/佢哋, 係, 嘅, 唔, 冇, 喺, 睇, 嘢, 咗, 緊, 啲, 嚟, 俾, 咁, 點解, 邊個, and sentence particles (啦/喎/㗎/囉/啩) where natural.
+Never output 書面語 such as 他/是/的/不/沒有/在/看 unless a Cantonese speaker would really say it.
+Return ONLY JSON: {&quot;yue&quot;: &quot;&lt;Cantonese&gt;&quot;, &quot;notes&quot;: &quot;&lt;optional short note on word choices&gt;&quot;}
+Examples:
+他在看书。 -&gt; {&quot;yue&quot;:&quot;佢喺度睇書。&quot;}
+我没有钱。 -&gt; {&quot;yue&quot;:&quot;我冇錢。&quot;}
+这是谁的？ -&gt; {&quot;yue&quot;:&quot;呢個係邊個嘅？&quot;}
+你吃饭了吗？ -&gt; {&quot;yue&quot;:&quot;你食咗飯未呀？&quot;}
+</code></pre>
+<h3>Sample request: recommended provider (Gemini free tier, OpenAI-compatible)</h3>
+<pre><code class="language-bash">curl &quot;https://generativelanguage.googleapis.com/v1beta/openai/chat/completions&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Authorization: Bearer $GEMINI_API_KEY&quot; \
+  -d &#39;{
+    &quot;model&quot;: &quot;gemini-3.8-flash&quot;,
+    &quot;reasoning_effort&quot;: &quot;low&quot;,
+    &quot;temperature&quot;: 0.3,
+    &quot;response_format&quot;: {&quot;type&quot;: &quot;json_object&quot;},
+    &quot;messages&quot;: [
+      {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: &quot;You translate Mandarin into natural spoken Hong Kong Cantonese in Traditional characters (佢/係/嘅/唔/冇/喺/睇…). Avoid 書面語. Return ONLY JSON: {\&quot;yue\&quot;: \&quot;...\&quot;}. Examples: 他在看书。-&gt; {\&quot;yue\&quot;:\&quot;佢喺度睇書。\&quot;} 我没有钱。-&gt; {\&quot;yue\&quot;:\&quot;我冇錢。\&quot;}&quot;},
+      {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;我们明天去哪里吃饭？&quot;}
+    ]
+  }&#39;
+# Expected shape: choices[0].message.content == &quot;{\&quot;yue\&quot;:\&quot;我哋聽日去邊度食飯呀？\&quot;}&quot;
+</code></pre>
+<p>Fallback presets use the same body with a different URL, key and model:</p>
+<ul>
+<li>Z.ai: <code>https://api.z.ai/api/paas/v4/chat/completions</code>, model <code>glm-4.7-flash</code></li>
+<li>OpenRouter: <code>https://openrouter.ai/api/v1/chat/completions</code>, model <code>deepseek/deepseek-v4.1-flash</code></li>
+<li>Ollama: <code>http://&lt;mac&gt;:11434/v1/chat/completions</code>, model <code>qwen3:8b</code></li>
+</ul>
+<p>Drop <code>response_format</code> for providers that reject it and parse the JSON from the text instead.</p>
+<hr>
+<h2>5. Open items to verify (blocked this session)</h2>
+<ul>
+<li>Gemini free-tier RPD for <code>gemini-3.8-flash</code> / <code>gemini-3.5-flash-lite</code> (check AI Studio after signup).</li>
+<li>Groq&#39;s free plan models and limits (<code>console.groq.com/docs/rate-limits</code>).</li>
+<li>DeepSeek&#39;s official prices and native model IDs (<code>api-docs.deepseek.com/quick_start/pricing</code>).</li>
+<li>Z.ai free-model rate limits (console).</li>
+<li>Whether <code>response_format: json_object</code> works on each provider&#39;s OpenAI-compatible layer.</li>
+<li>A hands-on 20-sentence bake-off (Gemini Flash vs Flash-Lite vs GLM-4.7-Flash vs DeepSeek V4.1 Flash), scored on colloquial-marker usage and native-speaker feel. This is the decisive test, because no benchmark covers the 2026 model versions.</li>
+</ul>
+
+  </main>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "free-llm-apis.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "free-llm-apis.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = localStorage.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+</body>
+</html>

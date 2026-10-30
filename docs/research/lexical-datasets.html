@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lexical datasets for an offline Cantonese dictionary app</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <main id="doc">
+<h1>Lexical datasets for an offline Cantonese dictionary app</h1>
+<p><em>Research date: 2026-10-29. Every count below comes from files I downloaded to <code>/tmp</code> and parsed myself, unless it says otherwise. License quotes come from each project&#39;s own LICENSE, README or terms page, linked inline.</em></p>
+<h2>0. TL;DR</h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Primary source</th>
+<th>Supplements</th>
+<th>License you inherit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>(a) char → Jyutping (multiple readings, ranked)</td>
+<td><strong>rime-cantonese-upstream <code>char.csv</code></strong> (27k chars, with <code>預設/常用/罕見/棄用</code> rank)</td>
+<td><strong>LSHK <code>list.tsv</code></strong> (29k chars), <strong>Unihan <code>kCantonese</code></strong> (29.9k chars), <strong>words.hk charlist</strong> (public domain)</td>
+<td>CC BY 4.0 + Unicode License v3 (both permissive)</td>
+</tr>
+<tr>
+<td>(b) word → Jyutping</td>
+<td><strong>rime-cantonese <code>jyut6ping3.words.dict.yaml</code></strong> (101.8k words)</td>
+<td><strong>words.hk wordslist</strong> (62.6k, public domain), KFCD 粵語詞典 Jyutping; optionally CC-CEDICT Cantonese readings (share-alike)</td>
+<td>CC BY 4.0 / PD (optionally CC BY-SA 3.0)</td>
+</tr>
+<tr>
+<td>(c) Mandarin equivalent / Mandarin meaning</td>
+<td><strong>Kaifangcidian 開放粵語詞典 (<code>cidian_zhyue-kfcd</code>)</strong>: Cantonese word → Mandarin equivalents (≈12.5k of 40.7k entries in the 2019 file; the site now reports 84,783 words)</td>
+<td><strong>Wiktionary dialectal-synonym tables</strong> (≥2,500 concept tables, share-alike); KFCD <code>yyzd</code> (sparse Mandarin char definitions); MoE 國語辭典 (verbatim only) for standard words</td>
+<td>CC BY 3.0 (permissive); optional CC BY-SA 4.0 / CC BY-ND 3.0 TW</td>
+</tr>
+<tr>
+<td>English glosses (nice-to-have)</td>
+<td><strong>CC-CEDICT</strong> (125k) + <strong>CC-Canto</strong> (34k)</td>
+<td>Unihan <code>kDefinition</code></td>
+<td>CC BY-SA 4.0 / 3.0 (share-alike) + Unicode</td>
+</tr>
+<tr>
+<td>(d) Fallback g2p for arbitrary text</td>
+<td><strong><code>to-jyutping</code></strong> npm (BSD-2-Clause, pure JS, ~389 KB bundle incl. data)</td>
+<td>PyCantonese (MIT, Python, build-time only)</td>
+<td>BSD-2</td>
+</tr>
+<tr>
+<td>Highest-quality definitions (Cantonese + English)</td>
+<td><strong>words.hk 粵典</strong> full dump</td>
+<td>–</td>
+<td>⚠️ <strong>Non-Commercial Open Data License 1.0</strong>: no ads, no paid app, no sub-licensing, unless you get a separate license</td>
+</tr>
+</tbody></table>
+<p><strong>Bottom line:</strong> a <strong>commercial-safe core</strong> (rime-cantonese + LSHK + Unihan + words.hk public-domain lists + Kaifangcidian + to-jyutping) needs <strong>attribution only</strong>. Adding <strong>CC-CEDICT / CC-Canto / Wiktionary</strong> gets you English glosses and more Mandarin equivalents, but the bundled database then has to be shared under <strong>CC BY-SA</strong>. Adding <strong>words.hk definitions</strong> limits you to a <strong>non-commercial</strong> app (free, no ads) unless Hong Kong Lexicography Ltd grants you a separate license.</p>
+<hr>
+<h2>1. Background concepts (short primer)</h2>
+<ul>
+<li><strong>Jyutping (粵拼)</strong> is the LSHK romanization scheme: initial + final + tone digit 1–6 (<code>sik6</code>). Datasets sometimes differ in (1) which variant readings they allow (e.g. &quot;lazy&quot; merged readings such as <code>ng5</code>/<code>m5</code> or <code>n-</code>/<code>l-</code>), (2) whether a word records <strong>changed tone (變調)</strong> (e.g. 蛋 <code>daan2</code> alone vs 蛋糕 <code>daan6 gou1</code>), and (3) non-standard particle syllables (<code>la1</code>, <code>ga3</code>).</li>
+<li><strong>Char vs word readings:</strong> a character can have several readings (行 <code>hang4/haang4/hong4/hang6</code>). Word lists settle which one applies in context, which is why you want both a char table and a word table, plus a g2p segmenter for free text.</li>
+<li><strong>g2p (grapheme-to-phoneme)</strong> means automatic conversion from characters to Jyutping. Cantonese g2p tools use longest-match segmentation over a word list, then fall back to the most common reading of each character.</li>
+<li><strong>License terms that matter for an app:</strong><ul>
+<li><strong>Attribution (BY):</strong> credit the source and link the license (an &quot;About / Licenses&quot; screen is enough).</li>
+<li><strong>ShareAlike (SA):</strong> if you <em>adapt</em> the data (merge, convert, filter), the adapted data must be released under the same or a compatible license. Your app <em>code</em> does not have to be open, but anyone can legally extract and reuse your bundled DB. CC 4.0 licenses also say you may not apply &quot;Effective Technological Measures&quot; that restrict recipients&#39; rights. The usual mitigation for App Store distribution is to <strong>also publish the derived dataset openly</strong> (for example as a GitHub release).</li>
+<li><strong>NonCommercial (NC):</strong> no use for commercial purposes. words.hk&#39;s definition (below) covers ads and paid services.</li>
+<li><strong>NoDerivatives (ND):</strong> you can redistribute but not modify the text, so you show it verbatim.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>2. Comparison table</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Source</th>
+<th>Content</th>
+<th>Size (measured)</th>
+<th>Format</th>
+<th>License</th>
+<th>Free app</th>
+<th>Paid / ads app</th>
+<th>Last update</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><a href="https://github.com/rime/rime-cantonese">rime-cantonese</a> / <a href="https://github.com/CanCLID/rime-cantonese-upstream">upstream</a></td>
+<td>char→jyutping (ranked, 文白, 變調), word→jyutping</td>
+<td>chars: 34,362 rows / <strong>27,007 chars</strong>; words: 103,077 rows / <strong>101,811 words</strong>; phrase list 330,701 (no jyutping)</td>
+<td>TSV-in-YAML, CSV</td>
+<td><strong>CC BY 4.0</strong> (maps file: ODbL)</td>
+<td>✅ attribution</td>
+<td>✅ attribution</td>
+<td>Active (dict version <code>2026.08.10</code>, pushed 2026-08-13)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><a href="https://github.com/lshk-org/jyutping-table">LSHK 電腦用漢字粵語拼音表</a></td>
+<td>char→jyutping (all readings, incl. merged variants)</td>
+<td>38,305 rows / <strong>29,144 chars</strong></td>
+<td>TSV</td>
+<td><strong>CC BY 4.0</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>2024-01-11</td>
+</tr>
+<tr>
+<td>3</td>
+<td><a href="https://www.unicode.org/reports/tr38/#kCantonese">Unihan kCantonese</a></td>
+<td>1 &quot;most customary&quot; reading per char; <code>kDefinition</code> English</td>
+<td><strong>29,936 chars</strong> (draft file)</td>
+<td>TXT</td>
+<td><strong>Unicode License v3</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>Unicode 18.0 (UAX#38 rev 41, 2026-09-01)</td>
+</tr>
+<tr>
+<td>4a</td>
+<td><a href="https://words.hk/faiman/analysis/">words.hk 細數據 char/word lists</a></td>
+<td>char→jyutping, word→jyutping</td>
+<td><strong>5,884 chars</strong>; <strong>62,634 words</strong></td>
+<td>CSV/JSON</td>
+<td><strong>Public domain</strong> (&quot;Credits to words.hk appreciated&quot;)</td>
+<td>✅</td>
+<td>✅</td>
+<td>charlist updated 2026-10-08</td>
+</tr>
+<tr>
+<td>4b</td>
+<td><a href="https://words.hk/faiman/request_data/">words.hk 粵典 full dump</a></td>
+<td>headword, jyutping, POS, labels, Cantonese + English definitions, bilingual examples (some <code>zho</code> lines), synonyms/antonyms</td>
+<td>~60k+ headwords (dump not downloaded, see §3.4)</td>
+<td>CSV (gz), regenerated on request</td>
+<td><strong>Non-Commercial Open Data License 1.0</strong></td>
+<td>⚠️ only if fully non-commercial</td>
+<td>❌ unless separately licensed</td>
+<td>Daily</td>
+</tr>
+<tr>
+<td>5</td>
+<td><a href="https://www.kaifangcidian.com/xiazai/">Kaifangcidian 粵語詞典</a></td>
+<td>Cantonese word, Yale/Jyutping, <strong>Mandarin equivalent(s)</strong></td>
+<td>2019-06-23 file: <strong>40,708 entries, 12,513 with Mandarin</strong>; site now says 84,783 words</td>
+<td>TSV / JS-array</td>
+<td><strong>CC BY 3.0</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>Site © 2009-2024; GitHub mirror is 2019</td>
+</tr>
+<tr>
+<td>6</td>
+<td><a href="https://github.com/kfcd/yyzd">Kaifangcidian 粵語字典 <code>yyzd</code></a></td>
+<td>char, simp, reading, example words, <strong>Mandarin definition</strong></td>
+<td>6,577 rows; only <strong>740</strong> have definitions</td>
+<td>TSV/CSV/MD (11 romanizations)</td>
+<td><strong>CC BY 3.0</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>2023-03-30</td>
+</tr>
+<tr>
+<td>7</td>
+<td><a href="https://cantonese.org/download.html">CC-Canto</a></td>
+<td>Cantonese words, jyutping, English</td>
+<td><strong>34,335</strong> entries</td>
+<td>CEDICT-format TXT</td>
+<td><strong>CC BY-SA 3.0</strong></td>
+<td>✅ SA</td>
+<td>✅ SA</td>
+<td>2017-02-02 (unmaintained)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><a href="https://cantonese.org/download.html">CC-CEDICT Cantonese readings</a></td>
+<td>Jyutping for CC-CEDICT headwords</td>
+<td><strong>105,862</strong> lines</td>
+<td>CEDICT-format TXT</td>
+<td><strong>CC BY-SA 3.0</strong></td>
+<td>✅ SA</td>
+<td>✅ SA</td>
+<td>2015-09-23 (unmaintained)</td>
+</tr>
+<tr>
+<td>9</td>
+<td><a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict">CC-CEDICT</a></td>
+<td>Mandarin dictionary, English glosses; 68 <code>(Cantonese)</code> entries, 14 &quot;Mandarin equivalent&quot; notes</td>
+<td><strong>125,324</strong> entries</td>
+<td>TXT</td>
+<td><strong>CC BY-SA 4.0</strong></td>
+<td>✅ SA</td>
+<td>✅ SA</td>
+<td>Daily (2026-10-29)</td>
+</tr>
+<tr>
+<td>10</td>
+<td><a href="https://en.wiktionary.org/">English Wiktionary</a> / <a href="https://kaikki.org/dictionary/rawdata.html">kaikki.org</a></td>
+<td>Jyutping, English senses, <strong>dialectal-synonym tables (Standard Written Chinese ↔ Cantonese)</strong></td>
+<td>Chinese: 308,751 word forms; ≥2,500 <code>Module:zh/data/dial-syn/*</code> tables</td>
+<td>JSONL (raw 2.9 GB gz) / Lua</td>
+<td><strong>CC BY-SA 4.0</strong> (+GFDL)</td>
+<td>✅ SA</td>
+<td>✅ SA</td>
+<td>Monthly (extract 2026-10-25)</td>
+</tr>
+<tr>
+<td>11</td>
+<td><a href="https://kaikki.org/dictionary/rawdata.html">zh.wiktionary via kaikki</a></td>
+<td>Chinese-language definitions (some 〈方〉 Cantonese senses)</td>
+<td>zh-extract 223.6 MB gz</td>
+<td>JSONL</td>
+<td><strong>CC BY-SA 4.0</strong></td>
+<td>✅ SA</td>
+<td>✅ SA</td>
+<td>Monthly</td>
+</tr>
+<tr>
+<td>12</td>
+<td><a href="https://github.com/CanCLID/to-jyutping">to-jyutping</a> (JS) / <a href="https://github.com/CanCLID/ToJyutping">ToJyutping</a> (Py)</td>
+<td>Sentence g2p with candidates + IPA</td>
+<td>npm 3.1.1, 1.28 MB unpacked, <code>dist/index.mjs</code> 389 KB</td>
+<td>npm</td>
+<td><strong>BSD-2-Clause</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>npm 2024-09-30; Py repo 2026-02</td>
+</tr>
+<tr>
+<td>13</td>
+<td><a href="https://github.com/jacksonllee/pycantonese">PyCantonese</a></td>
+<td>g2p, segmentation, HKCanCor corpus</td>
+<td>–</td>
+<td>Python</td>
+<td><strong>MIT</strong> (bundled data CC BY / GPL / MPL / CC0)</td>
+<td>build-time</td>
+<td>build-time</td>
+<td>2026-05</td>
+</tr>
+<tr>
+<td>14</td>
+<td><a href="https://github.com/g0v/moedict-data">MoE 國語辭典 (g0v)</a></td>
+<td>Mandarin (Taiwan) definitions of standard words</td>
+<td>重編本 ~160k (not counted)</td>
+<td>JSON</td>
+<td><strong>CC BY-ND 3.0 TW</strong></td>
+<td>✅ verbatim</td>
+<td>✅ verbatim</td>
+<td>2026-07</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://humanum.arts.cuhk.edu.hk/Lexis/lexi-can/">CUHK 粵語審音配詞字庫</a></td>
+<td>char readings + word examples</td>
+<td>13,060 chars / 18,969 readings (site stats page)</td>
+<td>web only</td>
+<td>© CUHK, no license</td>
+<td>❌</td>
+<td>❌</td>
+<td>old</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://apps.itsc.cuhk.edu.hk/hanyu/Page/Cover.aspx">CUHK 現代標準漢語與粵語對照資料庫</a></td>
+<td>Standard Chinese ↔ Cantonese words</td>
+<td>n/a</td>
+<td>web only</td>
+<td>&quot;(c) 2014保留版權&quot;</td>
+<td>❌</td>
+<td>❌</td>
+<td>completed 2001</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://www.cantonese.sheik.co.uk/">CantoDict</a></td>
+<td>Cantonese/Mandarin/English</td>
+<td>n/a</td>
+<td>web</td>
+<td>&quot;CantoDict is not public domain&quot;</td>
+<td>❌</td>
+<td>❌</td>
+<td>active</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://wenlin.co/wow/Project:Jyut">ABC Cantonese-English (Wenlin)</a></td>
+<td>16,000+ entries</td>
+<td>n/a</td>
+<td>wiki</td>
+<td>&quot;All Rights Reserved&quot;</td>
+<td>❌</td>
+<td>❌</td>
+<td>active</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://github.com/g0v/moedict-data-csld">兩岸三地生活差異詞語彙編 (g0v csld)</a></td>
+<td>TW/CN/HK/MO word equivalents</td>
+<td>1,006 rows</td>
+<td>CSV</td>
+<td>CC BY-NC-ND 4.0 granted <em>to the MoEDict project</em></td>
+<td>❌</td>
+<td>❌</td>
+<td>2023</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://github.com/jyutnet/cantonese-books-data">jyutnet/cantonese-books-data</a> (廣州話正音字典 etc.)</td>
+<td>historic char readings</td>
+<td>–</td>
+<td>JSON</td>
+<td>no license (book copyright)</td>
+<td>❌</td>
+<td>❌</td>
+<td>2026-10</td>
+</tr>
+<tr>
+<td>✗</td>
+<td><a href="https://github.com/AlienKevin/wordshk-tools">AlienKevin/wordshk-tools <code>mandarin_variants.tsv</code></a></td>
+<td>LLM-generated Mandarin equivalents of words.hk senses</td>
+<td>20,802 rows</td>
+<td>TSV</td>
+<td>no license; derived from NC data</td>
+<td>❌</td>
+<td>❌</td>
+<td>2025-01</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. Source-by-source details</h2>
+<h3>3.1 rime-cantonese and rime-cantonese-upstream (CanCLID)</h3>
+<ul>
+<li><strong>URLs:</strong> <a href="https://github.com/rime/rime-cantonese">https://github.com/rime/rime-cantonese</a> (built dictionaries), <a href="https://github.com/CanCLID/rime-cantonese-upstream">https://github.com/CanCLID/rime-cantonese-upstream</a> (curated CSV source tables)</li>
+<li><strong>Files and measured counts:</strong><ul>
+<li><code>jyut6ping3.chars.dict.yaml</code>: 34,362 rows covering <strong>27,007 unique chars</strong>, <code>char&lt;TAB&gt;jyutping&lt;TAB&gt;weight%</code>. Example: <code>行 haang4 5%</code>, <code>行 hang4 5%</code>, <code>行 hang6 5%</code>, <code>行 hong2 3%</code>, <code>行 hong4 5%</code>, <code>行 hong6 0%</code>.</li>
+<li><code>jyut6ping3.words.dict.yaml</code>: 103,077 rows covering <strong>101,811 unique words</strong> (<code>吖嗪 aa1 ceon4</code>).</li>
+<li><code>jyut6ping3.phrase.dict.yaml</code>: 330,701 phrases with <strong>no</strong> jyutping (Rime derives it). Don&#39;t use this file as a reading source.</li>
+<li>Upstream <code>char.csv</code>: <code>char,jyutping,pron_rank,tone_var,literary_vernacular,comment</code>. <code>pron_rank</code> ∈ {<code>預設</code> (exactly one default), <code>常用</code>, <code>罕見</code>, <code>棄用</code>}, <code>tone_var</code> ∈ {<code>本調</code>,<code>變調</code>}, <code>literary_vernacular</code> ∈ {<code>文讀</code>,<code>白讀</code>}. Example: <code>冇,mo5,棄用</code> / <code>冇,mou5,預設</code>; <code>嘅,ge3,預設</code> / <code>嘅,ge2,罕見</code>. <strong>This is the best ready-made ordering of multiple readings.</strong></li>
+<li>Upstream <code>word.csv</code>, <code>fixed_expressions.csv</code> (成語/諺語), <code>phrase_fragment.csv</code>, etc.</li>
+</ul>
+</li>
+<li><strong>Conventions (from the upstream README):</strong> keeps ng-/∅- distinct and excludes lazy readings (&quot;唔收懶音，例如 n-/l- 混淆音&quot;). Word readings record <strong>actual (sandhi) pronunciation</strong> (&quot;詞語標音全部記作實際發音，即係變調後嘅發音&quot;). Words are normalized to <strong>OpenCC glyph forms</strong>.</li>
+<li><strong>Data provenance (upstream README):</strong> char readings come mainly from the LSHK table, with reference to Unihan, CUHK 粵語審音配詞字庫 and 廣州話正音字典. Words come from words.hk&#39;s public-domain wordslist, 冚唪唥粵文, 《實用廣州話分類詞典》, and other dictionaries.</li>
+<li><strong>License:</strong> README: &quot;主體部分循「共享創意-署名-4.0 國際」協議發佈，<code>jyut6ping3.maps</code> 循「開放資料庫授權-1.0」協議發佈&quot;. <code>LICENSE-CC-BY</code> and <code>LICENSE-ODbL</code> are in the repo root. <strong>Exclude <code>jyut6ping3.maps.dict.yaml</code></strong> (4,439 HK street names from OpenStreetMap, ODbL share-alike) unless you want ODbL obligations.</li>
+<li><strong>App use:</strong> ✅ free and paid, with attribution.</li>
+<li><strong>Maintenance:</strong> very active (version <code>2026.08.10</code>).</li>
+<li><strong>Downloads:</strong> <code>https://raw.githubusercontent.com/rime/rime-cantonese/main/jyut6ping3.{chars,words}.dict.yaml</code>, <code>https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/{char,word}.csv</code></li>
+<li><strong>Used by:</strong> yuetyam/jyutping (iOS/macOS keyboard + dictionary, CC0 code), PyCantonese, tracywong117/pinyin-dictionary, and others.</li>
+</ul>
+<h3>3.2 LSHK 電腦用漢字粵語拼音表 (Jyutping table)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://github.com/lshk-org/jyutping-table">https://github.com/lshk-org/jyutping-table</a></li>
+<li><strong>Content:</strong> <code>list.tsv</code> with columns <code>CH UCODE JP INIT FINL TONE DESC DESC_JP</code>: 38,305 readings covering <strong>29,144 chars</strong> (README: ISO/IEC 10646-1:2000&#39;s 27,484 chars + HKSCS-2001&#39;s 4,384).</li>
+<li><strong>Convention caveat:</strong> it lists merged or variant readings that rime excludes, e.g. <code>㐅 m5, ng5</code> vs rime <code>ng5</code>, and <code>㐐 lou4, nou4</code> vs rime <code>nou4</code>. 5,968 LSHK chars have at least one reading that rime lacks, and 2,488 LSHK chars are missing from rime entirely (mostly rare CJK Ext-A/HKSCS).</li>
+<li><strong>License:</strong> README: &quot;粵拼表以 CC BY 4.0 權限發佈&quot; / &quot;The List is released under the CC BY 4.0 license.&quot;</li>
+<li><strong>App use:</strong> ✅ with attribution. <strong>Updated:</strong> 2024-01-11.</li>
+<li><strong>Download:</strong> <code>https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv</code></li>
+</ul>
+<h3>3.3 Unicode Unihan <code>kCantonese</code> (and <code>kDefinition</code>)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://www.unicode.org/reports/tr38/#kCantonese">https://www.unicode.org/reports/tr38/#kCantonese</a>. Draft per-property files are at <a href="https://github.com/unicode-org/unihan-database">https://github.com/unicode-org/unihan-database</a> (<code>kCantonese.txt</code>, <code>kDefinition.txt</code>). The release version is in <code>Unihan.zip</code> → <code>Unihan_Readings.txt</code>.</li>
+<li><strong>Content:</strong> UAX #38: &quot;The most customary jyutping (Cantonese) reading for this ideograph. This property is targeted specifically for use by CLDR collation and transliteration. The values may not in all cases track the preferred reading in some dictionaries.&quot; The current draft has <strong>one reading per char</strong> across <strong>29,936 chars</strong> (0 multi-reading lines). Examples: <code>U+884C 行 hang4</code>, <code>U+5605 嘅 ge3</code>, <code>U+5187 冇 mou5</code>. <code>kDefinition</code> gives English glosses.</li>
+<li><strong>Role:</strong> last-resort coverage for chars in no other table. Not suitable for multiple readings.</li>
+<li><strong>License:</strong> <a href="https://www.unicode.org/license.txt">Unicode License V3</a>: &quot;Permission is hereby granted, free of charge, … to deal in the Data Files or Software without restriction, including … the rights to use, copy, modify, merge, publish, distribute, and/or sell copies … provided that either (a) this copyright and permission notice appear with all copies … or (b) this copyright and permission notice appear in associated Documentation.&quot;</li>
+<li><strong>App use:</strong> ✅ free and paid (include the notice). <strong>Updated:</strong> Unicode 18.0 (UAX#38 rev 41, 2026-09-01).</li>
+</ul>
+<h3>3.4 words.hk 粵典</h3>
+<p>There are <strong>two</strong> distinct data products with <strong>different licenses</strong>:</p>
+<p><strong>(a) 細數據 analysis lists: public domain.</strong> <a href="https://words.hk/faiman/analysis/">https://words.hk/faiman/analysis/</a></p>
+<ul>
+<li><code>charlist.csv</code> (<code>/faiman/analysis/charlist.csv</code>): <strong>5,884 chars</strong> → jyutping list (<code>嘅,ge2,ge3</code>, <code>食,sik4,sik6</code>). Page: &quot;可以用作｛字=&gt;粵拼｝嘅數據 … Data License: public domain. Credits to words.hk appreciated. 授權：公有領域。&quot; Last updated 2026-10-08.</li>
+<li><code>wordslist.csv</code> (<code>/faiman/analysis/wordslist.csv</code>): <strong>62,634 headwords</strong> → jyutping(s) (<code>冇mood,mou5 mut1</code>). Page: &quot;Contains the wordlist and pronunciations of all entries recorded in the dictionary … Data License: public domain.&quot;</li>
+<li>Also public domain: character/word frequency from the 粵文庫 corpus, and an English→Cantonese index.</li>
+<li>Quirk: English-letter loan syllables are prefixed with <code>!</code> (e.g. <code>!es1</code>) and are not valid Jyutping.</li>
+</ul>
+<p><strong>(b) Full dictionary dump: Non-Commercial.</strong> <a href="https://words.hk/faiman/request_data/">https://words.hk/faiman/request_data/</a></p>
+<ul>
+<li>Obtained through a form (POST with CSRF token) that returns <code>/static/generated/all-&lt;timestamp&gt;.csv.gz</code> and <code>wordpos-&lt;timestamp&gt;.csv.gz</code>. I got the links but did not download the dump. CSV columns per the <a href="https://github.com/MarvNC/words-hk-parse">words-hk-parse types</a>: <code>id, headword, entry, variants, warning, public</code>. The <code>entry</code> text holds <code>(pos:…)(label:…)(sim:…)(ant:…)(ref:…)</code>, <code>&lt;explanation&gt;</code> with <code>yue:</code> + <code>eng:</code> lines, and <code>&lt;eg&gt;</code> blocks with optional <code>zho:</code> (Standard Chinese), <code>yue:</code>, <code>eng:</code>, <code>lzh:</code> lines (<a href="https://github.com/AlienKevin/wordshk-tools">wordshk-tools parse.rs</a>).</li>
+<li><strong>Mandarin:</strong> <strong>no</strong> Mandarin-equivalent field. Definitions are in written Cantonese + English, and only some example sentences carry a <code>zho</code> line. For 冇, the page shows Cantonese/English definitions, 反義 有, and 參看 links, but no 普通話 equivalent.</li>
+<li><strong>License:</strong> &quot;粵典嘅詞典資料係以《非商業開放資料授權協議 1.0》發佈&quot; → <a href="https://words.hk/base/hoifong/">Non-Commercial Open Data License 1.0</a>, &quot;Copyright (c) 2015-2025, Hong Kong Lexicography Limited&quot;. Key clauses (verbatim):<ul>
+<li>1(a) &quot;You do not use the Licensed Work for Commercial Purposes as defined in Section 2 unless the conditions in Section 3 are met.&quot;</li>
+<li>1(b)(i) &quot;All distributions of the Licensed Work or its derivatives in any form must reproduce the above copyright notice, the above disclaimer, and the Credits List…&quot;; (ii) &quot;…must display a prominent link to that website.&quot;</li>
+<li>1(d) &quot;You do not sub-license any or parts of the Licensed Work.&quot;</li>
+<li>2: Commercial use &quot;DOES include … a) Collecting advertisement fees … b) Selling any service using the Licensed Work as a value added component. c) Publishing the Licensed Work in exchange for valuable consideration. … f) Any use of the Licensed Work normally protected by copyright, in a commercial setting … it is immaterial whether You make a profit or loss…&quot;</li>
+<li>3: exceptions are (a) a separate agreement, (b) no reply after 6 months of good-faith attempts, (c) &quot;The Licensed Work has been published for ten or more years&quot; (old versions only), (d) US fair use, (e) &quot;Use in small personal businesses … sole proprietor with revenue less than 3 times the personal median income&quot;.</li>
+</ul>
+</li>
+<li><strong>App use:</strong> ✅ in a <strong>free, ad-free, no-IAP</strong> app with the notice, disclaimer, Credits List and a prominent link. ❌ in a paid or ad-supported app unless you get a separate license (or qualify under 3(e)). Note that sub-licensing is forbidden, so you <strong>can&#39;t relicense</strong> a merged DB under CC BY-SA. Keep words.hk content in a separate, separately licensed table or file.</li>
+<li><strong>Maintenance:</strong> very active (daily exports).</li>
+<li><strong>Related:</strong> the official app (<a href="https://github.com/AlienKevin/wordshk_app">AlienKevin/wordshk_app</a>, Flutter, MIT code) bundles this data. <a href="https://github.com/MarvNC/wordshk-yomitan">MarvNC/wordshk-yomitan</a> states its build &quot;is licensed under the Non-Commercial Open Data License 1.0 that words.hk is.&quot;</li>
+</ul>
+<h3>3.5 Kaifangcidian 開放詞典: 粵語詞典 (words) and 粵語字典 (chars)</h3>
+<ul>
+<li><strong>URLs:</strong> <a href="https://www.kaifangcidian.com/han/yue/">https://www.kaifangcidian.com/han/yue/</a>, downloads at <a href="https://www.kaifangcidian.com/xiazai/">https://www.kaifangcidian.com/xiazai/</a> (<code>cidian_zhyue-kfcd.zip</code> words, <code>zidian_zhyue-kfcd.zip</code> chars, <code>pinyinbiao_yue-kfcd.zip</code> romanization table), GitHub <a href="https://github.com/kfcd">https://github.com/kfcd</a> (<code>yyzd</code>, <code>pingyam</code>, <code>yylc</code> classifiers).</li>
+<li><strong>Word dictionary (<code>cidian_zhyue</code>)</strong>: the format I inspected was the 2019-06-23 simplified + Yale file, mirrored <a href="https://github.com/android-app-development-course/2019-B19-CantoneseLearning/tree/master/%E7%B2%A4%E8%AF%AD%E8%AF%8D%E5%BA%93">here</a>. It has <strong>40,708 rows</strong>, <code>word&lt;TAB&gt;romanization&lt;TAB&gt;Mandarin equivalents (，-separated)</code>, and <strong>12,513 rows have a Mandarin equivalent</strong>:<pre><code>嘅	ge3	的
+冇	mou5	没有，没，无
+乜嘢	mat7 ye5	什么，什么东西
+咁	gam3	这么，那么
+佢	keui5	他，她，它
+睇	tai2	看
+</code></pre>
+This is <strong>exactly the &quot;Cantonese → Mandarin equivalent&quot; field</strong> you asked for, under a permissive license. The site homepage now reports &quot;字：6654 ・ 詞：84783 ・ 例句：16048&quot;, so download the current zip from <code>/xiazai/</code> rather than the 2019 mirror. My sandbox blocked downloading it, so I couldn&#39;t verify how many rows the current zip has.<ul>
+<li>Romanization: the &quot;ylshu&quot; file is <strong>Yale with numeric tones 1–9</strong> (entering tones 7/8/9 → Jyutping 1/3/6; Yale <code>j</code>=Jyutping <code>z</code>, <code>y</code>=<code>j</code>; e.g. <code>jin3 jang1</code> = 戰爭 <code>zin3 zang1</code>). The zip also contains a Jyutping (&quot;yp&quot;) edition, but Jyut Dictionary&#39;s parser calls it a single-line JS array (&quot;The Kaifangcidian data for jyutping is horrible…&quot;) and shows how to align the two (<a href="https://github.com/aaronhktan/jyut-dict/blob/master/src/dictionaries/kaifangcidian/parse.py">parse.py</a>).</li>
+<li>Quality: crowd-sourced and uneven (e.g. one 嘢 row gives &quot;传染&quot;). Treat it as a hint layer and review high-frequency words.</li>
+</ul>
+</li>
+<li><strong>Char dictionary (<code>yyzd</code>)</strong>: <code>繁體 | 簡體 | 拼音 | 詞例 | 定義 | 又作</code>, 6,577 rows, but only <strong>740</strong> have a Mandarin definition (e.g. <code>行 hang6 … 足以表明品質的舉止行動；可以；能幹…</code>). Shipped in 11 romanizations under <code>dist/</code>. Updated 2023-03-30.</li>
+<li><strong>License:</strong> site <code>/yue/cc/</code>: &quot;本站上所有資源，除非另有聲明，都以創作共用&quot;署名 3.0&quot;許可協議授權發佈&quot;. The <code>yyzd</code> LICENSE says &quot;本倉庫採用創作共用&quot;署名 3.0&quot;許可協議授權 … 且為任何目的，包含商業性質之使用。… 姓名標示 — 你必須給予 適當表彰、提供指向本授權條款的連結…&quot;. Jyut Dictionary records the word dictionary&#39;s legal line as &quot;本词典以创作共用&quot;署名 3.0&quot;许可协议授权发布&quot;.</li>
+<li><strong>App use:</strong> ✅ free and paid, attribution only (CC BY 3.0, no SA).</li>
+</ul>
+<h3>3.6 CC-Canto and CC-CEDICT Cantonese readings (Pleco / cantonese.org)</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://cantonese.org/download.html">https://cantonese.org/download.html</a>: <code>cccanto-170202.zip</code>, <code>cccedict-canto-readings-150923.zip</code></li>
+<li><strong>CC-Canto:</strong> <strong>34,335</strong> entries, CEDICT format plus <code>{jyutping}</code>: <code>一世人 一世人 [yi1 shi4 ren2] {jat1 sai3 jan4} /the whole life…/</code>. English definitions only, with rough formatting (&quot;the definition formatting in CC-Canto entries is very rough&quot;). Only 12 entries carry a &quot;Mandarin equivalent&quot; note (<code>冇 … /to not have (Cantonese)/Mandarin equivalent: 没有méiyǒu [没有]/</code>).</li>
+<li><strong>CC-CEDICT readings:</strong> <strong>105,862</strong> lines that map CC-CEDICT headwords to Jyutping (<code>銀行 银行 [yin2 hang2] {ngan4 hong4}</code>). They are keyed to the 2015 CEDICT, so newer CEDICT entries have no reading.</li>
+<li><strong>Quirks:</strong> changed-tone notation <code>dou3*2</code>, <code>/</code>-separated alternatives (<code>gaa3 zaa3 / zaa4</code>), stray full-width commas (<code>，bat1</code>). I counted 176 invalid tokens in CC-Canto and 454 in the readings file. Agreement with rime on shared words: CC-Canto <strong>14,828 / 16,654 (89%)</strong>, CEDICT readings <strong>51,530 / 53,194 (96.9%)</strong>. Example disagreements: <code>㗎喇 gaa2 laa1</code> vs rime <code>gaa3 laa3</code>, <code>㕵㕵狗 gwok3 gwok3 gau2</code> vs rime <code>wau1 wau1 gau2</code>.</li>
+<li><strong>License:</strong> file headers: &quot;Copyright (c) 2015-17 Pleco Inc. Distributed under a Creative Commons Attribution-Share Alike 3.0 license (<a href="http://creativecommons.org/licenses/by-sa/3.0/">http://creativecommons.org/licenses/by-sa/3.0/</a>)&quot;. Download page: &quot;All three titles are open-source and distributed under a Creative Commons Attribution-ShareAlike 3.0 license.&quot;</li>
+<li><strong>App use:</strong> ✅ free and paid, <strong>but ShareAlike</strong>: the derived dataset must be CC BY-SA 3.0 or a compatible later version.</li>
+<li><strong>Maintenance:</strong> ❌ frozen since 2017 / 2015.</li>
+</ul>
+<h3>3.7 CC-CEDICT</h3>
+<ul>
+<li><strong>URL:</strong> <a href="https://www.mdbg.net/chinese/dictionary?page=cc-cedict">https://www.mdbg.net/chinese/dictionary?page=cc-cedict</a>, download <code>https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz</code></li>
+<li><strong>Content:</strong> <strong>125,324</strong> Mandarin entries with English glosses. 68 lines are tagged <code>(Cantonese)</code>, and <strong>14</strong> include &quot;Mandarin equivalent: …&quot; (<code>喺 … /to be at, in or on (Cantonese)/Mandarin equivalent: 在[zai4]/</code>).</li>
+<li><strong>License:</strong> header: &quot;License: Creative Commons Attribution-ShareAlike 4.0 International License&quot;. <strong>Updated daily</strong> (header date 2026-10-29).</li>
+<li><strong>Role:</strong> English glosses for shared Mandarin/Cantonese vocabulary. Join it with the CC-CEDICT Cantonese readings and rime words for Jyutping.</li>
+</ul>
+<h3>3.8 Wiktionary (English and Chinese editions) / kaikki.org</h3>
+<ul>
+<li><strong>URLs:</strong> <a href="https://kaikki.org/dictionary/Chinese/index.html">https://kaikki.org/dictionary/Chinese/index.html</a> (deprecated per-language JSONL, 1.1 GB; &quot;extracted on 2026-10-25 from the enwiktionary dump dated 2026-10-01&quot;), raw data <a href="https://kaikki.org/dictionary/rawdata.html">https://kaikki.org/dictionary/rawdata.html</a> (English edition raw JSONL 2.9 GB gz; Chinese edition <code>downloads/zh/zh-extract.jsonl.gz</code> 223.6 MB).</li>
+<li><strong>Content (en):</strong> 308,751 Chinese word forms, with Cantonese pronunciations (Jyutping) in <code>sounds</code> and English senses tagged Cantonese.</li>
+<li><strong>Most valuable for Mandarin equivalents: dialectal-synonym tables.</strong> Each <code>Module:zh/data/dial-syn/&lt;word&gt;</code> maps a Written Standard Chinese headword to its forms in every variety. For example, the page for 冇 shows &quot;Dialectal synonyms of 沒有&quot;, with the Written Standard Chinese row = 沒有 and the Cantonese rows = 冇 (HK) / 冇, 冇有 (Guangzhou). Through the MediaWiki API I counted <strong>at least 2,500 such modules</strong> before hitting the API rate limit, so the true number is higher. Reversing these tables gives Cantonese → Mandarin mappings that someone has curated. Get them from the Lua module tarball on kaikki&#39;s raw page or from the Wiktionary dump. Don&#39;t scrape the API.</li>
+<li><strong>Content (zh):</strong> Chinese-language definitions. For 冇: &quot;〈方〉 指没有，读&quot;mǒu&quot;。与有相对…&quot;, with 粤拼 <code>mou5</code>.</li>
+<li><strong>License:</strong> Wiktionary text is <strong>CC BY-SA 4.0</strong> (and GFDL). kaikki asks academic users to cite Tatu Ylönen.</li>
+<li><strong>App use:</strong> ✅ with ShareAlike obligations.</li>
+<li><strong>Precedent:</strong> Jyut Dictionary ships a Wiktionary add-on built from kaikki data (<a href="https://github.com/aaronhktan/jyut-dict/tree/master/src/dictionaries/wiktionary">wiktionary/README</a>).</li>
+</ul>
+<h3>3.9 CUHK resources: not usable</h3>
+<ul>
+<li><strong>粵語審音配詞字庫</strong> (<a href="https://humanum.arts.cuhk.edu.hk/Lexis/lexi-can/">https://humanum.arts.cuhk.edu.hk/Lexis/lexi-can/</a>): the stats page reports 字庫總收字 <strong>13,060</strong>, 字庫總讀音 <strong>18,969</strong>. It is the authoritative reference for 審音 (word examples per reading), but it is web only, with no download and no license. rime-cantonese lists it as a <em>reference</em> source only.</li>
+<li><strong>現代標準漢語與粵語對照資料庫</strong> (<a href="https://apps.itsc.cuhk.edu.hk/hanyu/">https://apps.itsc.cuhk.edu.hk/hanyu/</a>): has exactly the Mandarin ↔ Cantonese mapping you want, but &quot;(c) 2014保留版權&quot;. It was completed in 2001 and offers no download. Jyut Dictionary only ships a <em>scraper</em> for it (<a href="https://github.com/aaronhktan/jyut-dict/tree/master/src/dictionaries/cuhk">cuhk/</a>), not the data. ❌ Don&#39;t bundle it.</li>
+</ul>
+<h3>3.10 G2P libraries</h3>
+<ul>
+<li><strong><code>to-jyutping</code> (JS/TS)</strong>: <a href="https://github.com/CanCLID/to-jyutping">https://github.com/CanCLID/to-jyutping</a>, npm <code>to-jyutping@3.1.1</code>, <strong>BSD-2-Clause</strong> (&quot;Copyright (c) 2024 Cantonese Computational Linguistics Infrastructure Development Workgroup&quot;). No runtime dependencies; ships ESM/CJS/browser builds. The data is an embedded trie (<code>src/trie.txt</code>, 379 KB; <code>dist/index.mjs</code> is 389 KB total). API: <code>getJyutpingList</code>, <code>getJyutpingText</code>, <code>getJyutpingCandidates</code> (ranked), <code>getIPA*</code>, <code>customize({word: &#39;jyutping&#39; | null})</code>. The README claims &quot;an accuracy rate of 99%&quot; and shows <code>咁啱老世要求佢等陣要開會…</code> → <code>gam3 ngaam1 lou5 sai3 jiu1 kau4 …</code>. The trie&#39;s provenance isn&#39;t documented, but it comes from the rime-cantonese team (CanCLID). <strong>Recommended runtime fallback.</strong> It uses modern syntax (private <code>#fields</code>, <code>||=</code>), which Metro/Babel transpiles, but test it on Hermes.</li>
+<li><strong>ToJyutping (Python)</strong>: same engine and data. Useful at build time to precompute readings for words that lack them.</li>
+<li><strong>PyCantonese</strong>: <a href="https://github.com/jacksonllee/pycantonese">https://github.com/jacksonllee/pycantonese</a>, MIT. README: &quot;PyCantonese includes data from … Hong Kong Cantonese Corpus (CC BY), CantoMap (GPL-3.0), rime-cantonese (CC BY 4.0), Common Voice Cantonese (MPL 2.0), Cantonese-Traditional Chinese Parallel Corpus (CC0)&quot;. <code>characters_to_jyutping</code> / <code>g2p</code> segment text and disambiguate (蛋 <code>taːn25</code> vs 蛋糕 <code>taːn22 kou55</code>). It&#39;s Python only, so use it for build-time QA and don&#39;t bundle it in RN.</li>
+<li>Other npm packages (<code>cantonese-romanisation</code>, <code>jyutpingify</code>, <code>yuepin</code>, <code>lingua-han-cantonese</code>) are small, stale (2013–2023) char-level lookups. Not recommended.</li>
+</ul>
+<h3>3.11 Open-source dictionary apps: what they bundle</h3>
+<ul>
+<li><strong>Jyut Dictionary</strong> (<a href="https://github.com/aaronhktan/jyut-dict">https://github.com/aaronhktan/jyut-dict</a>, MIT code, very active): README says it bundles &quot;CEDICT, CC-CANTO, words.hk 粵典, the Unihan database, 開放詞典, and Chinese sentences from Tatoeba … over 200,000 entries&quot;. It has Python parsers for each source (<code>src/dictionaries/{cedict,words_hk,kaifangcidian,unihan,wiktionary,cuhk,cantodict,abc_,…}</code>) that write into one SQLite schema (entries → definitions → sources with a <code>legal</code> text column). Repo note: &quot;for copyright reasons, data for these sources may not be included in this repository&quot;. Restricted sources ship as separately downloaded add-ons. <strong>This is the best reference for an ETL + SQLite schema.</strong></li>
+<li><strong>yuetyam/jyutping</strong> (iOS/macOS Cantonese keyboard + lookup, repo labelled <strong>CC0</strong>): credits Rime-Cantonese as its lexicon. Its <code>Modules/Preparing/Resources/</code> includes <code>jyutping.txt</code>, <code>definition.txt</code> (Unihan English), and <code>wordshk.txt</code> (words.hk definitions). ⚠️ The repo&#39;s CC0 label <strong>does not override</strong> words.hk&#39;s NC license, so don&#39;t copy data from aggregator repos. Always go back to the original source and license.</li>
+<li><strong>words.hk official app</strong> (Flutter, MIT code) bundles the words.hk dump. Its tools repo has an <strong>LLM-generated</strong> <code>mandarin_variants.tsv</code> (20,802 sense → Mandarin rows, e.g. <code>仆街 → 倒霉/遭殃/完蛋</code>). It has no license and is derived from NC data, so ❌.</li>
+</ul>
+<h3>3.12 Other things checked</h3>
+<ul>
+<li><strong>MoE 國語辭典 (重編本 / 簡編本 / 小字典)</strong> via <a href="https://github.com/g0v/moedict-data">g0v/moedict-data</a>: &quot;創用CC-姓名標示- 禁止改作 3.0 臺灣授權條款 … 允許使用者重製、散布、傳輸著作（包括商業性利用）… 但不得修改該著作&quot;. Usable for <strong>Mandarin definitions of standard (non-colloquial) words</strong>, shown verbatim with attribution to 中華民國教育部. It uses Taiwan Mandarin norms, and ND means you can&#39;t edit or trim the definitions.</li>
+<li><strong>Hugging Face:</strong> no lexical Cantonese datasets turned up. There are sentence-level Cantonese ↔ Standard Chinese parallel corpora, e.g. <code>raptorkwok/cantonese-chinese-parallel-corpus-base</code> (<strong>CC0</strong>), <code>HKAllen/cantonese-chinese-parallel-corpus</code> (CC BY 4.0), and <code>botisan-ai/cantonese-mandarin-translations</code> (CC BY-NC-SA, ❌). The CC0 corpus could later be mined (word alignment) to propose more Mandarin equivalents, but it&#39;s not a ready-made dictionary.</li>
+<li><strong>HKCanCor</strong> (<a href="https://github.com/fcbond/hkcancor">fcbond/hkcancor</a>): CC BY 4.0, a segmented and Jyutping-annotated corpus. Useful for frequency ranking and QA, not definitions.</li>
+<li><strong>OpenCC</strong> (Apache-2.0) / <strong>opencc-js</strong> (MIT AND Apache-2.0, 6 MB unpacked): Traditional ↔ Simplified and HK-variant normalization at build time. Avoid shipping the full opencc-js. Precompute simplified forms into the DB instead.</li>
+<li><strong>CantoDict</strong> (copyright page: &quot;CantoDict is not public domain … The only thing you cannot do is sell any of my work or publish it in any form.&quot;) ❌. <strong>ABC Cantonese-English</strong> (&quot;Copyright © 2017–2026 Wenlin Institute, Inc. SPC, All Rights Reserved&quot;) ❌.</li>
+</ul>
+<hr>
+<h2>4. Cross-source agreement (measured)</h2>
+<p>Script: <code>/tmp/cantoresearch/scripts/compare.py</code> (outside the repo).</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Unique chars: rime / LSHK / Unihan / words.hk</td>
+<td>27,007 / 29,144 / 29,936 / 5,884</td>
+</tr>
+<tr>
+<td><strong>Union of chars</strong></td>
+<td><strong>32,335</strong></td>
+</tr>
+<tr>
+<td>LSHK chars absent from rime</td>
+<td>2,488</td>
+</tr>
+<tr>
+<td>LSHK chars with ≥1 reading absent in rime (mostly merged-initial variants)</td>
+<td>5,968</td>
+</tr>
+<tr>
+<td>Unihan chars whose single reading isn&#39;t in rime</td>
+<td>5,796 (includes chars rime lacks)</td>
+</tr>
+<tr>
+<td>words.hk words ∩ rime words, sharing ≥1 reading</td>
+<td><strong>47,797 / 48,117 (99.3%)</strong></td>
+</tr>
+<tr>
+<td>CC-CEDICT readings ∩ rime words, agree</td>
+<td>51,530 / 53,194 (96.9%)</td>
+</tr>
+<tr>
+<td>CC-Canto ∩ rime words, agree</td>
+<td>14,828 / 16,654 (89.0%)</td>
+</tr>
+<tr>
+<td><strong>Union of multi-char words</strong> (rime + words.hk + CC-Canto + CEDICT readings)</td>
+<td><strong>162,924</strong></td>
+</tr>
+<tr>
+<td>Invalid-Jyutping tokens: rime words / words.hk / CC-Canto / CEDICT-readings</td>
+<td>206 (<code>la1</code>,<code>la3</code>,<code>a1</code>,<code>ga3</code>… particles) / 349 (<code>!</code>-prefixed English) / 176 (<code>*2</code>, punctuation) / 454 (full-width commas)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. Recommendation</h2>
+<h3>(a) char → Jyutping (multiple readings)</h3>
+<ol>
+<li><strong>Base:</strong> rime-cantonese-upstream <code>char.csv</code>. Keep every reading and store <code>pron_rank</code> (預設 &gt; 常用 &gt; 罕見 &gt; 棄用), <code>tone_var</code> and <code>literary_vernacular</code>. Hide <code>棄用</code> by default.</li>
+<li><strong>Add</strong> LSHK <code>list.tsv</code> readings for chars rime lacks (2,488), plus any LSHK reading not in rime, flagged <code>rank=lshk_extra</code>. Many of these are merged-initial variants (<code>m5</code>/<code>ng5</code>, <code>l</code>/<code>n</code>), so show them as &quot;variant&quot; and never as the default.</li>
+<li><strong>Add</strong> Unihan <code>kCantonese</code> for any char still missing (rank <code>unihan</code>).</li>
+<li><strong>Cross-check</strong> with words.hk <code>charlist.csv</code> (public domain). It reflects readings actually used in words.hk entries, so it&#39;s a good signal for &quot;colloquial&quot; readings to promote.</li>
+<li>Default ordering: rime <code>預設</code> → rime <code>常用</code> (by rime weight %) → words.hk-attested → LSHK → Unihan.</li>
+</ol>
+<h3>(b) word → Jyutping</h3>
+<ol>
+<li><strong>Base:</strong> rime <code>jyut6ping3.words.dict.yaml</code> (or upstream <code>word.csv</code> + <code>fixed_expressions.csv</code>): 101.8k words, CC BY 4.0, readings with sandhi applied.</li>
+<li><strong>Add</strong> words.hk <code>wordslist.csv</code> (public domain) for the remaining ~14k words. Drop <code>!</code>-prefixed English tokens or keep them as a raw display string.</li>
+<li><strong>Add</strong> Kaifangcidian word readings (convert Yale 1–9 → Jyutping) for words with Mandarin equivalents that are still missing.</li>
+<li><strong>Optional (share-alike):</strong> CC-CEDICT Cantonese readings to cover standard Mandarin vocabulary. Normalize <code>*2</code> → changed-tone reading, split <code>/</code> alternatives, strip punctuation.</li>
+<li>For any remaining dictionary headword (for example a CC-CEDICT entry with no reading), <strong>precompute</strong> with ToJyutping at build time and mark it <code>source=g2p</code> so the UI can say &quot;auto-generated&quot;.</li>
+</ol>
+<h3>(c) Mandarin meaning / Mandarin equivalent</h3>
+<ol>
+<li><strong>Mandarin equivalent for colloquial words:</strong> <strong>Kaifangcidian 粵語詞典</strong> (CC BY 3.0). It&#39;s the only sizeable permissive Cantonese → Mandarin word mapping (≥12.5k mapped entries, likely more in the current 84.8k-word release). Store the values as a list (<code>冇 → [没有, 没, 无]</code>) and convert to Traditional with OpenCC at build time.</li>
+<li><strong>Curate on top:</strong> reverse Wiktionary dial-syn tables (≥2,500 concepts; CC BY-SA 4.0) if you accept ShareAlike. Otherwise hand-curate the top ~2,000 colloquial words (嘅/冇/佢/睇/嘢/咗/喺/啲/乜嘢/點解…) and check them against Kaifangcidian.</li>
+<li><strong>Mandarin char definitions:</strong> Kaifangcidian <code>yyzd</code> (740 readings with definitions, CC BY 3.0). For broader coverage of standard chars and words, show <strong>MoE 國語辭典簡編本</strong> definitions verbatim (CC BY-ND 3.0 TW, commercial OK) or zh.wiktionary (CC BY-SA). Don&#39;t use words.hk Cantonese explanations as &quot;Mandarin meaning&quot;: they are written Cantonese, and they&#39;re NC.</li>
+<li><strong>English:</strong> CC-CEDICT + CC-Canto (both share-alike) + Unihan <code>kDefinition</code> (permissive). If you want to avoid share-alike completely, use only Unihan <code>kDefinition</code> for chars and skip word-level English.</li>
+<li><strong>words.hk definitions:</strong> only if the app is and stays <strong>free, ad-free, no IAP</strong>. Ship them as a separate table carrying its own notice, disclaimer, Credits List and link, or email Hong Kong Lexicography Ltd for a separate license.</li>
+</ol>
+<h3>(d) Fallback g2p for arbitrary text</h3>
+<ul>
+<li><strong>Runtime:</strong> <code>to-jyutping</code> (BSD-2-Clause, about 389 KB, pure JS, offline). Use <code>getJyutpingCandidates</code> to show alternatives, and <code>customize()</code> to inject your own dictionary overrides so g2p agrees with your DB.</li>
+<li><strong>Build time:</strong> ToJyutping/PyCantonese to fill gaps and to QA dictionary readings (flag entries where the DB and g2p disagree).</li>
+</ul>
+<h3>Merge and normalization rules (handling conflicts)</h3>
+<ul>
+<li><strong>Canonical key:</strong> Traditional (HK) form plus a precomputed Simplified column, both indexed. Normalize glyph variants with OpenCC (<code>hk2t</code> / <code>t2s</code>), because rime uses OpenCC glyphs while words.hk uses HK glyphs (e.g. 着/著, 衞/衛). Keep the original surface form as <code>display</code>.</li>
+<li><strong>Jyutping normalization:</strong> validate each syllable with a regex over the LSHK inventory. Map or flag: CC-Canto <code>X*2</code> → store both base and changed tone; <code>/</code> → multiple readings; words.hk <code>!xxx</code> → non-Jyutping loan syllable; rime particle syllables <code>la1</code>/<code>ga3</code>/<code>a1</code> → accept as an extended inventory (they&#39;re real particle pronunciations). Kaifangcidian Yale → Jyutping via <code>kfcd/pingyam</code> tables.</li>
+<li><strong>Lazy / merged readings:</strong> rime excludes n-/l- and ng-/∅- mergers. LSHK lists some (<code>m5</code>/<code>ng5</code>). Store them, mark them <code>variant</code>, and never pick them as the default.</li>
+<li><strong>Tone sandhi:</strong> word readings (rime, words.hk) record 變調. Don&#39;t reject a word reading just because it isn&#39;t a concatenation of each char&#39;s default reading.</li>
+<li><strong>Precedence for a word&#39;s primary reading:</strong> rime → words.hk → Kaifangcidian → CEDICT-readings → g2p. Keep <em>all</em> distinct readings with a <code>sources</code> bitmask so the UI can show &quot;also read as…&quot;.</li>
+<li><strong>Provenance per row:</strong> keep a <code>source_id</code> on every reading and definition, as Jyut Dictionary&#39;s <code>sources(name, version, legal, link)</code> table does. That keeps attribution, ShareAlike separation and later removal of a source simple.</li>
+</ul>
+<h3>Suggested packaging</h3>
+<ul>
+<li><code>core.sqlite</code> (attribution-only): rime + LSHK + Unihan + words.hk PD lists + Kaifangcidian. Credit &quot;rime-cantonese / CanCLID (CC BY 4.0)&quot;, &quot;LSHK Jyutping Workgroup (CC BY 4.0)&quot;, &quot;Unicode Unihan (Unicode License v3)&quot;, &quot;words.hk (public-domain data lists)&quot;, &quot;開放詞典 kaifangcidian.com (CC BY 3.0)&quot;.</li>
+<li><code>en.sqlite</code> (CC BY-SA, optional): CC-CEDICT, CC-Canto, Wiktionary-derived tables. Publish the derived file publicly under CC BY-SA 4.0 as well, to meet the SA and no-DRM terms.</li>
+<li><code>wordshk.sqlite</code> (NC, optional, free builds only): words.hk definitions, plus the license notice, disclaimer, Credits List and link to words.hk.</li>
+</ul>
+<hr>
+<h2>6. License compliance checklist</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Must do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>rime-cantonese (CC BY 4.0)</td>
+<td>Credit &quot;rime-cantonese, CanCLID&quot;, link the license, state that you modified the data. Don&#39;t include <code>jyut6ping3.maps</code> (ODbL) unless you accept ODbL.</td>
+</tr>
+<tr>
+<td>LSHK Jyutping table (CC BY 4.0)</td>
+<td>Credit &quot;香港語言學學會粵拼小組 / LSHK&quot;, link the license, note modifications.</td>
+</tr>
+<tr>
+<td>Unihan (Unicode License v3)</td>
+<td>Include the Unicode copyright and permission notice in the app&#39;s licenses screen.</td>
+</tr>
+<tr>
+<td>words.hk analysis lists (PD)</td>
+<td>Nothing required. &quot;Credits to words.hk appreciated.&quot;</td>
+</tr>
+<tr>
+<td>words.hk dump (NC-ODL 1.0)</td>
+<td>Non-commercial only; copyright notice + disclaimer + Credits List; prominent link to words.hk; no sub-licensing.</td>
+</tr>
+<tr>
+<td>Kaifangcidian (CC BY 3.0)</td>
+<td>Credit &quot;開放詞典 kaifangcidian.com&quot;, link CC BY 3.0, note modifications.</td>
+</tr>
+<tr>
+<td>CC-Canto / CEDICT readings (CC BY-SA 3.0)</td>
+<td>Credit &quot;Pleco Inc. / cantonese.org&quot;; the adapted data must be CC BY-SA 3.0+ compatible.</td>
+</tr>
+<tr>
+<td>CC-CEDICT (CC BY-SA 4.0)</td>
+<td>Credit &quot;CC-CEDICT / MDBG&quot;; the adapted data must be CC BY-SA 4.0.</td>
+</tr>
+<tr>
+<td>Wiktionary (CC BY-SA 4.0)</td>
+<td>Credit &quot;Wiktionary contributors&quot; with a link; adapted data must be CC BY-SA 4.0.</td>
+</tr>
+<tr>
+<td>MoE 國語辭典 (CC BY-ND 3.0 TW)</td>
+<td>Verbatim only; credit 中華民國教育部.</td>
+</tr>
+<tr>
+<td>to-jyutping (BSD-2)</td>
+<td>Include its copyright notice and license text.</td>
+</tr>
+</tbody></table>
+<p><em>Not legal advice. Before a paid release, have the words.hk and ShareAlike points reviewed.</em></p>
+
+  </main>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "lexical-datasets.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "lexical-datasets.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      localStorage.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = localStorage.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    localStorage.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+</body>
+</html>
