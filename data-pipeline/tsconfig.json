@@ -8,5 +8,5 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src", "test", "../src/jyutping", "vitest.config.ts"]
+  "include": ["src", "test", "scripts", "../src/jyutping", "vitest.config.ts"]
 }
