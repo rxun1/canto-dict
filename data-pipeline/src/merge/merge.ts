@@ -2,6 +2,7 @@
 // prints. No I/O here; loadMergeInputs (load.ts) gathers the inputs.
 import type { CharReading, KfcdRow, MandarinEquivalent, MoeEntry, ReadingRank, WordReading, WordshkEntry } from "../sources/types";
 import { isSingleCodePoint } from "../sources/codePoints";
+import { FREQ_OVERRIDES } from "./freqOverrides";
 import { headwordKey, toSimplified } from "./normalize";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
@@ -240,6 +241,30 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
   return { definitions, examples };
 }
 
+/** What an entry's frequency rests on: an essay weight, an override, or nothing. */
+interface Weight {
+  readonly weight?: number;
+  /** The override word used, and the essay weight it replaced, if any. */
+  readonly override?: { readonly word: string; readonly essayWeight?: number };
+}
+
+/**
+ * The entry's weight: the displayed trad first, then rime's spellings of the key (the essay is
+ * rime's and keeps its spellings), then the other sources' spellings, all in code-unit order. An
+ * override (freqOverrides.ts) for any of these spellings wins over the essay.
+ */
+function findWeight(builder: EntryBuilder, trad: string, weights: ReadonlyMap<string, number>, overrides: ReadonlyMap<string, number>): Weight {
+  const rime = builder.spelledBy("rime");
+  const others = [...builder.spellings.keys()].filter((s) => !rime.includes(s)).sort(byCodeUnits);
+  const candidates = [...new Set([trad, ...rime, ...others])];
+  const essayWeight = candidates.map((s) => weights.get(s)).find((w) => w !== undefined);
+  const overrideWord = candidates.find((s) => overrides.has(s));
+  if (overrideWord !== undefined) {
+    return { weight: overrides.get(overrideWord), override: { word: overrideWord, ...(essayWeight !== undefined && { essayWeight }) } };
+  }
+  return { weight: essayWeight };
+}
+
 /** Adds one to `counts[source]`. */
 function count<K extends string>(counts: Partial<Record<K, number>>, source: K, by = 1): void {
   counts[source] = (counts[source] ?? 0) + by;
@@ -378,6 +403,8 @@ export function merge(inputs: MergeInputs): MergeResult {
     builder.moe.push(moeEntry);
   }
 
+  const overrides = new Map(FREQ_OVERRIDES.map(({ word, weight }) => [word, weight]));
+  const overridesUsed: { word: string; weight: number; essayWeight?: number }[] = [];
   const readingCounts: Partial<Record<RowSource, number>> = {};
   const definitionCounts: Partial<Record<RowSource, number>> = {};
   const exampleCounts: Partial<Record<RowSource, number>> = {};
@@ -400,12 +427,14 @@ export function merge(inputs: MergeInputs): MergeResult {
       const { definitions, examples } = finishDefinitions(builder, chooseMoe(builder, trad), moeDrops);
       for (const d of definitions) count(definitionCounts, d.source);
       for (const e of examples) count(exampleCounts, e.source);
+      const { weight, override } = findWeight(builder, trad, weights, overrides);
+      if (override !== undefined) overridesUsed.push({ word: override.word, weight: weight!, ...(override.essayWeight !== undefined && { essayWeight: override.essayWeight }) });
       return {
         key: builder.key,
         trad,
         simp: toSimplified(trad, "hk"),
         kind: isSingleCodePoint(trad) ? "char" : "word",
-        freq: 0,
+        freq: weight === undefined ? 0 : Math.log10(1 + weight),
         aliases,
         readings,
         mandarin,
@@ -438,7 +467,11 @@ export function merge(inputs: MergeInputs): MergeResult {
     kaifangcidian: kfcdStats,
     wiktionary: wiktStats,
     moe: { ...moeDrops, shadowedEntries: moeShadowed },
-    freq: { entriesWithFreq: 0, overridesUsed: [], overridesUnused: [] },
+    freq: {
+      entriesWithFreq: entries.filter((e) => e.freq > 0).length,
+      overridesUsed: overridesUsed.sort((a, b) => byCodeUnits(a.word, b.word)),
+      overridesUnused: [...overrides.keys()].filter((word) => !overridesUsed.some((used) => used.word === word)).sort(byCodeUnits),
+    },
   };
   return { entries, stats };
 }
