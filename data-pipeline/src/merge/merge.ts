@@ -5,6 +5,7 @@ import { isSingleCodePoint } from "../sources/codePoints";
 import { throwIfProblems, type Problem } from "../sources/problems";
 import { FREQ_OVERRIDES } from "./freqOverrides";
 import { headwordKey, toSimplified } from "./normalize";
+import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
 /**
@@ -536,6 +537,7 @@ export function merge(inputs: MergeInputs): MergeResult {
     kaifangcidian: kfcdStats,
     wiktionary: wiktStats,
     moe: { ...moeDrops, shadowedEntries: moeShadowed },
+    simplifiedKeep: { cantonese: CANTONESE_KEEP, nonBmp: NON_BMP_KEEP },
     freq: {
       entriesWithFreq: entries.filter((e) => e.freq > 0).length,
       overridesUsed: overridesUsed.sort((a, b) => byCodeUnits(a.word, b.word)),

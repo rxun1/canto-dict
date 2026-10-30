@@ -1,5 +1,6 @@
 import OpenCC from "opencc-js";
 import { isSingleCodePoint } from "../sources/codePoints";
+import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
 
 /**
  * The traditional-character convention a text is written in, which picks its OpenCC config:
@@ -35,10 +36,32 @@ export function headwordKey(word: string): string {
   return isSingleCodePoint(word) ? word : HK_TO_STANDARD(TW_TO_STANDARD(word));
 }
 
+/** Characters toSimplified leaves as they are, per script (simplifiedKeep.ts). */
+const KEEP: Readonly<Record<Script, ReadonlySet<string>>> = {
+  hk: new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]),
+  tw: new Set(NON_BMP_KEEP),
+};
+
 /**
  * Simplified form of a traditional text for display (OpenCC hk→cn or tw→cn). Characters without a
- * simplified form (嘅, 冇, 喺) come back unchanged.
+ * simplified form (嘅, 冇, 喺) come back unchanged, and so do the keep-list's (simplifiedKeep.ts):
+ * 係/嗰/餸 in "hk" text, and in both scripts every character OpenCC would turn into a non-BMP one.
+ * The text is converted in runs between kept characters, so a run never sees a kept neighbour;
+ * on the pinned data this gives the same output as converting the whole text and then restoring
+ * the kept characters.
  */
 export function toSimplified(text: string, script: Script): string {
-  return TO_SIMPLIFIED[script](text);
+  const convert = TO_SIMPLIFIED[script];
+  const keep = KEEP[script];
+  let simplified = "";
+  let run = "";
+  for (const char of text) {
+    if (!keep.has(char)) {
+      run += char;
+      continue;
+    }
+    simplified += convert(run) + char;
+    run = "";
+  }
+  return simplified + convert(run);
 }

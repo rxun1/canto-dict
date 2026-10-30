@@ -188,6 +188,8 @@ export interface MergeStats {
     /** MoE headwords not attached because another MoE headword with the same key won (剛纔 vs 剛才). */
     readonly shadowedEntries: number;
   };
+  /** Characters toSimplified leaves unchanged (simplifiedKeep.ts): Cantonese ("hk" text only) and non-BMP (all text). */
+  readonly simplifiedKeep: { readonly cantonese: readonly string[]; readonly nonBmp: readonly string[] };
   readonly freq: {
     readonly entriesWithFreq: number;
     /** Overrides applied: the word, its weight, and the essay weight it replaced when the essay had one. */

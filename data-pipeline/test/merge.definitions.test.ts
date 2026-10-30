@@ -128,7 +128,7 @@ describe("merge: words.hk definitions and examples", () => {
       },
       { sense: 2, pos: "動詞", yue: "「有」嘅相反；表示賓語指涉嘅概念唔存在或者同主題無關", yueSimp: "「有」嘅相反；表示宾语指涉嘅概念唔存在或者同主题无关", source: "wordshk-dump" },
       { sense: 3, pos: "動詞", yue: "未曾或者唔再擁有", yueSimp: "未曾或者唔再拥有", source: "wordshk-dump" },
-      { sense: 4, pos: "語句", yue: "喺回應中，表示冇乜嘢、只係小事，平常、輕鬆過對方所設想", yueSimp: "喺回应中，表示冇乜嘢、只系小事，平常、轻松过对方所设想", source: "wordshk-dump" },
+      { sense: 4, pos: "語句", yue: "喺回應中，表示冇乜嘢、只係小事，平常、輕鬆過對方所設想", yueSimp: "喺回应中，表示冇乜嘢、只係小事，平常、轻松过对方所设想", source: "wordshk-dump" },
     ]);
   });
 
