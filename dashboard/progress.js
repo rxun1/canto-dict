@@ -124,7 +124,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/rimeWords.test.ts → pass",
         },
         {
-          id: "P1-T6", title: "Sources: LSHK list.tsv + Unihan kCantonese (character fallbacks)", status: "doing",
+          id: "P1-T6", title: "Sources: LSHK list.tsv + Unihan kCantonese (character fallbacks)", status: "done",
           files: ["data-pipeline/src/sources/lshk.ts", "data-pipeline/src/sources/unihan.ts", "data-pipeline/fixtures/lshk-list.tsv", "data-pipeline/fixtures/Unihan_Readings.txt", "data-pipeline/test/sources/charFallbacks.test.ts"],
           subtasks: [
             "Save ~30 real rows of each file to fixtures (include an m5/ng5 merged reading in LSHK)",
@@ -138,12 +138,12 @@ window.CANTO_PROGRESS = {
           ],
           dod: [
             "Both parsers produce the same row shape so merge treats them uniformly",
-            "LSHK merged readings are tagged as variants for P1-T13",
+            "LSHK has no marker for merged (\"lazy\") readings, so the parser leaves rank undefined; the variant rule moves to P1-T13 (decided 2026-10-30)",
           ],
           test: "cd data-pipeline && npx vitest run test/sources/charFallbacks.test.ts → pass",
         },
         {
-          id: "P1-T7", title: "Source: words.hk public word list (public domain)", status: "todo",
+          id: "P1-T7", title: "Source: words.hk public word list (public domain)", status: "doing",
           files: ["data-pipeline/src/sources/wordshkList.ts", "data-pipeline/fixtures/wordshk-list.csv", "data-pipeline/test/sources/wordshkList.test.ts"],
           subtasks: [
             "Save ~40 real rows to fixtures (include a loan syllable with '!' like !es1)",
@@ -232,7 +232,7 @@ window.CANTO_PROGRESS = {
             "Pick the word-frequency source for freq (rime words dict has NO weights): check rime-cantonese essay-cantonese.txt (license, format), pin it in urls.ts, add a parser + fixture test",
             "Define Entry type in types.ts (trad, simp, kind, freq, readings, mandarin, definitions, examples) matching the spec schema",
             "Write failing test: rime + words.hk keys in different character forms merge into one entry after OpenCC normalization",
-            "Write failing test: reading priority rime > LSHK > Unihan; LSHK merged readings become rank 'variant', never default",
+            "Write failing test: reading priority rime > LSHK > Unihan; for a char rime covers, an LSHK/Unihan reading rime lacks becomes rank 'variant' (e.g. 五 m5, 你 lei5, 我 o5), never default; add 'variant' to ReadingRank",
             "Write failing test: a char with no 預設 reading (60 such chars in rime, e.g. 行) keeps all its readings with their ranks — never assume exactly one default",
             "Write failing test: 冇 gets mandarin [没有, 没, 无] from Kaifangcidian and Wiktionary, de-duplicated",
             "Write failing test: every entry and example gets a simplified form via OpenCC t2s; 嘅/冇/喺 stay unchanged",
@@ -752,5 +752,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T3 done: fetchToCache with streaming atomic writes and CANTO_SRC_* overrides (5737a8b + review fixes f03091c). Review caught proxy HTML pages being cached as data — now rejected." },
     { date: "2026-10-30", text: "P1-T4 done: rime char.csv parser (ce3b943 + 535f62b + f990987). 34,362 readings; source pinned to commit 4cb67a4; set the parser template (pure parse + loader, splitLines, collect-then-throw with line numbers, urls.ts for pinned sources). Found 60 chars (e.g. 行) with no default reading." },
     { date: "2026-10-30", text: "P1-T5 done: rime words dict parser (ebd28ae, d13282d, 0bc16a3). 102,378 word readings kept; 699 punctuation proverbs skipped (accepted for v1). Added 26 colloquial syllables to the attested list (745). Dict has no weights → frequency source moves to P1-T13." },
+    { date: "2026-10-30", text: "P1-T6 done: LSHK (38,194 readings, pinned dad2dd6) + Unihan kCantonese (29,929; pinned 9ca8f73, verified identical to Unicode 17.0.0) parsers (56ca9f1, b63b1ef, 2cba232). Review caught an out-of-range code point crash; extracted shared code-point, loader and Jyutping-cell helpers." },
   ],
 };
