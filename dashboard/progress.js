@@ -107,7 +107,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/rimeChars.test.ts → pass; 行 has hang4 and hong4 (both 常用 — rime gives 行 no 預設 reading)",
         },
         {
-          id: "P1-T5", title: "Source: rime-cantonese word readings (words.dict.yaml)", status: "doing",
+          id: "P1-T5", title: "Source: rime-cantonese word readings (words.dict.yaml)", status: "done",
           files: ["data-pipeline/src/sources/rimeWords.ts", "data-pipeline/fixtures/rime-words.dict.yaml", "data-pipeline/test/sources/rimeWords.test.ts"],
           subtasks: [
             "Save the YAML header + ~40 real entries to fixtures (include a changed-tone word and a weighted entry)",
@@ -124,7 +124,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/rimeWords.test.ts → pass",
         },
         {
-          id: "P1-T6", title: "Sources: LSHK list.tsv + Unihan kCantonese (character fallbacks)", status: "todo",
+          id: "P1-T6", title: "Sources: LSHK list.tsv + Unihan kCantonese (character fallbacks)", status: "doing",
           files: ["data-pipeline/src/sources/lshk.ts", "data-pipeline/src/sources/unihan.ts", "data-pipeline/fixtures/lshk-list.tsv", "data-pipeline/fixtures/Unihan_Readings.txt", "data-pipeline/test/sources/charFallbacks.test.ts"],
           subtasks: [
             "Save ~30 real rows of each file to fixtures (include an m5/ng5 merged reading in LSHK)",
@@ -751,5 +751,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T2 done: shared Jyutping module (a91a9b4 + review fixes 3a615ba). 719 attested syllables from LSHK + rime; review caught exponential backtracking (12.9 s on 41 chars) — now linear (0.27 ms on 201 chars)." },
     { date: "2026-10-30", text: "P1-T3 done: fetchToCache with streaming atomic writes and CANTO_SRC_* overrides (5737a8b + review fixes f03091c). Review caught proxy HTML pages being cached as data — now rejected." },
     { date: "2026-10-30", text: "P1-T4 done: rime char.csv parser (ce3b943 + 535f62b + f990987). 34,362 readings; source pinned to commit 4cb67a4; set the parser template (pure parse + loader, splitLines, collect-then-throw with line numbers, urls.ts for pinned sources). Found 60 chars (e.g. 行) with no default reading." },
+    { date: "2026-10-30", text: "P1-T5 done: rime words dict parser (ebd28ae, d13282d, 0bc16a3). 102,378 word readings kept; 699 punctuation proverbs skipped (accepted for v1). Added 26 colloquial syllables to the attested list (745). Dict has no weights → frequency source moves to P1-T13." },
   ],
 };
