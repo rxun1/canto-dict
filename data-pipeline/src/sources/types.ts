@@ -39,7 +39,7 @@ export type WordshkHeadword = Pick<WordReading, "word" | "syllables" | "loanSyll
 export interface WordshkExample {
   /** The Cantonese sentence (yue: line), with #link markers stripped and without its Jyutping. */
   readonly yue: string;
-  /** The yue: line's trailing "(…)" Jyutping as syllables, punctuation dropped; absent when none. */
+  /** The yue: line's trailing "(…)" Jyutping as syllables, punctuation dropped; absent when the line has none or it had an invalid syllable (reported). */
   readonly jyutping?: readonly string[];
   /** 0-based indexes into `jyutping` of "!" loan syllables (stored without the "!"). */
   readonly loanSyllables?: readonly number[];
