@@ -1,6 +1,4 @@
-import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
-import { isValidSyllable } from "../../../src/jyutping/syllables";
-import { syllableCountMismatch } from "./jyutpingCell";
+import { parseLoanAwareSyllables, syllableCountMismatch } from "./jyutpingCell";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { splitLines } from "./text";
@@ -14,9 +12,6 @@ const SOURCE_LINE = "Source,https://words.hk/faiman/analysis/wordslist/";
 
 /** words.hk marks a word containing variant characters (異體字) with a trailing "*". */
 const VARIANT_MARKER = "*";
-
-/** words.hk writes a loan pronunciation with a leading "!", e.g. "!es1". */
-const LOAN_PREFIX = "!";
 
 /**
  * Parses words.hk's wordslist.csv: a `Source,<url>` line, then one row per word,
@@ -67,34 +62,16 @@ export function parseWordshkList(text: string): Parsed<WordReading> {
     }
 
     for (const reading of readings) {
-      const cells = reading.trim().split(/\s+/);
-      const loanSyllables: number[] = [];
-      const syllables: string[] = [];
-      let problem: string | undefined;
-
-      for (const [i, cell] of cells.entries()) {
-        if (cell.startsWith(LOAN_PREFIX)) {
-          const syllable = cell.slice(LOAN_PREFIX.length);
-          if (!TONED_SYLLABLE.test(syllable)) {
-            problem = `malformed loan syllable "${cell}" for ${word}: "${reading}"`;
-            break;
-          }
-          loanSyllables.push(i);
-          syllables.push(syllable);
-        } else if (isValidSyllable(cell)) {
-          syllables.push(cell);
-        } else {
-          problem = `invalid syllable "${cell}" for ${word}: "${reading}"`;
-          break;
-        }
+      const parsed = parseLoanAwareSyllables(reading.trim().split(/\s+/));
+      if (parsed.kind !== "ok") {
+        const what = parsed.kind === "malformed-loan" ? "malformed loan syllable" : "invalid syllable";
+        skipped.push({ line: lineNumber, message: `${what} "${parsed.cell}" for ${word}: "${reading}"` });
+        continue;
       }
-
-      if (problem === undefined) {
-        const mismatch = syllableCountMismatch(word, syllables);
-        if (mismatch !== undefined) problem = `${mismatch}: "${reading}"`;
-      }
-      if (problem !== undefined) {
-        skipped.push({ line: lineNumber, message: problem });
+      const { syllables, loanSyllables } = parsed;
+      const mismatch = syllableCountMismatch(word, syllables);
+      if (mismatch !== undefined) {
+        skipped.push({ line: lineNumber, message: `${mismatch}: "${reading}"` });
         continue;
       }
       rows.push({

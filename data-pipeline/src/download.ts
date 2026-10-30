@@ -44,6 +44,21 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /**
+ * Absolute path of the hand-supplied file for source `name` when its env var (overrideEnvVar) is
+ * set and non-empty, else undefined. Throws, naming the variable and path, if that file is missing.
+ */
+export async function overridePath(name: string): Promise<string | undefined> {
+  const envVar = overrideEnvVar(name);
+  const override = process.env[envVar];
+  if (!override) return undefined;
+  const path = resolve(override);
+  if (!(await exists(path))) {
+    throw new Error(`${envVar} is set to ${path}, but that file does not exist`);
+  }
+  return path;
+}
+
+/**
  * Returns the absolute path of the file for source `name`: the override file if
  * its env var is set, else the cached copy (downloaded from `url` on first use).
  */
@@ -55,15 +70,8 @@ export async function fetchToCache(
   if (options.sha256 !== undefined && !SHA256_HEX.test(options.sha256)) {
     throw new Error(`invalid sha256 pin "${options.sha256}" for ${name}: expected 64 lowercase hex digits`);
   }
-  const envVar = overrideEnvVar(name);
-  const override = process.env[envVar];
-  if (override) {
-    const path = resolve(override);
-    if (!(await exists(path))) {
-      throw new Error(`${envVar} is set to ${path}, but that file does not exist`);
-    }
-    return path;
-  }
+  const override = await overridePath(name);
+  if (override !== undefined) return override;
 
   const target = options.cacheDir === undefined ? cachedPath(name) : join(resolve(options.cacheDir), name);
   if (await exists(target)) {
