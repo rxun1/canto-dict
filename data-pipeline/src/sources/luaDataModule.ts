@@ -30,6 +30,10 @@ type Token =
 const NAME_START = /[A-Za-z_]/;
 const NAME_PART = /[A-Za-z0-9_]/;
 const PUNCTUATION = new Set(["{", "}", "[", "]", "=", ",", ";", "."]);
+/** Highest decimal escape accepted: \0-\127 are ASCII characters. */
+const MAX_ASCII = 127;
+
+/** Lua 5.1's escapes, plus backslash-newline (a newline in the string). */
 const SIMPLE_ESCAPES: Readonly<Record<string, string>> = {
   a: "\x07", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", v: "\v", "\\": "\\", '"': '"', "'": "'", "\n": "\n",
 };
@@ -86,28 +90,17 @@ function* tokenize(text: string): Generator<Token, Token> {
         if (e === "\n") line++;
         out += SIMPLE_ESCAPES[e];
         i += 2;
-      } else if (e === "z") {
-        i += 2;
-        while (text[i] !== undefined && /\s/.test(text[i]!)) {
-          if (text[i] === "\n") line++;
-          i++;
-        }
       } else if (/[0-9]/.test(e)) {
+        // Lua 5.1 \ddd is one BYTE; above 127 it is a piece of a multi-byte (e.g. UTF-8) character,
+        // which a JS string cannot hold as such, so refuse it instead of producing Latin-1 garbage.
         const digits = /^[0-9]{1,3}/.exec(text.slice(i + 1))![0];
-        const code = Number(digits);
-        if (code > 255) throw new LuaSyntaxError(line, `escape "\\${digits}" is too large`);
-        out += String.fromCharCode(code);
+        if (Number(digits) > MAX_ASCII) {
+          throw new LuaSyntaxError(line, `unsupported escape "\\${digits}": decimal escapes above ${MAX_ASCII} are raw bytes`);
+        }
+        out += String.fromCharCode(Number(digits));
         i += 1 + digits.length;
-      } else if (e === "x" && /^[0-9A-Fa-f]{2}$/.test(text.slice(i + 2, i + 4))) {
-        out += String.fromCharCode(parseInt(text.slice(i + 2, i + 4), 16));
-        i += 4;
-      } else if (e === "u" && /^\{[0-9A-Fa-f]{1,6}\}/.test(text.slice(i + 2))) {
-        const hex = /^\{([0-9A-Fa-f]{1,6})\}/.exec(text.slice(i + 2))![1]!;
-        const codePoint = parseInt(hex, 16);
-        if (codePoint > 0x10ffff) throw new LuaSyntaxError(line, `escape "\\u{${hex}}" is too large`);
-        out += String.fromCodePoint(codePoint);
-        i += 4 + hex.length;
       } else {
+        // Includes \x, \z and \u{…}: Lua 5.2+ only, and Scribunto runs Lua 5.1.
         throw new LuaSyntaxError(line, `unsupported escape "\\${e}"`);
       }
     }
@@ -164,24 +157,20 @@ const describeToken = (token: Token): string => (token.kind === "eof" ? "end of 
  * and returns the fields of `export.list` in file order. Like Lua, a repeated key keeps its last
  * value, and positional (keyless) values are ignored: Lua stores them at integer indexes, which
  * Wiktionary's renderer never reads. Fields are separated by "," or ";", with an optional trailing
- * separator. Strings may use either quote, escapes or long brackets. Anything else (numbers, nested
+ * separator. Strings may use either quote, Lua 5.1 escapes (decimal ones up to 127) or long brackets. Anything else (numbers, nested
  * tables inside a value, variables, other statements) throws a LuaSyntaxError with its line.
  */
 export function readExportList(text: string): ReadonlyMap<string, LuaDataEntry> {
   const source = tokenize(text);
-  /** Tokens read from `source` but not yet consumed; the "eof" token repeats forever. */
+  /** Tokens read from `source` but not yet consumed. It ends with the "eof" token once that is read, which is never consumed. */
   const lookahead: Token[] = [];
   const peek = (offset = 0): Token => {
-    while (lookahead.length <= offset) {
-      const last = lookahead.at(-1);
-      if (last?.kind === "eof") lookahead.push(last);
-      else lookahead.push(source.next().value);
-    }
-    return lookahead[offset]!;
+    while (lookahead.length <= offset && lookahead.at(-1)?.kind !== "eof") lookahead.push(source.next().value);
+    return lookahead[Math.min(offset, lookahead.length - 1)]!;
   };
   const next = (): Token => {
     const token = peek();
-    lookahead.shift();
+    if (token.kind !== "eof") lookahead.shift();
     return token;
   };
   const isPunct = (token: Token, p: string): boolean => token.kind === "punct" && token.text === p;

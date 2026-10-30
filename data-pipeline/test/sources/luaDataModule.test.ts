@@ -1,7 +1,5 @@
 import { LuaSyntaxError, readExportList } from "../../src/sources/luaDataModule";
-
-/** Wraps `body` in the module shape the dial-syn tables use. */
-const lua = (body: string): string => `local export = {}\n\nexport.list = {\n${body}\n}\n\nreturn export`;
+import { luaModule as lua } from "./luaModuleText";
 
 /** The entries as plain [key, value, line] triples. */
 const entries = (text: string) => [...readExportList(text)].map(([key, { value, line }]) => [key, value, line]);
@@ -40,11 +38,40 @@ describe("readExportList", () => {
     ]);
   });
 
-  it("decodes escapes and long strings", () => {
-    expect(entries(lua('\t["a"] = "x\\"y\\\\z\\n\\65\\x42\\u{5187}",\n\t["b"] = [==[\nlong ]] "s"]==],'))).toEqual([
-      ["a", 'x"y\\z\nAB冇', 4],
+  it("decodes Lua 5.1 escapes and long strings", () => {
+    expect(entries(lua('\t["a"] = "x\\"y\\\\z\\n\\65\\t\\127",\n\t["b"] = [==[\nlong ]] "s"]==],'))).toEqual([
+      ["a", 'x"y\\z\nA\t\x7f', 4],
       ["b", 'long ]] "s"', 5],
     ]);
+  });
+
+  it("reads a backslash-newline as a newline and keeps counting lines", () => {
+    expect(entries(lua('\t["a"] = "x\\\ny",\n\t["b"] = "z",'))).toEqual([
+      ["a", "x\ny", 4],
+      ["b", "z", 6],
+    ]);
+  });
+
+  it("skips long comments of any level, even with ]] inside", () => {
+    expect(entries(lua('\t--[==[ a ]] comment\n\tover lines ]==]\n\t["a"] = "x",'))).toEqual([["a", "x", 6]]);
+  });
+
+  it("rejects decimal escapes above 127, which are raw bytes (e.g. UTF-8 pieces), rather than garbling them", () => {
+    expect(syntaxError(lua('\t["Formal"] = { "\\230\\178\\146" },'))).toEqual({
+      line: 4,
+      message: 'unsupported escape "\\230": decimal escapes above 127 are raw bytes',
+    });
+  });
+
+  it("rejects \\x, \\z and \\u{} escapes, which Wiktionary's Lua 5.1 does not have", () => {
+    for (const escape of ["x41", "z", "u{5187}"]) {
+      expect(syntaxError(lua(`\t["a"] = "\\${escape}",`))).toEqual({ line: 4, message: `unsupported escape "\\${escape[0]}"` });
+    }
+  });
+
+  it("reports an unfinished long string or long comment at the line where it starts", () => {
+    expect(syntaxError(lua('\t["a"] = [[abc,\n'))).toEqual({ line: 4, message: "unfinished long string" });
+    expect(syntaxError(lua('\t--[=[ abc ]]\n'))).toEqual({ line: 4, message: "unfinished long comment" });
   });
 
   it("ignores positional values, as Lua stores them at integer indexes nobody reads", () => {

@@ -116,8 +116,9 @@ export interface DialSynForm {
  * is a plain string: its notes (mostly regions such as "Mainland China", "Taiwan") are dropped.
  *
  * A table with several Written Standard forms gives one pair per form, all with the same
- * Cantonese list; tables for different senses of the same word (張, 張-2, …) give separate pairs,
- * so `mandarin` is not unique.
+ * Cantonese list, and tables for different senses of the same word (張, 張-2, …) give separate
+ * pairs. The committed extract drops exact duplicates (same Mandarin, same Cantonese list), but a
+ * Mandarin form can still appear in several pairs, so `mandarin` is not unique.
  *
  * License: Wiktionary text is CC BY-SA 4.0 (dual-licensed with the GFDL); this app uses it for
  * personal, offline use only.

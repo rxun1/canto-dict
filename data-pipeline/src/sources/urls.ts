@@ -95,5 +95,11 @@ export const WIKTIONARY_DIALSYN_SHA256 = "434fffa3b4afc5cc94699a9e2e4055dd55a678
 
 export const WIKTIONARY_DIALSYN_CACHE_NAME = `wiktionary-modules-${shortSha(WIKTIONARY_DIALSYN_SHA256)}.tar.gz`;
 
-/** Directory of the dial-syn tables inside the tarball: kaikki stores Module:X as Module/X.txt. */
-export const WIKTIONARY_DIALSYN_TAR_DIR = "Module/zh/data/dial-syn/";
+/** Wiktionary page-name prefix of the dial-syn tables (Module:zh/data/dial-syn/<word>). */
+export const WIKTIONARY_DIALSYN_PAGE_PREFIX = "Module:zh/data/dial-syn/";
+
+/** kaikki stores the page Module:X as the tar entry Module/X.txt. */
+export const WIKTIONARY_MODULE_TAR_SUFFIX = ".txt";
+
+/** Directory of the dial-syn tables inside the tarball, derived from the page prefix. */
+export const WIKTIONARY_DIALSYN_TAR_DIR = WIKTIONARY_DIALSYN_PAGE_PREFIX.replace(/^Module:/, "Module/");

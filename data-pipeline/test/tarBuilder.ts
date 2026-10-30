@@ -1,6 +1,7 @@
 // Test helper: builds small ustar/pax tar archives in memory (not a test file itself).
+import { BLOCK } from "../src/tar";
 
-const BLOCK = 512;
+export { BLOCK };
 const encoder = new TextEncoder();
 
 function writeOctal(header: Uint8Array, offset: number, length: number, value: number): void {
@@ -20,10 +21,15 @@ export function tarHeader(name: string, size: number, typeflag: string, prefix =
   header.set(encoder.encode("ustar\0"), 257);
   header.set(encoder.encode("00"), 263);
   header.set(encoder.encode(prefix), 345);
+  setChecksum(header);
+  return header;
+}
+
+/** (Re)writes a header's checksum field, e.g. after a test edits other fields. */
+export function setChecksum(header: Uint8Array): void {
   header.fill(0x20, 148, 156);
   const sum = header.reduce((total, byte) => total + byte, 0);
   header.set(encoder.encode(`${sum.toString(8).padStart(6, "0")}\0 `), 148);
-  return header;
 }
 
 function padded(data: Uint8Array): Uint8Array {

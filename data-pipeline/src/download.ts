@@ -23,7 +23,8 @@ export interface FetchToCacheOptions {
   sha256?: string;
 }
 
-async function sha256OfFile(path: string): Promise<string> {
+/** SHA-256 (lowercase hex) of a file's bytes. */
+export async function sha256OfFile(path: string): Promise<string> {
   return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 

@@ -1,17 +1,23 @@
+// Generator-only half of the Wiktionary dial-syn source: reads the kaikki tarball and turns its
+// tables into pairs. Only scripts/gen-dialsyn.ts uses it; the pipeline reads the committed extract
+// through wiktionaryDialSynExtract.ts, which needs none of zlib, the tar reader or the Lua parser.
 import { createReadStream } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { pipeline } from "node:stream";
 import { createGunzip } from "node:zlib";
+import { sha256OfFile } from "../download";
 import { readTarEntries } from "../tar";
 import { LuaSyntaxError, readExportList, type LuaDataEntry } from "./luaDataModule";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import type { DialSynForm, DialSynPair } from "./types";
-import { WIKTIONARY_DIALSYN_SHA256, WIKTIONARY_DIALSYN_TAR_DIR, WIKTIONARY_DIALSYN_URL } from "./urls";
+import {
+  WIKTIONARY_DIALSYN_PAGE_PREFIX,
+  WIKTIONARY_DIALSYN_SHA256,
+  WIKTIONARY_DIALSYN_TAR_DIR,
+  WIKTIONARY_MODULE_TAR_SUFFIX,
+} from "./urls";
+import { formatDialSynExtract, parseDialSynExtract } from "./wiktionaryDialSynExtract";
 
 const SOURCE_NAME = "Wiktionary dial-syn";
-
-/** Page-name prefix of the tables, for problem messages. */
-const MODULE_PREFIX = "Module:zh/data/dial-syn/";
 
 /** The Written Standard Chinese row (rendered "Formal (Written Standard Chinese)"). */
 const FORMAL_KEY = "Formal";
@@ -77,18 +83,20 @@ function rowForms(entry: LuaDataEntry | undefined): DialSynForm[] {
  * Hong Kong, Guangzhou and Macau rows merged in that order. Forms are cleaned by cleanDialSynForm
  * and de-duplicated on the form: the first occurrence wins with its note, so when the same form
  * appears with different notes (or with and without one) the Hong Kong row's version is kept. Notes
- * are kept on Cantonese forms only; Written Standard forms become plain strings. A table yields one pair per Written Standard form, and nothing when it has no
- * Written Standard form or no Cantonese form (not a problem: most tables cover only some varieties).
+ * are kept on Cantonese forms only; Written Standard forms become plain strings. A table yields
+ * one pair per Written Standard form, and nothing when it has no Written Standard form or no
+ * Cantonese form (not a problem: most tables cover only some varieties). Also returns how many
+ * modules parsed as tables, for the generator's sanity minimum.
  *
  * Severity policy:
- * - STRUCTURAL problems (no modules at all; no parsed table having any Hong Kong, Guangzhou or Macau
- *   row, i.e. the location keys were renamed) are thrown.
+ * - STRUCTURAL problems (no modules at all; no module parsing as a table; no parsed table having
+ *   any Hong Kong, Guangzhou or Macau row, i.e. the location keys were renamed) are thrown.
  * - ROW-LEVEL problems skip the whole table, recorded with the module name and a 1-based line
  *   within it: a module that is not a data table of the expected shape (a redirect stub, a Lua
  *   syntax error, an unsupported construct), a used row that is a string instead of a list, or a
  *   missing Formal row (Wiktionary's own renderer fails on that).
  */
-export function parseDialSynModules(modules: readonly DialSynModule[]): Parsed<DialSynPair> {
+export function parseDialSynModules(modules: readonly DialSynModule[]): Parsed<DialSynPair> & { readonly parsedTables: number } {
   const rows: DialSynPair[] = [];
   const skipped: Problem[] = [];
   if (modules.length === 0) throwIfProblems(SOURCE_NAME, [{ line: 1, message: "no dial-syn modules found" }]);
@@ -97,7 +105,7 @@ export function parseDialSynModules(modules: readonly DialSynModule[]): Parsed<D
   let tablesWithCantoneseKey = 0;
   for (const { name, text } of modules) {
     const skip = (line: number, message: string): void => {
-      skipped.push({ line, message: `${MODULE_PREFIX}${name}: ${message}` });
+      skipped.push({ line, message: `${WIKTIONARY_DIALSYN_PAGE_PREFIX}${name}: ${message}` });
     };
     let fields: ReadonlyMap<string, LuaDataEntry>;
     try {
@@ -129,133 +137,84 @@ export function parseDialSynModules(modules: readonly DialSynModule[]): Parsed<D
     for (const form of mandarin) rows.push({ mandarin: form, cantonese });
   }
 
-  if (parsedTables > 0 && tablesWithCantoneseKey === 0) {
+  if (parsedTables === 0) {
+    throwIfProblems(SOURCE_NAME, [{ line: 1, message: `none of the ${modules.length} modules parsed as a dial-syn table` }]);
+  }
+  if (tablesWithCantoneseKey === 0) {
     const keys = CANTONESE_LOCATION_KEYS.map((key) => `"${key}"`);
     throwIfProblems(SOURCE_NAME, [
       { line: 1, message: `none of the ${parsedTables} parsed tables has a ${keys.slice(0, -1).join(", ")} or ${keys.at(-1)} row (location keys renamed?)` },
     ]);
   }
-  return { rows, skipped };
+  return { rows, skipped, parsedTables };
 }
 
 /** Tarball path of a table: directly in WIKTIONARY_DIALSYN_TAR_DIR, named <page>.txt (subpages excluded). */
 function moduleName(path: string): string | undefined {
   const relative = path.replace(/^\.\//, "");
-  if (!relative.startsWith(WIKTIONARY_DIALSYN_TAR_DIR) || !relative.endsWith(".txt")) return undefined;
-  const name = relative.slice(WIKTIONARY_DIALSYN_TAR_DIR.length, -".txt".length);
+  if (!relative.startsWith(WIKTIONARY_DIALSYN_TAR_DIR) || !relative.endsWith(WIKTIONARY_MODULE_TAR_SUFFIX)) return undefined;
+  const name = relative.slice(WIKTIONARY_DIALSYN_TAR_DIR.length, -WIKTIONARY_MODULE_TAR_SUFFIX.length);
   return name === "" || name.includes("/") ? undefined : name;
 }
 
-/** Streams the gzipped module tarball at `path` and returns its dial-syn tables (UTF-8, checked). */
-export async function readDialSynTarball(path: string): Promise<DialSynModule[]> {
-  const entries = await readTarEntries(createReadStream(path).pipe(createGunzip()), (p) => moduleName(p) !== undefined);
+/**
+ * Streams the gzipped module tarball at `path` and returns its dial-syn tables. A table that is not
+ * valid UTF-8 is skipped (recorded with its page name); a missing file or a corrupt archive rejects.
+ */
+export async function readDialSynTarball(path: string): Promise<Parsed<DialSynModule>> {
+  const gunzip = createGunzip();
+  // pipeline (unlike .pipe) passes a read error such as ENOENT on to gunzip, so iterating it rejects;
+  // the callback is required, and the error surfaces through readTarEntries instead.
+  pipeline(createReadStream(path), gunzip, () => {});
+  const entries = await readTarEntries(gunzip, (p) => moduleName(p) !== undefined);
   const decoder = new TextDecoder("utf-8", { fatal: true });
-  return entries.map(({ path: entryPath, data }) => ({ name: moduleName(entryPath)!, text: decoder.decode(data) }));
+  const rows: DialSynModule[] = [];
+  const skipped: Problem[] = [];
+  for (const { path: entryPath, data } of entries) {
+    const name = moduleName(entryPath)!;
+    try {
+      rows.push({ name, text: decoder.decode(data) });
+    } catch {
+      skipped.push({ line: 1, message: `${WIKTIONARY_DIALSYN_PAGE_PREFIX}${name}: not valid UTF-8` });
+    }
+  }
+  return { rows, skipped };
+}
+
+/** Fewer parsed tables than this means the tarball or the parser is broken (the pinned copy has 3,768). */
+export const MIN_PARSED_TABLES = 2000;
+
+export interface DialSynExtractBuild {
+  /** The extract file's text (formatDialSynExtract). */
+  readonly text: string;
+  readonly parsedTables: number;
+  /** Distinct pairs written. */
+  readonly pairCount: number;
+  /** Modules skipped while reading or parsing. */
+  readonly skipped: readonly Problem[];
 }
 
 /**
- * The committed extract: parseDialSynModules' output over the pinned tarball, written by
- * scripts/gen-dialsyn.ts. kaikki keeps no old tarballs, so the pipeline reads this file rather than
- * the download, and a fresh checkout builds offline.
+ * Everything scripts/gen-dialsyn.ts does short of writing: hashes the tarball at `path`, checks the
+ * hash against the pin, reads and parses its tables, checks the result and formats the extract with
+ * the hash of the file actually read. Throws, so nothing is written, when the tarball is not the
+ * pinned one (e.g. a CANTO_SRC_* override, which fetchToCache never hash-checks), when fewer than
+ * `minParsedTables` tables parse, when no pairs come out, or when the text does not read back.
  */
-export const DIALSYN_EXTRACT_PATH = resolve(import.meta.dirname, "../../data/wiktionary-dialsyn.json");
-
-const EXTRACT_SOURCE_NAME = `${SOURCE_NAME} extract`;
-
-/** Provenance written at the top of the extract; tarballSha256 must match the pin in urls.ts. */
-const EXTRACT_ABOUT = {
-  source: WIKTIONARY_DIALSYN_URL,
-  tarballSha256: WIKTIONARY_DIALSYN_SHA256,
-  tables: `${MODULE_PREFIX}*`,
-  license: "CC BY-SA 4.0 (Wiktionary)",
-  regenerate: "cd data-pipeline && npx tsx scripts/gen-dialsyn.ts",
-} as const;
-
-/** 1-based line of the first pair in formatDialSynExtract's layout (after "{", about, pairCount, "pairs": [). */
-const FIRST_PAIR_LINE = 5;
-
-/** A pair as one JSON line, with keys in a fixed order (form, then note only when present). */
-function pairLine({ mandarin, cantonese }: DialSynPair): string {
-  return JSON.stringify({ mandarin, cantonese: cantonese.map(({ form, note }) => (note === undefined ? { form } : { form, note })) });
-}
-
-/** Code-unit order: deterministic, unlike localeCompare. */
-const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-/**
- * Serializes pairs as the extract: a provenance object, the pair count and one pair per line, sorted
- * by Mandarin and then by the line itself, so the output depends only on the set of pairs and
- * regenerating after an upstream change gives a reviewable line diff.
- */
-export function formatDialSynExtract(pairs: readonly DialSynPair[]): string {
-  const sorted = pairs
-    .map((pair) => ({ mandarin: pair.mandarin, line: pairLine(pair) }))
-    .sort((a, b) => byCodeUnits(a.mandarin, b.mandarin) || byCodeUnits(a.line, b.line))
-    .map(({ line }) => `    ${line}`);
-  const body = sorted.length === 0 ? "[]" : `[\n${sorted.join(",\n")}\n  ]`;
-  return `{\n  "about": ${JSON.stringify(EXTRACT_ABOUT)},\n  "pairCount": ${pairs.length},\n  "pairs": ${body}\n}\n`;
-}
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value !== "";
-
-/** True for {form: non-empty string} or {form, note: non-empty string}, with no other keys. */
-function isForm(value: unknown): value is DialSynForm {
-  if (!isObject(value) || !isNonEmptyString(value.form)) return false;
-  const keys = Object.keys(value);
-  return keys.every((key) => key === "form" || key === "note") && (!("note" in value) || isNonEmptyString(value.note));
-}
-
-/**
- * Reads and validates the extract written by formatDialSynExtract. Every problem is structural (the
- * file is generated, so any defect means it was edited or is stale) and all are thrown together:
- * invalid JSON, a wrong top-level shape, provenance not matching the pin in urls.ts, a pairCount that
- * disagrees with the pairs, or a malformed pair (line numbers assume the generated layout).
- */
-export function parseDialSynExtract(text: string): DialSynPair[] {
-  const fail = (line: number, message: string): never => {
-    throwIfProblems(EXTRACT_SOURCE_NAME, [{ line, message }]);
-    throw new Error("unreachable");
-  };
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    fail(1, "not valid JSON");
+export async function buildDialSynExtract(
+  path: string,
+  { minParsedTables = MIN_PARSED_TABLES, pinnedSha256 = WIKTIONARY_DIALSYN_SHA256 }: { minParsedTables?: number; pinnedSha256?: string } = {},
+): Promise<DialSynExtractBuild> {
+  const sha256 = await sha256OfFile(path);
+  if (sha256 !== pinnedSha256) {
+    throw new Error(`tarball sha256 ${sha256} is not the pinned WIKTIONARY_DIALSYN_SHA256 ${pinnedSha256}; update the pin in urls.ts first`);
   }
-  if (!isObject(data) || !isObject(data.about) || typeof data.pairCount !== "number" || !Array.isArray(data.pairs)) {
-    return fail(1, 'expected an object with "about", "pairCount" and "pairs"');
-  }
-  const problems: Problem[] = [];
-  if (data.about.tarballSha256 !== WIKTIONARY_DIALSYN_SHA256) {
-    problems.push({ line: 2, message: `extract was generated from tarball sha256 ${String(data.about.tarballSha256)}, but urls.ts pins ${WIKTIONARY_DIALSYN_SHA256}; regenerate it` });
-  }
-  if (data.pairCount !== data.pairs.length) {
-    problems.push({ line: 3, message: `pairCount is ${data.pairCount} but there are ${data.pairs.length} pairs` });
-  }
-  const pairs: DialSynPair[] = [];
-  for (const [index, pair] of data.pairs.entries()) {
-    const at = { line: FIRST_PAIR_LINE + index, label: `pair ${index + 1}` };
-    if (!isObject(pair) || !isNonEmptyString(pair.mandarin)) {
-      problems.push({ line: at.line, message: `${at.label}: mandarin must be a non-empty string` });
-      continue;
-    }
-    if (!Array.isArray(pair.cantonese) || pair.cantonese.length === 0) {
-      problems.push({ line: at.line, message: `${at.label}: cantonese must be a non-empty list` });
-      continue;
-    }
-    const bad = pair.cantonese.findIndex((form) => !isForm(form));
-    if (bad !== -1) {
-      problems.push({ line: at.line, message: `${at.label}: cantonese form ${bad + 1} must be {"form": non-empty string, "note"?: non-empty string}` });
-      continue;
-    }
-    pairs.push({ mandarin: pair.mandarin, cantonese: pair.cantonese as DialSynForm[] });
-  }
-  throwIfProblems(EXTRACT_SOURCE_NAME, problems);
-  return pairs;
-}
-
-/** Reads the committed extract (no network); regenerate it with scripts/gen-dialsyn.ts. */
-export async function loadWiktionaryDialSyn(): Promise<DialSynPair[]> {
-  return parseDialSynExtract(await readFile(DIALSYN_EXTRACT_PATH, "utf8"));
+  const read = await readDialSynTarball(path);
+  const { rows, skipped, parsedTables } = parseDialSynModules(read.rows);
+  if (parsedTables < minParsedTables) throw new Error(`only ${parsedTables} dial-syn tables parsed, expected at least ${minParsedTables}`);
+  if (rows.length === 0) throw new Error(`no pairs came out of ${parsedTables} parsed tables`);
+  const text = formatDialSynExtract(rows, sha256);
+  const pairs = parseDialSynExtract(text, sha256);
+  if (formatDialSynExtract(pairs, sha256) !== text) throw new Error("the extract does not read back as written");
+  return { text, parsedTables, pairCount: pairs.length, skipped: [...read.skipped, ...skipped] };
 }

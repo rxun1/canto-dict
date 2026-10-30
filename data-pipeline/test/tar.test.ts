@@ -1,5 +1,5 @@
-import { readTarEntries } from "../src/tar";
-import { chunked, concatBytes, paxPath, TAR_END, tarFile, tarHeader } from "./tarBuilder";
+import { BLOCK, readTarEntries } from "../src/tar";
+import { chunked, concatBytes, paxPath, setChecksum, TAR_END, tarFile, tarHeader } from "./tarBuilder";
 
 const decode = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
 
@@ -65,9 +65,45 @@ describe("readTarEntries", () => {
   it("throws on a non-octal size field", async () => {
     const header = tarHeader("a.txt", 0, "0");
     header.set(new TextEncoder().encode("12345678901z"), 124);
-    header.fill(0x20, 148, 156);
-    const sum = header.reduce((total, byte) => total + byte, 0);
-    header.set(new TextEncoder().encode(`${sum.toString(8).padStart(6, "0")}\0 `), 148);
+    setChecksum(header);
     await expect(read([header, TAR_END])).rejects.toThrow('tar: bad size field "12345678901z" at byte 0');
+  });
+
+  it("skips a pax global header, whose records do not name the next entry", async () => {
+    expect(await read([...tarFile("pax_global_header", "19 path=global.txt\n", "g"), ...tarFile("own.txt", "o"), TAR_END])).toEqual([
+      { path: "own.txt", text: "o" },
+    ]);
+  });
+
+  it("does not decode a ustar name that a pax path overrides, even if it is cut mid-character", async () => {
+    const header = tarHeader("x", 1, "0");
+    header.fill(0, 0, 100);
+    header.set(new TextEncoder().encode(`d/${"沒".repeat(40)}`).subarray(0, 100), 0); // byte 100 splits a character
+    setChecksum(header);
+    expect(await read([...paxPath("d/ok.txt"), header, new Uint8Array(BLOCK), TAR_END])).toEqual([{ path: "d/ok.txt", text: "\0" }]);
+    await expect(read([header, new Uint8Array(BLOCK), TAR_END])).rejects.toThrow("tar: undecodable name at byte 0");
+  });
+
+  it("throws on a pax record that does not end with a newline", async () => {
+    await expect(read([...tarFile("p", "10 path=ab", "x"), ...tarFile("f", "z"), TAR_END])).rejects.toThrow("tar: malformed pax header");
+  });
+
+  it("closes the source when it stops early, at the end marker or on an error", async () => {
+    const closedAfter = async (parts: Uint8Array[]): Promise<boolean> => {
+      let closed = false;
+      async function* source(): AsyncGenerator<Uint8Array> {
+        try {
+          yield* chunked(concatBytes(parts), BLOCK);
+        } finally {
+          closed = true;
+        }
+      }
+      await readTarEntries(source(), () => true).catch(() => undefined);
+      return closed;
+    };
+    expect(await closedAfter([...tarFile("a.txt", "a"), TAR_END, new Uint8Array(4 * BLOCK)])).toBe(true);
+    const bad = tarHeader("a.txt", 1, "0");
+    bad[0] = "b".charCodeAt(0);
+    expect(await closedAfter([bad, new Uint8Array(BLOCK), TAR_END])).toBe(true);
   });
 });
