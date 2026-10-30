@@ -1,16 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
+import { RIME_CHARS_CACHE_NAME, RIME_CHARS_URL } from "./urls";
 import { splitLines } from "./text";
 import type { CharReading, ReadingRank } from "./types";
-
-/** Pinned upstream commit of CanCLID/rime-cantonese-upstream, so rebuilds are reproducible. */
-export const RIME_CHARS_COMMIT = "4cb67a486312e5f0f13cc842433617104d75de87";
-
-export const RIME_CHARS_URL = `https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/${RIME_CHARS_COMMIT}/char.csv`;
-
-/** Cache name includes the short SHA so a different pin never reuses a stale download. */
-export const RIME_CHARS_CACHE_NAME = `rime-char-${RIME_CHARS_COMMIT.slice(0, 7)}.csv`;
 
 /** Single source of truth for the pron_rank column (3rd column of char.csv). */
 const RANK_BY_RIME_LABEL: ReadonlyMap<string, ReadingRank> = new Map<string, ReadingRank>([
