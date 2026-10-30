@@ -1,0 +1,23 @@
+{
+  "name": "canto-dict-data-pipeline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "data:build": "tsx src/cli.ts",
+    "data:fixture": "tsx src/cli.ts --fixture"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "opencc-js": "^1.4.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.5"
+  }
+}
