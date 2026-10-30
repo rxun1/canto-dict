@@ -126,6 +126,11 @@ describe("parseMoedict", () => {
     expect(rows.find((r) => r.word === "咳唾成珠" || r.word === "嘅")).toBeUndefined();
   });
 
+  it("reports whichever rare character comes first in the text", () => {
+    const { skipped } = parseEntries(entry("字", { def: "甲\u{F06EB}乙{[9677]}丙" }), entry("詞", { def: "甲{[9677]}乙\u{F06EB}丙" }));
+    expect(skipped.map((s) => s.message)).toEqual([expect.stringMatching(/\(U\+F06EB\)$/), expect.stringMatching(/\(\{\[9677\]\}\)$/)]);
+  });
+
   it("skips an empty definition, reporting its cross-reference", () => {
     const [problem] = skippedAt(ENTRY.emptyDef);
     expect(problem?.message).toContain("侄 sense 2: empty definition");
@@ -227,7 +232,7 @@ describe("readXzText", () => {
       `import { readXzText } from ${JSON.stringify(pathToFileURL(moedictModule).href)};\n` +
         `process.stdout.write(await readXzText(${JSON.stringify(sampleXzPath)}));\n`,
     );
-    const { stdout } = await promisify(execFile)(process.execPath, ["--import", "tsx", script], { cwd: packageRoot, maxBuffer: 1 << 20 });
+    const { stdout } = await promisify(execFile)(process.execPath, ["--import", "tsx", script], { cwd: packageRoot, maxBuffer: 1 << 20, timeout: 20_000 });
     expect(stdout).toBe(sample);
   }, 30_000);
 });

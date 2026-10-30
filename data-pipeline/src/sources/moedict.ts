@@ -42,9 +42,11 @@ const clean = (text: string): string => text.replace(ZERO_WIDTH, "").trim();
 /** The first rare character in `text` for a message (a placeholder as written, a private-use code point as U+XXXX), or undefined. */
 function findRareCharacter(text: string): string | undefined {
   const placeholder = PLACEHOLDER.exec(text);
-  if (placeholder !== null) return placeholder[0];
   const privateUse = PRIVATE_USE.exec(text);
-  return privateUse === null ? undefined : `U+${privateUse[0].codePointAt(0)!.toString(16).toUpperCase()}`;
+  if (privateUse !== null && (placeholder === null || privateUse.index < placeholder.index)) {
+    return `U+${privateUse[0].codePointAt(0)!.toString(16).toUpperCase()}`;
+  }
+  return placeholder?.[0];
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -188,7 +190,8 @@ export async function readXzText(path: string): Promise<string> {
   try {
     bytes = await new Response(new XzReadableStream(compressed)).arrayBuffer();
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== undefined) throw err;
+    // Only file-system errors (string code plus syscall, e.g. ENOENT from open) are not the decoder's.
+    if (err instanceof Error && typeof (err as NodeJS.ErrnoException).code === "string" && "syscall" in err) throw err;
     throw new Error(`could not decompress ${path} (corrupt or truncated xz; delete it to re-download)`, { cause: err });
   }
   try {
