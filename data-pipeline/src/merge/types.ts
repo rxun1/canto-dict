@@ -180,6 +180,8 @@ export interface MergeStats {
     readonly notedFormsSkipped: number;
     /** Pairs skipped because the Cantonese form is the Mandarin word (same key). */
     readonly identityPairsSkipped: number;
+    /** Cantonese forms skipped because either side has an ideographic description character (⿰血聿). */
+    readonly describedFormsSkipped: number;
   };
   readonly moe: {
     /** Senses dropped as reading cross-references ("(一)之又音。"), and a sample. */

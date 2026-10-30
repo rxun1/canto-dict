@@ -141,7 +141,27 @@ describe("merge: Mandarin equivalents", () => {
     );
     const byTrad = Object.fromEntries(result.entries.map((e) => [e.trad, e.mandarin.map((m) => m.trad)]));
     expect(byTrad).toEqual({ 嘅: [], 你: ["您"] });
-    expect(result.stats.wiktionary).toEqual({ notedFormsSkipped: 1, identityPairsSkipped: 1 });
+    expect(result.stats.wiktionary).toEqual({ notedFormsSkipped: 1, identityPairsSkipped: 1, describedFormsSkipped: 0 });
+  });
+
+  it("skips Wiktionary forms written with ideographic description characters (⿰血聿 for 淋巴)", () => {
+    const result = merge(
+      inputs({
+        rimeWords: [
+          { word: "淋巴", syllables: ["lam4", "baa1"] },
+          { word: "淋巴液", syllables: ["lam4", "baa1", "jik6"] },
+        ],
+        wiktionary: [
+          // The pinned extract's only such pair: the Mandarin word is an unencoded character's description.
+          { mandarin: "⿰血聿", cantonese: [{ form: "淋巴" }, { form: "淋巴液" }] },
+          // Made up: the same on the Cantonese side.
+          { mandarin: "淋巴", cantonese: [{ form: "⿱艹淋" }] },
+        ],
+      }),
+    );
+    for (const entry of result.entries) expect(entry.mandarin).toEqual([]);
+    expect(result.stats.wiktionary.describedFormsSkipped).toBe(3);
+    expect(result.stats.unmatched.wiktionaryForms).toBe(0);
   });
 
   it("treats a Wiktionary pair as identity when its two sides share a key (著火 → 著火 for the 着火 entry)", () => {

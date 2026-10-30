@@ -37,6 +37,12 @@ const POS_SEPARATOR = "、";
 /** The optional source a build can run without. */
 const WORDSHK_DUMP_SOURCE: RowSource = "wordshk-dump";
 
+/**
+ * An ideographic description character (U+2FF0–U+2FFF): Wiktionary spells a character Unicode
+ * lacks as its description (⿰血聿, the Mandarin word it pairs with 淋巴), which is no word to show.
+ */
+const IDEOGRAPHIC_DESCRIPTION = /[\u2FF0-\u2FFF]/u;
+
 /** MoE's names for a reading other than the sense's own: 又音 (alternative), 讀音 (literary), 語音 (colloquial). */
 const READING_NOTE = "(?:又音|讀音|語音)";
 
@@ -437,11 +443,15 @@ export function merge(inputs: MergeInputs): MergeResult {
     builder.kfcd.push({ sortKey: kfcdSortKey(row), mandarin });
   }
 
-  const wiktStats = { notedFormsSkipped: 0, identityPairsSkipped: 0 };
+  const wiktStats = { notedFormsSkipped: 0, identityPairsSkipped: 0, describedFormsSkipped: 0 };
   const wiktUnmatchedForms = new Set<string>();
   for (const pair of inputs.wiktionary) {
     const mandarinKey = headwordKey(pair.mandarin);
     for (const { form, note } of pair.cantonese) {
+      if (IDEOGRAPHIC_DESCRIPTION.test(pair.mandarin) || IDEOGRAPHIC_DESCRIPTION.test(form)) {
+        wiktStats.describedFormsSkipped++;
+        continue;
+      }
       if (note !== undefined) {
         wiktStats.notedFormsSkipped++;
         continue;
