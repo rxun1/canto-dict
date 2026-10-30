@@ -1,4 +1,4 @@
-import { parseLoanAwareSyllables, syllableCountMismatch } from "./jyutpingCell";
+import { describeBadSyllable, parseLoanAwareSyllables, syllableCountMismatch } from "./jyutpingCell";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { splitLines } from "./text";
@@ -64,8 +64,7 @@ export function parseWordshkList(text: string): Parsed<WordReading> {
     for (const reading of readings) {
       const parsed = parseLoanAwareSyllables(reading.trim().split(/\s+/));
       if (parsed.kind !== "ok") {
-        const what = parsed.kind === "malformed-loan" ? "malformed loan syllable" : "invalid syllable";
-        skipped.push({ line: lineNumber, message: `${what} "${parsed.cell}" for ${word}: "${reading}"` });
+        skipped.push({ line: lineNumber, message: `${describeBadSyllable(parsed)} for ${word}: "${reading}"` });
         continue;
       }
       const { syllables, loanSyllables } = parsed;

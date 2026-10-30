@@ -130,13 +130,18 @@ describe("parseWordshkDump", () => {
     ]);
   });
 
-  it("drops an example whose Jyutping has an invalid syllable and records the record's line", () => {
+  it("keeps an example whose Jyutping has an invalid syllable, without its Jyutping, and records the record's line", () => {
     const { skipped } = parseWordshkDump(fixture);
     expect(entry(107966).senses).toEqual([
-      { yue: "手機玩嘅遊戲（量詞：隻／款）", examples: [{ yue: "手遊專區", jyutping: ["sau2", "gei1", "zyun1", "keoi1"] }] },
+      {
+        yue: "手機玩嘅遊戲（量詞：隻／款）",
+        examples: [{ yue: "手遊專區", jyutping: ["sau2", "gei1", "zyun1", "keoi1"] }, { yue: "RPG手遊" }],
+      },
     ]);
     const problem = skipped.find((p) => p.line === 28);
-    expect(problem?.message).toMatch(/107966.*invalid syllable "pi1" in example Jyutping/);
+    expect(problem?.message).toBe(
+      'entry 107966: invalid syllable "pi1" in example Jyutping "aau1 pi1 zi1 sau2 jau4"; Jyutping dropped',
+    );
   });
 
   it("drops an <eg> block that has no yue: line (Mandarin-only example)", () => {
@@ -182,6 +187,26 @@ describe("parseWordshkDump", () => {
     expect(skipped[0].message).toMatch(/unknown tag "foo"/);
     expect(skipped[1].message).toMatch(/no yue: explanation/);
     expect(skipped[2].message).toMatch(/headword "好" has no reading/);
+  });
+
+  it("drops a headword reading with a malformed loan syllable (bare '!') and keeps the other headwords", () => {
+    const { rows, skipped } = parseWordshkDump(dumpWith('101778,"阝:!,耳仔邊:ji5 zai2 bin1","(pos:語素)\nyue:部首",,OK,已公開'));
+    expect(rows[0].headwords).toEqual([{ word: "耳仔邊", syllables: ["ji5", "zai2", "bin1"] }]);
+    expect(skipped).toEqual([
+      { line: 3, message: 'entry 101778: malformed loan syllable "!" in headword 阝 ("!"); reading dropped' },
+    ]);
+  });
+
+  it("skips a public row whose entry is 未有內容 NO DATA", () => {
+    const { rows, skipped } = parseWordshkDump(dumpWith("5,好:hou2,未有內容 NO DATA,,OK,已公開"));
+    expect(rows).toEqual([]);
+    expect(skipped).toEqual([{ line: 3, message: 'entry 5: no content ("未有內容 NO DATA"); entry skipped' }]);
+  });
+
+  it("throws on a duplicate id or a non-numeric id", () => {
+    const row = (id: string) => `${id},好:hou2,"(pos:形容詞)\nyue:唔錯",,OK,已公開\r\n`;
+    expect(() => parseWordshkDump(PREAMBLE + row("7") + row("7"))).toThrow(/line 5: duplicate id 7/);
+    expect(() => parseWordshkDump(PREAMBLE + row("x7"))).toThrow(/line 3: non-numeric id "x7"/);
   });
 
   it("throws on a structural problem: missing preamble, wrong column count, or unknown public value", () => {

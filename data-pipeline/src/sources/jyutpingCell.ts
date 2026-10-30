@@ -26,12 +26,21 @@ export function syllableCountMismatch(word: string, syllables: readonly string[]
 }
 
 /** words.hk writes a loan pronunciation with a leading "!", e.g. "!es1" in DSE. */
-export const LOAN_PREFIX = "!";
+const LOAN_PREFIX = "!";
+
+/** A syllable cell parseLoanAwareSyllables rejected. */
+export interface BadSyllable {
+  readonly kind: "malformed-loan" | "invalid";
+  readonly cell: string;
+}
 
 /** Outcome of reading words.hk syllables that may carry the "!" loan marker. */
-export type LoanAwareSyllables =
-  | { kind: "ok"; syllables: string[]; loanSyllables: number[] }
-  | { kind: "malformed-loan" | "invalid"; cell: string };
+export type LoanAwareSyllables = { kind: "ok"; syllables: string[]; loanSyllables: number[] } | BadSyllable;
+
+/** The one wording for a rejected syllable, e.g. `invalid syllable "pi1"`. */
+export function describeBadSyllable({ kind, cell }: BadSyllable): string {
+  return `${kind === "malformed-loan" ? "malformed loan syllable" : "invalid syllable"} "${cell}"`;
+}
 
 /**
  * Reads words.hk syllables (already split). A "!"-prefixed loan syllable is stored without the
