@@ -57,9 +57,9 @@ export const WORDSHK_LIST_CACHE_NAME = `wordshk-list-${shortSha(WORDSHK_LIST_SHA
 /**
  * Kaifangcidian 開放詞典 Cantonese dictionary (CC BY 3.0). The site ships only a zip of 22 variant
  * files (traditional/simplified x 11 romanization schemes) and publishes no commit, so the download
- * is pinned by the zip's SHA-256 and we read one entry out of it: the simplified-Chinese, Yale-with-
- * numeric-tones file. To bump: re-download the zip from KAIFANGCIDIAN_URL, run
- * `shasum -a 256` on it, check that KAIFANGCIDIAN_ZIP_ENTRY still exists (its name carries the
+ * is pinned by the zip's SHA-256 and we read two entries out of it: the traditional and simplified Yale-with-
+ * numeric-tones files. To bump: re-download the zip from KAIFANGCIDIAN_URL, run
+ * `shasum -a 256` on it, check that both KAIFANGCIDIAN_ZIP_ENTRY_* names still exist (its name carries the
  * release date) and review the parser's skipped counts, then update both constants (the cache name
  * follows the hash).
  */
@@ -69,5 +69,10 @@ export const KAIFANGCIDIAN_SHA256 = "7ae8f790b2d93931573a090f41e1298e74e59bec911
 
 export const KAIFANGCIDIAN_CACHE_NAME = `kaifangcidian-zhyue-${shortSha(KAIFANGCIDIAN_SHA256)}.zip`;
 
-/** The zip entry we parse: cidian_zhyue, jt = simplified (簡體), ylshu = Yale, numeric tones. */
-export const KAIFANGCIDIAN_ZIP_ENTRY = "cidian_zhyue-jt-kfcd-ylshu-2021714.txt";
+/**
+ * The two zip entries we parse together: cidian_zhyue, ylshu = Yale with numeric tones. They are the
+ * same dictionary line for line, one in traditional (ft, 繁體) and one in simplified (jt, 簡體) Chinese.
+ */
+export const KAIFANGCIDIAN_ZIP_ENTRY_TRAD = "cidian_zhyue-ft-kfcd-ylshu-2021714.txt";
+
+export const KAIFANGCIDIAN_ZIP_ENTRY_SIMP = "cidian_zhyue-jt-kfcd-ylshu-2021714.txt";

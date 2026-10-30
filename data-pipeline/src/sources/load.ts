@@ -11,14 +11,10 @@ export async function loadTolerant<T>(
   url: string,
   cacheName: string,
   parse: (text: string) => Parsed<T>,
-  options: Pick<FetchToCacheOptions, "sha256"> & {
-    /** Turns the cached file into text; defaults to reading it as UTF-8 (override for e.g. a zip). */
-    readText?: (path: string) => Promise<string>;
-  } = {},
+  options: Pick<FetchToCacheOptions, "sha256"> = {},
 ): Promise<T[]> {
-  const { readText = (p: string) => readFile(p, "utf8"), ...fetchOptions } = options;
-  const path = await fetchToCache(url, cacheName, fetchOptions);
-  const { rows, skipped } = parse(await readText(path));
+  const path = await fetchToCache(url, cacheName, options);
+  const { rows, skipped } = parse(await readFile(path, "utf8"));
   if (skipped.length > 0) console.warn(formatProblems(source, skipped));
   return rows;
 }

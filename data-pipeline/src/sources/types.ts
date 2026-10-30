@@ -70,15 +70,23 @@ export interface WordshkEntry {
   readonly senses: readonly WordshkSense[];
 }
 
+/** One Mandarin equivalent in both scripts, as the source writes them (e.g. 沒有 / 没有). */
+export interface MandarinEquivalent {
+  readonly trad: string;
+  readonly simp: string;
+}
+
 /**
- * One row of Kaifangcidian's Cantonese dictionary: a colloquial Cantonese word, its reading
- * converted from the file's Yale to Jyutping (one syllable per character), and its Mandarin
- * equivalents (e.g. 冇 -> 没有, 没, 无). `mandarin` is empty when the source gives none.
- * `word` and `mandarin` stay in the script the source file uses (simplified for the pinned file);
- * the merge step (P1-T13) normalizes the script.
+ * One row of Kaifangcidian's Cantonese dictionary: a colloquial Cantonese word in both scripts, its
+ * reading converted from the file's Yale to Jyutping (one syllable per character), and its Mandarin
+ * equivalents (e.g. 冇 -> 没有, 没, 无). `mandarin` is empty when the source gives none. Both scripts
+ * come from the source's own traditional and simplified files, so no script conversion is needed.
  */
 export interface KfcdRow {
+  /** Traditional headword (from the ft file). */
   readonly word: string;
+  /** Simplified headword (from the jt file). */
+  readonly wordSimp: string;
   readonly syllables: readonly string[];
-  readonly mandarin: readonly string[];
+  readonly mandarin: readonly MandarinEquivalent[];
 }
