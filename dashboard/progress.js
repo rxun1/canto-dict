@@ -214,21 +214,22 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/wiktionaryDialSyn.test.ts test/sources/wiktionaryDialSynExtract.test.ts test/sources/luaDataModule.test.ts test/tar.test.ts → pass",
         },
         {
-          id: "P1-T11", title: "Source: MoE 國語辭典 (Mandarin definitions of standard words)", status: "doing",
-          files: ["data-pipeline/src/sources/moedict.ts", "data-pipeline/fixtures/moedict-sample.json", "data-pipeline/test/sources/moedict.test.ts"],
+          id: "P1-T11", title: "Source: MoE 國語辭典 (Mandarin definitions of standard words)", status: "done",
+          files: ["data-pipeline/src/sources/moedict.ts", "data-pipeline/fixtures/moedict-sample.json", "data-pipeline/fixtures/moedict-sample.json.xz", "data-pipeline/test/sources/moedict.test.ts", "data-pipeline/test/xzBuilder.ts"],
           subtasks: [
-            "Save 5 real entries from g0v/moedict-data to fixtures (include 學校 and a multi-sense word)",
-            "Write failing test: returns { word (trad), senses[{ pos, def }] }, stripping MoE markup characters",
+            "Pick the dataset: no g0v JSON of the 簡編本 exists, so use the 重編本 (g0v/moedict-data dict-revised.json.xz, pinned commit a6dc997, MoE release 2015_20260625, CC BY-ND 3.0 TW)",
+            "Save 14 real entries byte-for-byte to fixtures (學校, multi-sense 沒有/不行, polyphonic 好玩, inner spaces 七年之癢, rare-character placeholders / .gif refs / private-use chars, empty def, ~ in text)",
+            "Write failing test: returns { word (trad), senses[{ heteronym, pos?, def }] } with definitions kept verbatim (only zero-width chars removed and edges trimmed); entries/senses with rare characters or empty defs are skipped and reported by entry number",
             "Run test → fails",
-            "Implement parser + download",
+            "Implement parser + pinned download (xz-decompress, WASM) and MOEDICT_ATTRIBUTION in MoE's prescribed format; a tsx test guards the default import that only works under plain Node",
             "Run test → passes",
             "Commit",
           ],
-          dod: ["學校 yields a non-empty Mandarin definition"],
+          dod: ["學校 yields a non-empty Mandarin definition (講學研習的教育機構。)"],
           test: "cd data-pipeline && npx vitest run test/sources/moedict.test.ts → pass",
         },
         {
-          id: "P1-T13", title: "Merge sources into one entry model", status: "todo",
+          id: "P1-T13", title: "Merge sources into one entry model", status: "doing",
           files: ["data-pipeline/src/merge/types.ts", "data-pipeline/src/merge/merge.ts", "data-pipeline/test/merge.test.ts"],
           subtasks: [
             "Pick the word-frequency source for freq (rime words dict has NO weights): check rime-cantonese essay-cantonese.txt (license, format), pin it in urls.ts, add a parser + fixture test",
@@ -769,5 +770,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T9 done: Kaifangcidian (126eeca, 5599891, 48e130d). Traditional + simplified files paired line by line (0 mismatches); 72,543 rows, 13,690 with Mandarin equivalents (29,908 trad/simp pairs); Yale→Jyutping converter handles all 1,997 syllables, 93.2% agree with rime. Review caught an unrecognized ﹐ separator." },
     { date: "2026-10-30", text: "P1-T10 done: Wiktionary dialect synonyms (1929527, fc8c9b2, 2b70c1a). 3,768 tables parsed → 6,078 Mandarin→Cantonese pairs, committed as a pinned JSON extract so builds stay offline. Hand-written tar + Lua readers kept (one pinned input); review caught an uncaught stream error, a silently empty extract, override-file provenance and Latin-1 Lua escapes — all fixed." },
     { date: "2026-10-30", text: "Decided: MoE 國語辭典 definitions are converted to simplified for display like everything else (personal use, never redistributed), even though MoE's usage notes forbid 轉為簡化字 for redistribution. No g0v 簡編本 JSON exists, so P1-T11 uses the 重編本 (161k entries) and merge keeps only matched entries." },
+    { date: "2026-10-30", text: "P1-T11 done: MoE 國語辭典 重編本 (36b14e3, 5392c22, 7db85e6, + nits). 161,007 headwords, 212,301 definitions kept verbatim; 239 rare-character / empty items skipped and reported. Review caught a default import that only works outside vitest (now guarded by a tsx test), silent loss on empty lists, and misleading \"line N\" locators." },
   ],
 };
