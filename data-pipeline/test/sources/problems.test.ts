@@ -10,6 +10,12 @@ describe("formatProblems", () => {
     ).toBe("char.csv has 2 problem(s):\n  line 2: bad char\n  line 7: bad rank");
   });
 
+  it("labels a problem by its unit when it is not a line, e.g. an entry of a JSON array", () => {
+    expect(formatProblems("dict.json", [{ line: 3, unit: "entry", message: "bad entry" }, { line: 1, message: "bad file" }])).toBe(
+      "dict.json has 2 problem(s):\n  entry 3: bad entry\n  line 1: bad file",
+    );
+  });
+
   it("truncates after MAX_REPORTED_PROBLEMS and says how many were left out", () => {
     const problems = Array.from({ length: 21 }, (_, i) => ({ line: i + 1, message: "oops" }));
     const text = formatProblems("src", problems);

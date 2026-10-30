@@ -156,7 +156,8 @@ export interface MoeSense {
  * moedict-data): a traditional-character headword and its definitions in Mandarin. The senses of
  * all of the entry's readings (heteronyms, e.g. 好玩 hǎo wán / hào wán / hào wàn) are flattened in
  * file order, each tagged with its heteronym index but without the reading itself; examples,
- * quotations, synonyms and cross-references are not kept. Headwords are unique in the pinned file.
+ * quotations, synonyms and cross-references are not kept. Headwords are unique (the parser
+ * rejects a repeated one as a structural problem).
  *
  * License: CC BY-ND 3.0 TW (no derivatives); credit MOEDICT_ATTRIBUTION. The parser stores `word`
  * and `def` verbatim, in traditional characters. Per the user's decision (2026-10-30), the app

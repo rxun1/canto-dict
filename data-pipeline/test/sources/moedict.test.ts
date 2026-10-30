@@ -1,11 +1,25 @@
-import { readFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import { MOEDICT_ATTRIBUTION, parseMoedict, readXzText } from "../../src/sources/moedict";
 import { MOEDICT_RELEASE } from "../../src/sources/urls";
+import { buildXz } from "../xzBuilder";
 
 const fixtureDir = join(import.meta.dirname, "../../fixtures");
 const samplePath = join(fixtureDir, "moedict-sample.json");
+const sampleXzPath = join(fixtureDir, "moedict-sample.json.xz");
 const sample = readFileSync(samplePath, "utf8");
+const packageRoot = join(import.meta.dirname, "../..");
+const moedictModule = join(packageRoot, "src/sources/moedict.ts");
+
+/** The fixture's skipped problems at a 1-based entry number. */
+const skippedAt = (entryNumber: number) => parseMoedict(sample).skipped.filter((s) => s.line === entryNumber);
+
+/** Fixture entry numbers of the entries and senses the parser skips. */
+const ENTRY = { placeholderHeadword: 1, emptyDef: 5, gifInDef: 6, privateUseInDef: 7, placeholderInDef: 13, privateUseHeadword: 14 } as const;
 
 /** Parses inline entries (plain objects, serialized like the source). */
 const parseEntries = (...entries: unknown[]) => parseMoedict(JSON.stringify(entries));
@@ -84,36 +98,38 @@ describe("parseMoedict", () => {
 
   it("skips 2 entries and 4 senses of the fixture, locating each by entry number", () => {
     const { skipped } = parseMoedict(sample);
-    expect(skipped.map((s) => s.line)).toEqual([1, 5, 6, 7, 13, 14]);
+    expect(skipped.map((s) => s.line)).toEqual(Object.values(ENTRY).sort((a, b) => a - b));
+    expect(skipped.every((s) => s.unit === "entry")).toBe(true);
   });
 
   it("skips an entry whose headword has a {[xxxx]} placeholder or a Private Use Area character", () => {
     const { rows, skipped } = parseMoedict(sample);
     expect(rows.some((r) => r.word.includes("{["))).toBe(false);
     expect(rows.some((r) => r.word === "\u{F06EB}")).toBe(false);
-    expect(skipped[0]?.message).toContain("{[9677]}");
-    expect(skipped[5]?.message).toContain("U+F06EB");
+    expect(skipped).toHaveLength(6);
+    expect(skippedAt(ENTRY.placeholderHeadword)).toEqual([expect.objectContaining({ message: expect.stringContaining("{[9677]}") })]);
+    expect(skippedAt(ENTRY.privateUseHeadword)).toEqual([expect.objectContaining({ message: expect.stringContaining("U+F06EB") })]);
   });
 
   it("skips a sense whose definition has a rare-character placeholder, image reference or Private Use Area character", () => {
-    const { rows, skipped } = parseMoedict(sample);
+    const { rows } = parseMoedict(sample);
     const zhi = rows.find((r) => r.word === "隻")!;
     expect(zhi.senses).toEqual([
       { heteronym: 0, pos: "形", def: "孤獨的、單獨的。" },
       { heteronym: 0, pos: "形", def: "奇數、單一的。" },
       { heteronym: 0, pos: "形", def: "獨特的、特殊的。" },
     ]);
-    expect(skipped[4]?.message).toContain("{[f4ff2]}");
-    expect(skipped[2]?.message).toContain("&3898_.gif;");
-    expect(skipped[3]?.message).toContain("U+FA7D1");
+    expect(skippedAt(ENTRY.placeholderInDef)).toEqual([expect.objectContaining({ message: expect.stringContaining("{[f4ff2]}") })]);
+    expect(skippedAt(ENTRY.gifInDef)).toEqual([expect.objectContaining({ message: expect.stringContaining("&3898_.gif;") })]);
+    expect(skippedAt(ENTRY.privateUseInDef)).toEqual([expect.objectContaining({ message: expect.stringContaining("U+FA7D1") })]);
     // 咳唾成珠 and 嘅 had a single sense each, so they give no row.
     expect(rows.find((r) => r.word === "咳唾成珠" || r.word === "嘅")).toBeUndefined();
   });
 
   it("skips an empty definition, reporting its cross-reference", () => {
-    const { skipped } = parseMoedict(sample);
-    expect(skipped[1]?.message).toContain("侄");
-    expect(skipped[1]?.message).toContain("同「姪」。");
+    const [problem] = skippedAt(ENTRY.emptyDef);
+    expect(problem?.message).toContain("侄 sense 2: empty definition");
+    expect(problem?.message).toContain("同「姪」。");
   });
 
   it("throws on a file that is not a JSON array of entries", () => {
@@ -131,24 +147,89 @@ describe("parseMoedict", () => {
         entry("乙", { type: "名" }),
         entry("丙", { def: "丙。", type: 1 }),
         entry("  ", { def: "空。" }),
+        { title: "丁", heteronyms: [] },
+        { title: "戊", heteronyms: [{ definitions: [{ def: "戊。" }] }, { definitions: [] }] },
+        entry("己", { def: "己。", type: " " }),
+        entry("學校", { def: "重複。" }),
       );
-    expect(run).toThrow(/has 5 problem/);
-    expect(run).toThrow(/line 2: .*title/);
-    expect(run).toThrow(/line 3: .*definitions/);
-    expect(run).toThrow(/line 4: .*def/);
-    expect(run).toThrow(/line 5: .*type/);
-    expect(run).toThrow(/line 6: .*empty title/);
+    expect(run).toThrow(/has 9 problem/);
+    expect(run).toThrow(/entry 2: .*title/);
+    expect(run).toThrow(/entry 3: .*definitions/);
+    expect(run).toThrow(/entry 4: .*def/);
+    expect(run).toThrow(/entry 5: .*type/);
+    expect(run).toThrow(/entry 6: .*empty title/);
+    expect(run).toThrow(/entry 7: 丁: no heteronyms/);
+    expect(run).toThrow(/entry 8: 戊: heteronym 2 has no definitions/);
+    expect(run).toThrow(/entry 9: 己: .*type/);
+    expect(run).toThrow(/entry 10: duplicate headword 學校 \(first at entry 1\)/);
+  });
+
+  it("keeps a type verbatim, without trimming it", () => {
+    const { rows } = parseEntries(entry("字", { def: "字。", type: " 名" }));
+    expect(rows[0]?.senses).toEqual([{ heteronym: 0, pos: " 名", def: "字。" }]);
   });
 });
 
 describe("readXzText", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "moedict-test-"));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
   it("decompresses an xz file to its UTF-8 text", async () => {
-    expect(await readXzText(join(fixtureDir, "moedict-sample.json.xz"))).toBe(sample);
+    expect(await readXzText(sampleXzPath)).toBe(sample);
   });
 
-  it("rejects a file that is not xz", async () => {
-    await expect(readXzText(samplePath)).rejects.toThrow();
+  it("decompresses a stored (uncompressed-chunk) xz file built by the test helper", async () => {
+    const path = join(dir, "small.xz");
+    writeFileSync(path, buildXz(new TextEncoder().encode("學校\n")));
+    expect(await readXzText(path)).toBe("學校\n");
   });
+
+  it("rejects a file that is not xz, saying how to recover", async () => {
+    await expect(readXzText(samplePath)).rejects.toThrow(`could not decompress ${samplePath} (corrupt or truncated xz; delete it to re-download)`);
+  });
+
+  it("rejects a corrupted or truncated copy of the fixture, keeping the decoder's error as the cause", async () => {
+    const bytes = readFileSync(sampleXzPath);
+    const corrupt = join(dir, "corrupt.xz");
+    const flipped = Uint8Array.from(bytes);
+    flipped[Math.floor(bytes.length / 2)]! ^= 0xff;
+    writeFileSync(corrupt, flipped);
+    const error = await readXzText(corrupt).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(`could not decompress ${corrupt} (corrupt or truncated xz; delete it to re-download)`);
+    expect((error as Error).cause).toBeInstanceOf(Error);
+
+    const truncated = join(dir, "truncated.xz");
+    writeFileSync(truncated, bytes.subarray(0, bytes.length - 20));
+    await expect(readXzText(truncated)).rejects.toThrow(/could not decompress .*truncated\.xz \(corrupt or truncated xz/);
+  });
+
+  it("rejects decompressed bytes that are not valid UTF-8", async () => {
+    const path = join(dir, "latin1.xz");
+    writeFileSync(path, buildXz(Uint8Array.from([0x61, 0xff, 0xfe, 0x62])));
+    await expect(readXzText(path)).rejects.toThrow(`${path} is not valid UTF-8`);
+  });
+
+  it("passes a missing file's error through unchanged", async () => {
+    await expect(readXzText(join(dir, "missing.xz"))).rejects.toThrow(/ENOENT/);
+  });
+
+  // vitest's module interop accepts imports that plain Node rejects: xz-decompress is a CommonJS
+  // bundle whose named exports Node cannot detect, so `import { XzReadableStream }` passes here but
+  // breaks `npm run data:build`. This runs the module the way the pipeline does, under node + tsx.
+  it("loads and decompresses under plain node + tsx, as the pipeline runs it", async () => {
+    const script = join(dir, "probe.mts");
+    writeFileSync(
+      script,
+      `import { readXzText } from ${JSON.stringify(pathToFileURL(moedictModule).href)};\n` +
+        `process.stdout.write(await readXzText(${JSON.stringify(sampleXzPath)}));\n`,
+    );
+    const { stdout } = await promisify(execFile)(process.execPath, ["--import", "tsx", script], { cwd: packageRoot, maxBuffer: 1 << 20 });
+    expect(stdout).toBe(sample);
+  }, 30_000);
 });
 
 describe("MOEDICT_ATTRIBUTION", () => {

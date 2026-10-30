@@ -21,28 +21,30 @@ const SOURCE_NAME = "MoE 重編國語辭典";
 export const MOEDICT_ATTRIBUTION = `中華民國教育部（Ministry of Education, R.O.C.）。《重編國語辭典修訂本》（版本編號：${MOEDICT_RELEASE}）網址：http://dict.revised.moe.edu.tw/`;
 
 /**
- * Characters the source cannot show as Unicode text: "{[8ff0]}" placeholders, "&3898_.gif;" image
- * references (both name a glyph only the MoE has) and Private Use Area code points (the MoE's own
- * encoding of unencoded characters, e.g. U+F06EB). Text containing one would show garbage or tofu.
+ * Rare characters the source shows as an image reference ("&3898_.gif;") or a placeholder
+ * ("{[8ff0]}") instead of text. Some of these name characters Unicode does encode (&22471_.gif;),
+ * but the source does not give the character itself.
  */
-const RARE_CHARACTER = /\{\[[0-9a-fA-F]+\]\}|&[0-9a-fA-F]+_\.gif;|[\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]/u;
+const PLACEHOLDER = /\{\[[0-9a-fA-F]+\]\}|&[0-9a-fA-F]+_\.gif;/;
 
-/** Zero-width characters scattered through about 950 definitions (U+FEFF mostly, U+200B in 5): invisible encoding debris. */
+/** Private Use Area code points, the MoE's own encoding of rare characters (e.g. U+F06EB); they show as tofu. */
+const PRIVATE_USE = /[\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]/u;
+
+/** How skip messages describe a rare character; the skip policy is the same for all three forms. */
+const RARE_CHARACTER_NOTE = "a character the source shows as an image, placeholder or private-use character";
+
+/** Zero-width characters, invisible encoding debris: about 950 of them in 220 definitions (U+FEFF mostly; U+200B in 5). */
 const ZERO_WIDTH = /[\u200B\uFEFF]/g;
 
 /** Strips zero-width characters and surrounding whitespace; nothing else is changed (the license forbids it). */
 const clean = (text: string): string => text.replace(ZERO_WIDTH, "").trim();
 
-/** A rare character as it should read in a message: placeholders as written, a PUA code point as U+XXXX. */
-function describeRareCharacter(match: string): string {
-  const codePoint = match.codePointAt(0)!;
-  return String.fromCodePoint(codePoint) === match ? `U+${codePoint.toString(16).toUpperCase()}` : match;
-}
-
-/** The first rare character in `text` as describeRareCharacter shows it, or undefined. */
+/** The first rare character in `text` for a message (a placeholder as written, a private-use code point as U+XXXX), or undefined. */
 function findRareCharacter(text: string): string | undefined {
-  const match = RARE_CHARACTER.exec(text);
-  return match === null ? undefined : describeRareCharacter(match[0]);
+  const placeholder = PLACEHOLDER.exec(text);
+  if (placeholder !== null) return placeholder[0];
+  const privateUse = PRIVATE_USE.exec(text);
+  return privateUse === null ? undefined : `U+${privateUse[0].codePointAt(0)!.toString(16).toUpperCase()}`;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,17 +59,22 @@ interface RawDefinition {
 
 /**
  * The entry's definitions in file order across all heteronyms, or a description of what is wrong
- * with its shape (a heteronym or definition that is not an object, no definitions list, a def that
- * is not a string, a type that is present but not a string).
+ * with its shape (no heteronyms; a heteronym that is not an object or has no or an empty definitions
+ * list; a definition that is not an object or has no def string; a type that is present but not a
+ * non-blank string). The pinned file has none of these, so each means the format changed.
  */
 function readDefinitions(heteronyms: readonly unknown[]): RawDefinition[] | string {
+  if (heteronyms.length === 0) return "no heteronyms";
   const definitions: RawDefinition[] = [];
   for (const [h, heteronym] of heteronyms.entries()) {
     if (!isObject(heteronym) || !Array.isArray(heteronym.definitions)) return `heteronym ${h + 1} has no definitions list`;
+    if (heteronym.definitions.length === 0) return `heteronym ${h + 1} has no definitions`;
     for (const [d, definition] of heteronym.definitions.entries()) {
       const at = `heteronym ${h + 1}, definition ${d + 1}`;
       if (!isObject(definition) || typeof definition.def !== "string") return `${at} has no def string`;
-      if (definition.type !== undefined && typeof definition.type !== "string") return `${at} has a type that is not a string`;
+      if (definition.type !== undefined && (typeof definition.type !== "string" || definition.type.trim() === "")) {
+        return `${at} has a type that is not a non-blank string: ${JSON.stringify(definition.type)}`;
+      }
       const { def, type, link } = definition as { def: string; type?: string; link?: unknown };
       definitions.push({ heteronym: h, def, type, link });
     }
@@ -85,18 +92,19 @@ function linkText(link: unknown): string | undefined {
  * `{ title, heteronyms: [{ bopomofo?, pinyin?, definitions: [{ def, type?, example?, quote?, link?,
  * synonyms?, antonyms? }] }], radical?, stroke_count?, non_radical_stroke_count? }`, into one
  * MoeEntry per entry: the title as `word` and every heteronym's definitions as senses in file
- * order, each with its heteronym's 0-based index and its `type` as `pos`. Text is kept verbatim
- * (CC BY-ND) except for removing zero-width characters and surrounding whitespace. The data has no link markup (no backtick/tilde
- * markers like "`學~`校~"), so a "~" is always text, as in 楊堅's "西元541~604".
- * Problems are located by the entry's 1-based position in the array, reported as its `line`.
+ * order, each with its heteronym's 0-based index and its `type` as `pos` (verbatim, untrimmed).
+ * Text is kept verbatim (CC BY-ND) except for removing zero-width characters and surrounding
+ * whitespace. The data has no link markup (no backtick/tilde markers like "`學~`校~"), so a "~" is
+ * always text, as in 楊堅's "西元541~604". Entry problems carry `unit: "entry"` and the entry's
+ * 1-based position in the array as `line`; problems with the file as a whole are on line 1.
  *
  * Severity policy:
  * - STRUCTURAL problems (not valid JSON; not a non-empty array; an entry that is not an object or
- *   has no title string or heteronyms list; an empty title; a heteronym without a definitions list;
- *   a definition without a def string or with a non-string type) mean we misunderstand the format,
+ *   has no title string or heteronyms list; an empty title; a headword that repeats an earlier one
+ *   after cleaning; the shape problems listed at readDefinitions) mean we misunderstand the format,
  *   so they are collected and thrown once.
  * - ROW-LEVEL problems are expected in real data and skipped: an entry whose headword has a rare
- *   character (see RARE_CHARACTER) is dropped; a sense whose definition has one, or whose def is
+ *   character (PLACEHOLDER or PRIVATE_USE) is dropped; a sense whose definition has one, or whose def is
  *   empty (the source then gives only a cross-reference, e.g. 同「姪」。), is dropped from its entry.
  *   Each is recorded in `skipped`. An entry left with no senses gives no row.
  */
@@ -115,25 +123,34 @@ export function parseMoedict(text: string): Parsed<MoeEntry> {
   const entries = data as unknown[];
   if (entries.length === 0) throwIfProblems(SOURCE_NAME, [{ line: 1, message: "the array has no entries" }]);
 
+  /** First entry number of each cleaned headword, to report repeats. */
+  const firstSeen = new Map<string, number>();
   for (const [index, entry] of entries.entries()) {
     const line = index + 1;
+    const problemAt = (message: string): Problem => ({ line, unit: "entry", message });
     if (!isObject(entry) || typeof entry.title !== "string" || !Array.isArray(entry.heteronyms)) {
-      structural.push({ line, message: "expected an entry with a title string and a heteronyms list" });
+      structural.push(problemAt("expected an entry with a title string and a heteronyms list"));
       continue;
     }
     const word = clean(entry.title);
     if (word === "") {
-      structural.push({ line, message: `empty title ${JSON.stringify(entry.title)}` });
+      structural.push(problemAt(`empty title ${JSON.stringify(entry.title)}`));
       continue;
     }
+    const first = firstSeen.get(word);
+    if (first !== undefined) {
+      structural.push(problemAt(`duplicate headword ${word} (first at entry ${first})`));
+      continue;
+    }
+    firstSeen.set(word, line);
     const definitions = readDefinitions(entry.heteronyms);
     if (typeof definitions === "string") {
-      structural.push({ line, message: `${word}: ${definitions}` });
+      structural.push(problemAt(`${word}: ${definitions}`));
       continue;
     }
     const rare = findRareCharacter(word);
     if (rare !== undefined) {
-      skipped.push({ line, message: `headword ${JSON.stringify(word)} has a character with no standard Unicode encoding (${rare})` });
+      skipped.push(problemAt(`headword ${JSON.stringify(word)} has ${RARE_CHARACTER_NOTE} (${rare})`));
       continue;
     }
 
@@ -143,12 +160,12 @@ export function parseMoedict(text: string): Parsed<MoeEntry> {
       const at = `${word} sense ${d + 1}`;
       const rareInDef = findRareCharacter(def);
       if (rareInDef !== undefined) {
-        skipped.push({ line, message: `${at}: definition has a character with no standard Unicode encoding (${rareInDef})` });
+        skipped.push(problemAt(`${at}: definition has ${RARE_CHARACTER_NOTE} (${rareInDef})`));
         continue;
       }
       if (def === "") {
         const reference = linkText(link);
-        skipped.push({ line, message: `${at}: empty definition${reference === undefined ? "" : ` (cross-reference only: ${reference})`}` });
+        skipped.push(problemAt(`${at}: empty definition${reference === undefined ? "" : ` (cross-reference only: ${reference})`}`));
         continue;
       }
       senses.push(type === undefined ? { heteronym, def } : { heteronym, pos: type, def });
@@ -160,11 +177,25 @@ export function parseMoedict(text: string): Parsed<MoeEntry> {
   return { rows, skipped };
 }
 
-/** Decompresses the xz file at `path` and decodes it as UTF-8, rejecting a corrupt file or invalid UTF-8. */
+/**
+ * Decompresses the xz file at `path` and decodes it as UTF-8. A file the decoder rejects (corrupt,
+ * truncated, not xz) or bytes that are not UTF-8 reject with a message naming the file, the
+ * original error as `cause`; file-system errors such as ENOENT pass through unchanged.
+ */
 export async function readXzText(path: string): Promise<string> {
   const compressed = Readable.toWeb(createReadStream(path)) as ReadableStream<Uint8Array>;
-  const bytes = await new Response(new XzReadableStream(compressed)).arrayBuffer();
-  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await new Response(new XzReadableStream(compressed)).arrayBuffer();
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== undefined) throw err;
+    throw new Error(`could not decompress ${path} (corrupt or truncated xz; delete it to re-download)`, { cause: err });
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (err) {
+    throw new Error(`${path} is not valid UTF-8`, { cause: err });
+  }
 }
 
 /** Fetches (or reuses the cached) pinned dict-revised.json.xz, decompresses it and parses it. */
