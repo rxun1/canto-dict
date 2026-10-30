@@ -238,7 +238,7 @@ window.CANTO_PROGRESS = {
             "Write failing test: 冇 gets mandarin [没有, 没, 无] from Kaifangcidian and Wiktionary, de-duplicated",
             "Write failing test: every entry and example gets a simplified form via OpenCC t2s; 嘅/冇/喺 stay unchanged",
             "Write failing test: WordReading.loanSyllables survives into Entry readings (validate skips loan syllables; audio must not look for clips like es1)",
-            "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from the words.hk dump (P1-T8) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; report unlinked variant rows with a count",
+            "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from PUBLIC words.hk dump entries (P1-T8; covers ~594 of 2,103) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; unlinked variant rows are dropped and counted in the build report",
             "Run tests → fail",
             "Implement merge.ts",
             "Run tests → pass",
@@ -757,5 +757,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T5 done: rime words dict parser (ebd28ae, d13282d, 0bc16a3). 102,378 word readings kept; 699 punctuation proverbs skipped (accepted for v1). Added 26 colloquial syllables to the attested list (745). Dict has no weights → frequency source moves to P1-T13." },
     { date: "2026-10-30", text: "P1-T6 done: LSHK (38,194 readings, pinned dad2dd6) + Unihan kCantonese (29,929; pinned 9ca8f73, verified identical to Unicode 17.0.0) parsers (56ca9f1, b63b1ef, 2cba232). Review caught an out-of-range code point crash; extracted shared code-point, loader and Jyutping-cell helpers." },
     { date: "2026-10-30", text: "P1-T7 done: words.hk word list (d087cd3, 9e5da23). 64,652 readings kept; 99.34% agree with rime on shared words; downloads of unpinnable sources are now SHA-256 checked. Review found OpenCC does not fold variant spellings (㨂→揀) — variant links will come from the words.hk dump instead." },
+    { date: "2026-10-30", text: "Decided: use only the 16,800 public (已公開) words.hk dump entries — clearly licensed and reviewed; unpublished rows (incl. their variant links) are not used. The committed dump fixture carries words.hk's ALL RIGHTS RESERVED notice: keep this repo private." },
   ],
 };
