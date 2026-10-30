@@ -101,6 +101,8 @@ class EntryBuilder {
   /** words.hk dump entries with a headword of this key, by id (a dump entry can list two spellings of one key). */
   readonly dumpEntries = new Map<number, WordshkEntry>();
   readonly moe: MoeEntry[] = [];
+  /** words.hk variant forms linked to this entry by a dump entry's variants (㨂 for 揀). */
+  readonly variantAliases = new Set<string>();
 
   constructor(readonly key: string) {}
 
@@ -300,6 +302,23 @@ export function merge(inputs: MergeInputs): MergeResult {
     }
   }
 
+  // words.hk variant forms fold in only through public dump links: OpenCC does not fold 異體字 (㨂→揀).
+  let aliasesFromLinks = 0;
+  const linkedVariants = new Set<string>();
+  for (const dumpEntry of inputs.wordshkDump ?? []) {
+    for (const variant of dumpEntry.variants) {
+      linkedVariants.add(variant);
+      for (const key of new Set(dumpEntry.headwords.map((h) => headwordKey(h.word)))) {
+        const aliases = builders.get(key)!.variantAliases;
+        if (!aliases.has(variant)) aliasesFromLinks++;
+        aliases.add(variant);
+      }
+    }
+  }
+  const variantRows = inputs.wordshkList.filter((row) => row.variantForm === true);
+  const droppedVariantRows = variantRows.filter((row) => !linkedVariants.has(row.word));
+  const droppedVariantWords = new Set(droppedVariantRows.map((row) => row.word));
+
   // Attach-only sources: they add to existing entries and never create one.
   const weights = new Map(inputs.essay.map(({ word, weight }) => [word, weight]));
   const kfcdStats = { annotationsRemoved: 0, emptyItemsDropped: 0 };
@@ -372,6 +391,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       const trad = chooseTrad(builder);
       const spellings = [...builder.spellings.keys()].sort(byCodeUnits);
       if (spellings.length > 1) collisions.push({ key: builder.key, spellings });
+      const aliases = [...new Set([...spellings, ...builder.variantAliases])].filter((s) => s !== trad).sort(byCodeUnits);
       const readings = finishReadings(builder);
       for (const r of readings) count(readingCounts, r.source);
       const mandarin = finishMandarin(builder);
@@ -386,7 +406,7 @@ export function merge(inputs: MergeInputs): MergeResult {
         simp: toSimplified(trad, "hk"),
         kind: isSingleCodePoint(trad) ? "char" : "word",
         freq: 0,
-        aliases: spellings.filter((s) => s !== trad),
+        aliases,
         readings,
         mandarin,
         definitions,
@@ -406,7 +426,15 @@ export function merge(inputs: MergeInputs): MergeResult {
       moeEntries: moeUnmatched,
     },
     keyCollisions: { keysWithSeveralSpellings: collisions.length, sample: collisions.slice(0, STATS_SAMPLE_SIZE) },
-    variants: { listRows: 0, listWords: 0, linkedWords: 0, droppedRows: 0, droppedWords: 0, droppedButKeyMatched: 0, aliasesFromLinks: 0 },
+    variants: {
+      listRows: variantRows.length,
+      listWords: new Set(variantRows.map((row) => row.word)).size,
+      linkedWords: new Set(variantRows.filter((row) => linkedVariants.has(row.word)).map((row) => row.word)).size,
+      droppedRows: droppedVariantRows.length,
+      droppedWords: droppedVariantWords.size,
+      droppedButKeyMatched: [...droppedVariantWords].filter((word) => builders.has(headwordKey(word))).length,
+      aliasesFromLinks,
+    },
     kaifangcidian: kfcdStats,
     wiktionary: wiktStats,
     moe: { ...moeDrops, shadowedEntries: moeShadowed },
