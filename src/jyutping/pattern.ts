@@ -9,13 +9,13 @@ export const TONED_SYLLABLE = new RegExp(`^([a-z]+)(${TONE_CLASS})$`);
 /** A single tone digit. */
 export const TONE_DIGIT = new RegExp(`^${TONE_CLASS}$`);
 
-/** Every tone digit, for stripping. */
+/** Every tone digit, for stripping. Use with String.replace only: the "g" flag makes .test()/.exec() stateful. */
 export const TONE_DIGITS_GLOBAL = new RegExp(TONE_CLASS, "g");
 
 /**
  * Sentence-final particles that some sources write outside the standard table
  * (e.g. la1, ga3). Keep this list small and explicit; it widens what counts as Jyutping.
- * Most are also attested in rime char.csv; listing them here keeps them valid even if a
- * future data refresh drops them (the generator fails if one goes missing).
+ * All are currently attested too; the generator fails if a data refresh drops one, so the
+ * list documents what must stay valid rather than widening the attested set.
  */
 export const PARTICLES: readonly string[] = ["a", "aa", "ga", "gaa", "la", "laa", "ma", "maa", "me", "ne", "o", "wo", "ze", "zaa"];

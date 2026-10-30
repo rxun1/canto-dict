@@ -52,7 +52,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npm test → \"1 passed\"; npm run data:build -- --help → prints download, parse, merge, validate, build",
         },
         {
-          id: "P1-T2", title: "Jyutping syllable module (shared with the app)", status: "doing",
+          id: "P1-T2", title: "Jyutping syllable module (shared with the app)", status: "done",
           files: ["src/jyutping/syllables.ts", "src/jyutping/syllables.test.ts"],
           subtasks: [
             "Write failing tests: isValidSyllable('sik1') true, ('sik7') false, ('m4','ng5') true, particle ('la1','ga3') true",
@@ -71,7 +71,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run ../src/jyutping/syllables.test.ts → all pass",
         },
         {
-          id: "P1-T3", title: "Download + cache utility", status: "todo",
+          id: "P1-T3", title: "Download + cache utility", status: "doing",
           files: ["data-pipeline/src/download.ts", "data-pipeline/test/download.test.ts"],
           subtasks: [
             "Write failing test: fetchToCache(url, name) downloads from a local node:http test server into .cache/<name>",
@@ -386,6 +386,7 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping (toneless); 'water' → none (not searchable); '食 sik' → hanzi",
             "Run tests → fail",
+            "Write failing tests: pasted forms nei5-hou2, nei5'hou2 and sik 6 are treated as Jyutping (strip - and ' separators; attach a lone tone digit to the previous syllable); input longer than 50 characters is truncated",
             "Implement using splitSyllables from src/jyutping/syllables.ts",
             "Run tests → pass",
             "Commit",
@@ -743,5 +744,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-29", text: "Work split into 3 plans (data pipeline, app + lookup, translation) with subtasks, definition of done and tests per task." },
     { date: "2026-10-29", text: "P1-T1 done: data-pipeline scaffold (0f8717a + review fixes 97898ef). Code review caught a silent no-op entry point and an over-broad ../src include; both fixed and re-verified." },
     { date: "2026-10-30", text: "Scope change: English dropped (no English search, definitions or glosses). Removed P1-T12 (CC-Canto/CC-CEDICT), english_fts, and the FTS5 device check; search is now 字 or Jyutping only." },
+    { date: "2026-10-30", text: "P1-T2 done: shared Jyutping module (a91a9b4 + review fixes 3a615ba). 719 attested syllables from LSHK + rime; review caught exponential backtracking (12.9 s on 41 chars) — now linear (0.27 ms on 201 chars)." },
   ],
 };
