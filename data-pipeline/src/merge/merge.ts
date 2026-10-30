@@ -2,6 +2,7 @@
 // prints. No I/O here; loadMergeInputs (load.ts) gathers the inputs.
 import type { CharReading, KfcdRow, MandarinEquivalent, MoeEntry, ReadingRank, WordReading, WordshkEntry } from "../sources/types";
 import { isSingleCodePoint } from "../sources/codePoints";
+import { throwIfProblems, type Problem } from "../sources/problems";
 import { FREQ_OVERRIDES } from "./freqOverrides";
 import { headwordKey, toSimplified } from "./normalize";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
@@ -71,7 +72,7 @@ export function cleanKfcdItem(item: string): string {
 
 /**
  * True for an MoE definition that only makes sense next to its reading, which canto.db does not
- * store: a whole-definition pointer ("(一)之又音。" — 443 senses say exactly that), or, for a
+ * store: a whole-definition pointer ("(一)之又音。", by far the commonest form), or, for a
  * one-character headword, a one-sentence note on the character's reading inside a word
  * ("雙棒兒的雙的語音。"). Multi-character headwords are exempt from the second form because their
  * real definitions can end that way (口音: "帶有各民族或地方特色的語音。"), as is any definition with
@@ -230,9 +231,10 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
   }
   let moeSense = 0;
   for (const { pos, def } of moe?.senses ?? []) {
-    if (isReadingCrossReference(moe!.word, def)) {
+    const word = moe!.word;
+    if (isReadingCrossReference(word, def)) {
       drops.sensesDropped++;
-      if (drops.droppedSample.length < STATS_SAMPLE_SIZE) drops.droppedSample.push({ word: moe!.word, def });
+      if (drops.droppedSample.length < STATS_SAMPLE_SIZE) drops.droppedSample.push({ word, def });
       continue;
     }
     moeSense++;
@@ -266,8 +268,8 @@ function findWeight(builder: EntryBuilder, trad: string, weights: ReadonlyMap<st
 }
 
 /** Adds one to `counts[source]`. */
-function count<K extends string>(counts: Partial<Record<K, number>>, source: K, by = 1): void {
-  counts[source] = (counts[source] ?? 0) + by;
+function count<K extends string>(counts: Partial<Record<K, number>>, source: K): void {
+  counts[source] = (counts[source] ?? 0) + 1;
 }
 
 const kfcdSortKey = (row: KfcdRow): string =>
@@ -284,7 +286,36 @@ function mostFrequent(words: Iterable<string>, weights: ReadonlyMap<string, numb
     .slice(0, STATS_SAMPLE_SIZE);
 }
 
+/**
+ * Structural problems in the inputs: what the parsers guarantee and merge relies on (a char row is
+ * one code point; dump ids, MoE headwords and essay words are unique). Positions are 1-based
+ * indexes into the named input array.
+ */
+function inputProblems(inputs: MergeInputs): Problem[] {
+  const problems: Problem[] = [];
+  const at = (index: number, message: string): void => {
+    problems.push({ line: index + 1, unit: "entry", message });
+  };
+  for (const name of ["rimeChars", "lshk", "unihan"] as const) {
+    inputs[name].forEach((row, i) => {
+      if (!isSingleCodePoint(row.char)) at(i, `${name}: character must be one code point: "${row.char}"`);
+    });
+  }
+  const duplicates = <T>(name: string, rows: readonly T[], id: (row: T) => string | number, what: string): void => {
+    const seen = new Set<string | number>();
+    rows.forEach((row, i) => {
+      if (seen.has(id(row))) at(i, `${name}: duplicate ${what} ${id(row)}`);
+      seen.add(id(row));
+    });
+  };
+  duplicates("wordshkDump", inputs.wordshkDump ?? [], (e) => e.id, "words.hk dump id");
+  duplicates("moe", inputs.moe, (e) => e.word, "MoE headword");
+  duplicates("essay", inputs.essay, (e) => e.word, "essay word");
+  return problems;
+}
+
 export function merge(inputs: MergeInputs): MergeResult {
+  throwIfProblems("merge inputs", inputProblems(inputs));
   const builders = new Map<string, EntryBuilder>();
   const builderFor = (key: string): EntryBuilder => {
     let builder = builders.get(key);

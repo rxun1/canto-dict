@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { overrideEnvVar } from "../../src/download";
-import { loadWordshkDump, parseWordshkDump, WORDSHK_DUMP_REQUEST_URL } from "../../src/sources/wordshkDump";
+import { loadWordshkDump, parseWordshkDump, WORDSHK_DUMP_REQUEST_URL, wordshkDumpConfigured } from "../../src/sources/wordshkDump";
 
 const fixture = readFileSync(join(import.meta.dirname, "../../fixtures/wordshk-all.csv"), "utf8");
 
@@ -233,6 +233,15 @@ describe("loadWordshkDump", () => {
     if (saved === undefined) delete process.env[envVar];
     else process.env[envVar] = saved;
     await rm(dir, { recursive: true, force: true });
+  });
+
+  it("wordshkDumpConfigured is true only when the env var is set and non-empty", () => {
+    delete process.env[envVar];
+    expect(wordshkDumpConfigured()).toBe(false);
+    process.env[envVar] = "";
+    expect(wordshkDumpConfigured()).toBe(false);
+    process.env[envVar] = join(dir, "all.csv.gz");
+    expect(wordshkDumpConfigured()).toBe(true);
   });
 
   it("fails naming the env var and the request URL when the env var is unset", async () => {

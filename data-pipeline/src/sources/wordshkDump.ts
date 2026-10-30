@@ -145,6 +145,15 @@ export function parseWordshkDump(csvText: string): Parsed<WordshkEntry> {
 }
 
 /**
+ * True when the user has supplied the dump: CANTO_SRC_WORDSHK_DUMP is set and non-empty (the rule
+ * overridePath uses). The dump is optional; without it the build skips its definitions, examples and
+ * variant links. Whether the file exists is checked by loadWordshkDump, which fails if it does not.
+ */
+export function wordshkDumpConfigured(): boolean {
+  return Boolean(process.env[overrideEnvVar(SOURCE_KEY)]);
+}
+
+/**
  * Loads the words.hk full dump from the file named by CANTO_SRC_WORDSHK_DUMP (gzip, as words.hk
  * sends it). There is no download: the dump is requested by hand. Warns about skipped rows.
  */

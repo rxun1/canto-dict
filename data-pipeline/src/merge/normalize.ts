@@ -21,11 +21,11 @@ const TO_SIMPLIFIED: Readonly<Record<Script, (text: string) => string>> = {
  *
  * A word (two or more code points) is folded to OpenCC standard traditional through BOTH variant
  * tables, Taiwan then Hong Kong (tw→t, then hk→t), whatever its source. No source sticks to one
- * convention: words.hk lists 這裡 next to 這裏 and 説話 next to 說話, rime lists 無綫 next to 無線,
+ * convention: words.hk lists both 着急 and 著急 (and 無綫 and 無線, as rime does),
  * Kaifangcidian writes Taiwan forms (床, 麵, 裡, 著), and MoE writes 這裡/衛生/麵包/電線/著急 for the
  * HK 這裏/衞生/麪包/電綫/着急. Folding every source the same way makes the key one function of the
- * spelling, so two sources that agree on a spelling always agree on its key. On the pinned data this
- * joins 1,128 keys that collect more than one spelling; every one checked is a variant spelling of one
+ * spelling, so two sources that agree on a spelling always agree on its key. On the pinned data, 1,128
+ * keys collect more than one rime/words.hk spelling; every one checked is a variant spelling of one
  * word (為/爲, 台/臺, 着/著 zoek6, 群/羣, …), and OpenCC's phrase tables keep zyu3 著 (著名, 顯著).
  *
  * A single character is its own key: character-level OpenCC maps 台→臺, 著→着 and 針→鍼, which would
