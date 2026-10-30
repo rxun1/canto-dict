@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+ios/
+android/
+.DS_Store
+
+# Generated data: rebuilt by `npm run data:build`. words.hk data is non-commercial
+# and its syllable audio has no published license, so never commit or publish these.
+assets/canto.db
+assets/syllables.pack
+assets/syllables.json
+data-pipeline/.cache/

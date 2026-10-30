@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>canto-dict · progress</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --line: #e5e5e5;
+    --done: #2e7d32; --doing: #b26a00; --todo: #8a8a8e; --blocked: #c62828; --bar: #2e7d32;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161617; --card: #1f1f21; --text: #f2f2f2; --muted: #a1a1a6; --line: #333;
+      --done: #66bb6a; --doing: #ffb74d; --todo: #8e8e93; --blocked: #ef5350; --bar: #66bb6a;
+    }
+  }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang HK", sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .tile b { display: block; font-size: 24px; }
+  .tile span { color: var(--muted); font-size: 13px; }
+  .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-bottom: 28px; }
+  .bar > div { height: 100%; background: var(--bar); }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  section h2 { font-size: 16px; margin: 0 0 10px; display: flex; justify-content: space-between; }
+  section h2 small { color: var(--muted); font-weight: normal; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: baseline; }
+  li:first-child { border-top: 0; }
+  .chip { flex: 0 0 64px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  .done { color: var(--done); } .doing { color: var(--doing); } .todo { color: var(--todo); } .blocked { color: var(--blocked); }
+  .note { color: var(--muted); font-size: 13px; display: block; }
+  .log li { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>canto-dict 粵語字典</h1>
+  <div class="sub" id="updated"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="bar"><div id="bar"></div></div>
+  <div id="phases"></div>
+  <section class="log"><h2>Activity log</h2><ul id="log"></ul></section>
+</main>
+<script src="progress.js"></script>
+<script>
+  const STATUSES = ["done", "doing", "todo", "blocked"];
+  const data = window.CANTO_PROGRESS;
+  const all = data.phases.flatMap((p) => p.tasks);
+  const count = (list, s) => list.filter((t) => t.status === s).length;
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+  document.getElementById("updated").textContent = `Last updated ${data.updated}`;
+  document.getElementById("tiles").innerHTML = STATUSES
+    .map((s) => `<div class="tile"><b class="${s}">${count(all, s)}</b><span>${s}</span></div>`)
+    .join("");
+  document.getElementById("bar").style.width = `${Math.round((100 * count(all, "done")) / all.length)}%`;
+
+  document.getElementById("phases").innerHTML = data.phases
+    .map((p) => `
+      <section>
+        <h2>${esc(p.name)} <small>${count(p.tasks, "done")}/${p.tasks.length} done</small></h2>
+        <ul>${p.tasks.map((t) => `
+          <li><span class="chip ${t.status}">${t.status}</span>
+            <span>${esc(t.title)}${t.note ? `<span class="note">${esc(t.note)}</span>` : ""}</span></li>`).join("")}
+        </ul>
+      </section>`)
+    .join("");
+
+  document.getElementById("log").innerHTML = data.log
+    .slice().reverse()
+    .map((e) => `<li>${esc(e.date)} — ${esc(e.text)}</li>`)
+    .join("");
+</script>
+</body>
+</html>
