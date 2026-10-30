@@ -22,6 +22,19 @@ export const RIME_WORDS_URL = `https://raw.githubusercontent.com/rime/rime-canto
 export const RIME_WORDS_CACHE_NAME = `rime-words-${shortSha(RIME_WORDS_COMMIT)}.dict.yaml`;
 
 /**
+ * rime-cantonese's essay-cantonese.txt (CC BY 4.0, like the rest of the repo except
+ * jyut6ping3.maps), the word-frequency "vocabulary" its jyut6ping3.dict.yaml ranks candidates with.
+ * Pinned to the same snapshot as the words dict, so frequencies and readings come from one commit
+ * (at this pin: 266,870 lines, 3,416,812 bytes; last changed in e55b938, 2026-06-29). If you bump
+ * one independently, give this its own commit constant and review the parser's skipped rows.
+ */
+export const RIME_ESSAY_COMMIT = RIME_WORDS_COMMIT;
+
+export const RIME_ESSAY_URL = `https://raw.githubusercontent.com/rime/rime-cantonese/${RIME_ESSAY_COMMIT}/essay-cantonese.txt`;
+
+export const RIME_ESSAY_CACHE_NAME = `rime-essay-cantonese-${shortSha(RIME_ESSAY_COMMIT)}.txt`;
+
+/**
  * Pinned upstream commit of lshk-org/jyutping-table (list.tsv, CC BY 4.0).
  * After bumping this, re-run scripts/gen-syllables.ts: the table also feeds the attested syllable list.
  */

@@ -28,6 +28,27 @@ export interface WordReading {
 }
 
 /**
+ * A word's frequency weight from rime-cantonese's essay-cantonese.txt, the vocabulary Rime ranks
+ * jyut6ping3 candidates by. Words are unique (a repeated word's last row wins) and contain at least
+ * one Han character; most are traditional-script words, a few mix in Latin letters (T恤).
+ *
+ * `weight` is a non-negative integer on a relative, unitless count scale: per the repo's
+ * essay-cantonese branch build, rime-essay's (Mandarin) corpus counts plus Cifu's Hong Kong
+ * Cantonese counts (all four genres summed, rescaled so 日本 matches essay's count), summed per
+ * word after OpenCC conversion, with a few hand-set rows (𥄫 20000, 革 800). It ranges from 0 to
+ * about 12.8 million (我) with a long tail (median ≈ 444); 0 occurs only on rare single characters.
+ * Only the order and ratios are meaningful, not the absolute numbers. The source keeps its own
+ * spellings: e.g. it has 我地 but not 我哋.
+ *
+ * License: CC BY 4.0 (rime-cantonese), itself derived from rime-essay (LGPL-3.0) and Cifu
+ * (GPL-3.0); used here for personal use only.
+ */
+export interface WordFrequency {
+  readonly word: string;
+  readonly weight: number;
+}
+
+/**
  * One reading of a words.hk dump headword. Same "!" loan convention as WordReading: loan
  * syllables are stored without the "!" and indexed by `loanSyllables` (present only when
  * non-empty). The syllable count is NOT checked against the word: words.hk headwords include
