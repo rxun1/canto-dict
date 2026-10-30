@@ -241,6 +241,8 @@ window.CANTO_PROGRESS = {
             "Write failing test: WordReading.loanSyllables survives into Entry readings (validate skips loan syllables; audio must not look for clips like es1)",
             "Treat the words.hk dump as optional: if CANTO_SRC_WORDSHK_DUMP is unset, build without definitions/examples from it and list it as omitted in the build report (make loadWordshkDump return undefined or add wordshkDumpConfigured() — don't string-match its error)",
             "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from PUBLIC words.hk dump entries (P1-T8; covers ~594 of 2,103) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; unlinked variant rows are dropped and counted in the build report",
+            "Write failing test: MoE definitions attach to entries via a variant-folding KEY (MoE uses Taiwan forms 這裡/衛生/麵包/電線/著急; HK sources use 這裏/衞生/麪包/電綫/着急) — fold only the lookup key, keep MoE word/def text verbatim; drop reading-dependent senses (\"(一)之又音。\", 又音/讀音/語音 — use MoeSense.heteronym) so the Mandarin line prefers real definitions",
+            "MoE script: per user decision (2026-10-30) MoE definitions get a simplified form via OpenCC t2s like everything else — personal display only, never redistributed (MoE forbids 轉為簡化字 for redistribution)",
             "Run tests → fail",
             "Implement merge.ts",
             "Run tests → pass",
@@ -257,6 +259,7 @@ window.CANTO_PROGRESS = {
           files: ["data-pipeline/src/build/schema.sql", "data-pipeline/src/build/writeDb.ts", "data-pipeline/src/build/searchKeys.ts", "data-pipeline/test/writeDb.test.ts"],
           subtasks: [
             "Write schema.sql per spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys + indexes), plus a nullable readings.loan column (comma-separated 0-based loan syllable indexes)",
+            "Store only MoE (國語辭典) entries that matched a Cantonese entry in merge — the full set is ~161k entries / ~24 MB of text",
             "Write failing test: searchKeys('sik6 faan6') → toned 'sik6faan6', toneless 'sikfaan', joined forms",
             "Write failing test: writeDb(fixture entries) → SELECT via search_keys key LIKE 'sik%' finds 食",
             "Write failing test: entries.simp lookup finds 饭 for 飯",
@@ -707,6 +710,7 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Write failing RNTL tests: choosing a preset fills base URL + model; Custom makes them editable; key field is masked",
             "Write failing RNTL test: 'Test connection' shows success or the error message",
+            "Licenses screen must include MOEDICT_ATTRIBUTION (data-pipeline/src/sources/moedict.ts) and the full MoE 使用說明 text — MoE requires it to be kept with the data",
             "Write failing RNTL test: licenses screen lists every source with its license and link",
             "Run tests → fail",
             "Implement both screens",
@@ -764,5 +768,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T8 done: words.hk dump parser (4a0c482, f1901d5). 16,711 public entries, 19,784 senses, 27,152 examples — but only 340 examples carry a Mandarin (zho) line, so Mandarin meanings must come mainly from Kaifangcidian / Wiktionary / MoE." },
     { date: "2026-10-30", text: "P1-T9 done: Kaifangcidian (126eeca, 5599891, 48e130d). Traditional + simplified files paired line by line (0 mismatches); 72,543 rows, 13,690 with Mandarin equivalents (29,908 trad/simp pairs); Yale→Jyutping converter handles all 1,997 syllables, 93.2% agree with rime. Review caught an unrecognized ﹐ separator." },
     { date: "2026-10-30", text: "P1-T10 done: Wiktionary dialect synonyms (1929527, fc8c9b2, 2b70c1a). 3,768 tables parsed → 6,078 Mandarin→Cantonese pairs, committed as a pinned JSON extract so builds stay offline. Hand-written tar + Lua readers kept (one pinned input); review caught an uncaught stream error, a silently empty extract, override-file provenance and Latin-1 Lua escapes — all fixed." },
+    { date: "2026-10-30", text: "Decided: MoE 國語辭典 definitions are converted to simplified for display like everything else (personal use, never redistributed), even though MoE's usage notes forbid 轉為簡化字 for redistribution. No g0v 簡編本 JSON exists, so P1-T11 uses the 重編本 (161k entries) and merge keeps only matched entries." },
   ],
 };
