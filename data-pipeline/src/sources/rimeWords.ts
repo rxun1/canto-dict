@@ -1,4 +1,4 @@
-import { parseJyutpingCell } from "./jyutpingCell";
+import { parseJyutpingCell, syllableCountMismatch } from "./jyutpingCell";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { rimeDictBody } from "./text";
@@ -42,16 +42,13 @@ export function parseRimeWords(text: string): Parsed<WordReading> {
     const cell = parseJyutpingCell(code);
     if (cell.kind === "empty") continue; // unreachable: an empty code was reported as structural above
     const { syllables } = cell;
-    const charCount = [...word].length;
-    if (syllables.length !== charCount) {
-      skipped.push({
-        line: lineNumber,
-        message: `${word} has ${charCount} characters but ${syllables.length} syllables: "${code}"`,
-      });
-      continue;
-    }
     if (cell.kind === "invalid") {
       skipped.push({ line: lineNumber, message: `invalid syllable "${cell.invalid}" for ${word}: "${code}"` });
+      continue;
+    }
+    const mismatch = syllableCountMismatch(word, syllables);
+    if (mismatch !== undefined) {
+      skipped.push({ line: lineNumber, message: `${mismatch}: "${code}"` });
       continue;
     }
     rows.push({ word, syllables });

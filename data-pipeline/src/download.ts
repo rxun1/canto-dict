@@ -27,13 +27,7 @@ async function sha256OfFile(path: string): Promise<string> {
   return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 
-function hashMismatchMessage(what: string, expected: string, actual: string): string {
-  return (
-    `${what} has SHA-256 ${actual}, expected ${expected}. ` +
-    "The upstream file changed (or the cache is stale); if you accept the new data, " +
-    "update the pinned hash in urls.ts deliberately."
-  );
-}
+const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /** Env var that lets the user supply a source file by hand, e.g. CANTO_SRC_WORDSHK_DUMP for name "wordshk-dump". */
 export function overrideEnvVar(name: string): string {
@@ -58,6 +52,9 @@ export async function fetchToCache(
   name: string,
   options: FetchToCacheOptions = {},
 ): Promise<string> {
+  if (options.sha256 !== undefined && !SHA256_HEX.test(options.sha256)) {
+    throw new Error(`invalid sha256 pin "${options.sha256}" for ${name}: expected 64 lowercase hex digits`);
+  }
   const envVar = overrideEnvVar(name);
   const override = process.env[envVar];
   if (override) {
@@ -73,9 +70,10 @@ export async function fetchToCache(
     if (options.sha256 !== undefined) {
       const actual = await sha256OfFile(target);
       if (actual !== options.sha256) {
+        // The cache name embeds the pinned hash, so a mismatch here means the file was corrupted or edited.
         throw new Error(
-          `Cached file ${target} (from ${url}): ${hashMismatchMessage("it", options.sha256, actual)} ` +
-            "Delete the cached file to re-download.",
+          `Cached file ${target} has SHA-256 ${actual}, expected ${options.sha256}. ` +
+            "It was corrupted or modified; delete the cached file to re-download.",
         );
       }
     }
@@ -105,7 +103,12 @@ export async function fetchToCache(
     );
     if (options.sha256 !== undefined) {
       const actual = await sha256OfFile(tmp);
-      if (actual !== options.sha256) throw new Error(hashMismatchMessage(`the download of ${url}`, options.sha256, actual));
+      if (actual !== options.sha256) {
+        throw new Error(
+          `the downloaded file has SHA-256 ${actual}, expected ${options.sha256}. ` +
+            "The upstream file changed; if you accept the new data, update the pinned hash in urls.ts deliberately.",
+        );
+      }
     }
     await rename(tmp, target);
     return target;

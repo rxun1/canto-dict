@@ -1,5 +1,6 @@
 import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
 import { isValidSyllable } from "../../../src/jyutping/syllables";
+import { syllableCountMismatch } from "./jyutpingCell";
 import { loadTolerant } from "./load";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { splitLines } from "./text";
@@ -24,7 +25,7 @@ const LOAN_PREFIX = "!";
  *
  * Loan syllables ("!es1") are stored without the "!" and listed in `loanSyllables`; they are only
  * pattern-checked (TONED_SYLLABLE), never passed to isValidSyllable, since loan sounds such as
- * "es1" are not Jyutping. A trailing "*" variant marker on the word is stripped.
+ * "es1" are not Jyutping. A trailing "*" variant marker is stripped from the word and recorded as `variantForm`.
  *
  * Severity policy:
  * - STRUCTURAL problems (unrecognized first line, row without a reading, empty word, empty
@@ -49,7 +50,8 @@ export function parseWordshkList(text: string): Parsed<WordReading> {
     if (line.trim() === "") continue;
     const lineNumber = index + 1;
     const [rawWord, ...readings] = line.split(",");
-    const word = rawWord.endsWith(VARIANT_MARKER) ? rawWord.slice(0, -VARIANT_MARKER.length) : rawWord;
+    const variantForm = rawWord.endsWith(VARIANT_MARKER);
+    const word = variantForm ? rawWord.slice(0, -VARIANT_MARKER.length) : rawWord;
 
     if (word.trim() === "") {
       structural.push({ line: lineNumber, message: `empty word: "${line}"` });
@@ -64,20 +66,18 @@ export function parseWordshkList(text: string): Parsed<WordReading> {
       continue;
     }
 
-    const charCount = [...word].length;
     for (const reading of readings) {
       const cells = reading.trim().split(/\s+/);
       const loanSyllables: number[] = [];
       const syllables: string[] = [];
       let problem: string | undefined;
 
-      cells.forEach((cell, i) => {
-        if (problem !== undefined) return;
+      for (const [i, cell] of cells.entries()) {
         if (cell.startsWith(LOAN_PREFIX)) {
           const syllable = cell.slice(LOAN_PREFIX.length);
           if (!TONED_SYLLABLE.test(syllable)) {
             problem = `malformed loan syllable "${cell}" for ${word}: "${reading}"`;
-            return;
+            break;
           }
           loanSyllables.push(i);
           syllables.push(syllable);
@@ -85,17 +85,24 @@ export function parseWordshkList(text: string): Parsed<WordReading> {
           syllables.push(cell);
         } else {
           problem = `invalid syllable "${cell}" for ${word}: "${reading}"`;
+          break;
         }
-      });
+      }
 
-      if (problem === undefined && syllables.length !== charCount) {
-        problem = `${word} has ${charCount} characters but ${syllables.length} syllables: "${reading}"`;
+      if (problem === undefined) {
+        const mismatch = syllableCountMismatch(word, syllables);
+        if (mismatch !== undefined) problem = `${mismatch}: "${reading}"`;
       }
       if (problem !== undefined) {
         skipped.push({ line: lineNumber, message: problem });
         continue;
       }
-      rows.push(loanSyllables.length > 0 ? { word, syllables, loanSyllables } : { word, syllables });
+      rows.push({
+        word,
+        syllables,
+        ...(loanSyllables.length > 0 && { loanSyllables }),
+        ...(variantForm && { variantForm: true as const }),
+      });
     }
   }
 

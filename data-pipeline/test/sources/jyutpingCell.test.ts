@@ -1,4 +1,4 @@
-import { parseJyutpingCell } from "../../src/sources/jyutpingCell";
+import { parseJyutpingCell, syllableCountMismatch } from "../../src/sources/jyutpingCell";
 
 describe("parseJyutpingCell", () => {
   it("returns ok with trimmed, whitespace-split syllables", () => {
@@ -17,5 +17,17 @@ describe("parseJyutpingCell", () => {
   it("returns empty for an empty or whitespace-only cell", () => {
     expect(parseJyutpingCell("")).toEqual({ kind: "empty" });
     expect(parseJyutpingCell(" \t ")).toEqual({ kind: "empty" });
+  });
+});
+
+describe("syllableCountMismatch", () => {
+  it("returns undefined when the syllable count equals the code-point count", () => {
+    expect(syllableCountMismatch("你好", ["nei5", "hou2"])).toBeUndefined();
+    expect(syllableCountMismatch("𭉝𭉝", ["syu4", "syu2"])).toBeUndefined();
+  });
+
+  it("describes a mismatch, counting code points not UTF-16 units", () => {
+    expect(syllableCountMismatch("你好", ["nei5"])).toBe("你好 has 2 characters but 1 syllables");
+    expect(syllableCountMismatch("𭉝", ["a1", "b1"])).toBe("𭉝 has 1 characters but 2 syllables");
   });
 });

@@ -7,9 +7,9 @@ const fixture = readFileSync(join(import.meta.dirname, "../../fixtures/wordshk-l
 const HEADER = "Source,https://words.hk/faiman/analysis/wordslist/\r\n";
 
 describe("parseWordshkList", () => {
-  it("keeps 36 of the 64 fixture readings and skips 28", () => {
+  it("keeps 37 of the 65 fixture readings and skips 28", () => {
     const { rows, skipped } = parseWordshkList(fixture);
-    expect(rows).toHaveLength(36);
+    expect(rows).toHaveLength(37);
     expect(skipped).toHaveLength(28);
   });
 
@@ -80,6 +80,7 @@ describe("parseWordshkList", () => {
     expect(byLine(20)[0]).toMatch(/malformed loan syllable "!ju1es1ti1" for UST/);
     expect(byLine(21)).toHaveLength(2);
     expect(byLine(21)[0]).toMatch(/malformed loan syllable "!cyu"/);
+    expect(byLine(21)[1]).toMatch(/!cyu/);
   });
 
   it("skips readings whose syllable count differs from the code-point count", () => {
@@ -97,10 +98,20 @@ describe("parseWordshkList", () => {
     expect(skipped.find((s) => s.line === 18)?.message).toMatch(/invalid syllable "pi1" for P/);
   });
 
-  it("strips the trailing '*' variant marker from the word", () => {
+  it("strips the trailing '*' from the word and flags it as a variantForm", () => {
     const { rows } = parseWordshkList(fixture);
-    expect(rows.find((r) => r.word === "㨂")).toEqual({ word: "㨂", syllables: ["gaan2"] });
+    expect(rows.find((r) => r.word === "㨂")).toEqual({ word: "㨂", syllables: ["gaan2"], variantForm: true });
+    expect(rows.find((r) => r.word === "BB床")).toEqual({
+      word: "BB床",
+      syllables: ["bi4", "bi1", "cong4"],
+      variantForm: true,
+    });
     expect(rows.some((r) => r.word.includes("*"))).toBe(false);
+  });
+
+  it("does not flag rows without a trailing '*'", () => {
+    const { rows } = parseWordshkList(fixture);
+    expect("variantForm" in rows.find((r) => r.word === "揀")!).toBe(false);
   });
 
   it("keeps supplementary-plane words, counting code points not UTF-16 units", () => {

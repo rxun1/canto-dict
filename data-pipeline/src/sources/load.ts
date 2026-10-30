@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { fetchToCache } from "../download";
+import { fetchToCache, type FetchToCacheOptions } from "../download";
 import { formatProblems, type Parsed } from "./problems";
 
 /**
@@ -11,7 +11,7 @@ export async function loadTolerant<T>(
   url: string,
   cacheName: string,
   parse: (text: string) => Parsed<T>,
-  options: { sha256?: string } = {},
+  options: Pick<FetchToCacheOptions, "sha256"> = {},
 ): Promise<T[]> {
   const path = await fetchToCache(url, cacheName, options);
   const { rows, skipped } = parse(await readFile(path, "utf8"));

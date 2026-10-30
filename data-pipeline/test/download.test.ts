@@ -153,6 +153,7 @@ describe("fetchToCache sha256 pin", () => {
     expect(err.message).toContain(expected);
     expect(err.message).toContain(sha256("hello cache"));
     expect(err.message).toMatch(/update the pinned hash in urls\.ts/);
+    expect(err.message.split(url)).toHaveLength(2); // URL named once, not repeated by the inner message
     expect(await readdir(cacheDir)).toEqual([]);
   });
 
@@ -162,7 +163,19 @@ describe("fetchToCache sha256 pin", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toContain(sha256("stale content"));
     expect(err.message).toContain(sha256("hello cache"));
+    expect(err.message).toMatch(/[Dd]elete the cached file/);
+    expect(err.message).not.toMatch(/update the pinned hash/);
     expect(requestCount).toBe(0);
+  });
+
+  it("rejects a malformed sha256 pin before any I/O", async () => {
+    for (const bad of ["abc", "A".repeat(64), "g".repeat(64)]) {
+      const err = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir, sha256: bad }).catch((e) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/invalid sha256 pin/);
+    }
+    expect(requestCount).toBe(0);
+    expect(await readdir(cacheDir)).toEqual([]);
   });
 
   it("returns a cached file whose hash matches without downloading", async () => {

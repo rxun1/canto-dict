@@ -20,4 +20,9 @@ export interface WordReading {
    * Jyutping (es1), so consumers must not validate them as such. Present only when non-empty.
    */
   readonly loanSyllables?: readonly number[];
+  /**
+   * Set (to true) only when words.hk marked the row with a trailing "*": the word is a variant
+   * spelling (異體字) of a standard word, e.g. 㨂 for 揀. The "*" is stripped from `word`.
+   */
+  readonly variantForm?: true;
 }
