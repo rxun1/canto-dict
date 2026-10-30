@@ -131,6 +131,13 @@ export interface DialSynPair {
 /** One sense of a MoE dictionary entry: its definition and, when the source gives one, its part of speech. */
 export interface MoeSense {
   /**
+   * 0-based index of the heteronym (reading) the sense belongs to, in the entry's file order: 好玩
+   * hǎo wán is 0, hào wán 1, hào wàn 2. Some definitions only make sense next to their reading
+   * ("(一)之又音。" = "another reading of sense (一)"); consumers can recognise those with it. The
+   * definition text itself must not be rewritten.
+   */
+  readonly heteronym: number;
+  /**
    * Part of speech as the source abbreviates it, e.g. 名 (noun), 動 (verb), 形 (adjective), 副
    * (adverb), sometimes combined (代、介). Present only when the source gives one, which is about
    * 13% of senses; a handful of values are source errors (p, 丑) and are kept as given.
@@ -148,12 +155,15 @@ export interface MoeSense {
  * A Mandarin dictionary entry from the Ministry of Education's 《重編國語辭典修訂本》 (via g0v's
  * moedict-data): a traditional-character headword and its definitions in Mandarin. The senses of
  * all of the entry's readings (heteronyms, e.g. 好玩 hǎo wán / hào wán / hào wàn) are flattened in
- * file order, without their readings; examples, quotations, synonyms and cross-references are not
- * kept. Headwords are unique in the pinned file.
+ * file order, each tagged with its heteronym index but without the reading itself; examples,
+ * quotations, synonyms and cross-references are not kept. Headwords are unique in the pinned file.
  *
- * License: CC BY-ND 3.0 TW (no derivatives). The MoE's usage notes forbid modifying an entry's
- * headword, readings or definitions, or converting them to simplified characters, so consumers
- * must show `word` and `def` verbatim (traditional only) and credit MOEDICT_ATTRIBUTION.
+ * License: CC BY-ND 3.0 TW (no derivatives); credit MOEDICT_ATTRIBUTION. The parser stores `word`
+ * and `def` verbatim, in traditional characters. Per the user's decision (2026-10-30), the app
+ * converts them to simplified (OpenCC t2s) for personal display, like every other source. The
+ * MoE's usage notes forbid converting the text to simplified characters (轉為簡化字) for
+ * redistribution, so the converted text must never be redistributed. Beyond that conversion,
+ * consumers must not modify the text.
  */
 export interface MoeEntry {
   readonly word: string;

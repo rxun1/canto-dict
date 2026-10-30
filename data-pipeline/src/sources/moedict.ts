@@ -47,8 +47,9 @@ function findRareCharacter(text: string): string | undefined {
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** A definition as the source writes it: the fields we read, checked for shape. */
+/** A definition as the source writes it (the fields we read, checked for shape), with its 0-based heteronym index. */
 interface RawDefinition {
+  readonly heteronym: number;
   readonly def: string;
   readonly type?: string;
   readonly link?: unknown;
@@ -67,7 +68,8 @@ function readDefinitions(heteronyms: readonly unknown[]): RawDefinition[] | stri
       const at = `heteronym ${h + 1}, definition ${d + 1}`;
       if (!isObject(definition) || typeof definition.def !== "string") return `${at} has no def string`;
       if (definition.type !== undefined && typeof definition.type !== "string") return `${at} has a type that is not a string`;
-      definitions.push(definition as unknown as RawDefinition);
+      const { def, type, link } = definition as { def: string; type?: string; link?: unknown };
+      definitions.push({ heteronym: h, def, type, link });
     }
   }
   return definitions;
@@ -83,8 +85,8 @@ function linkText(link: unknown): string | undefined {
  * `{ title, heteronyms: [{ bopomofo?, pinyin?, definitions: [{ def, type?, example?, quote?, link?,
  * synonyms?, antonyms? }] }], radical?, stroke_count?, non_radical_stroke_count? }`, into one
  * MoeEntry per entry: the title as `word` and every heteronym's definitions as senses in file
- * order, each with its `type` as `pos`. Text is kept verbatim (CC BY-ND) except for removing
- * zero-width characters and surrounding whitespace. The data has no link markup (no backtick/tilde
+ * order, each with its heteronym's 0-based index and its `type` as `pos`. Text is kept verbatim
+ * (CC BY-ND) except for removing zero-width characters and surrounding whitespace. The data has no link markup (no backtick/tilde
  * markers like "`學~`校~"), so a "~" is always text, as in 楊堅's "西元541~604".
  * Problems are located by the entry's 1-based position in the array, reported as its `line`.
  *
@@ -136,7 +138,7 @@ export function parseMoedict(text: string): Parsed<MoeEntry> {
     }
 
     const senses: MoeSense[] = [];
-    for (const [d, { def: rawDef, type, link }] of definitions.entries()) {
+    for (const [d, { heteronym, def: rawDef, type, link }] of definitions.entries()) {
       const def = clean(rawDef);
       const at = `${word} sense ${d + 1}`;
       const rareInDef = findRareCharacter(def);
@@ -149,7 +151,7 @@ export function parseMoedict(text: string): Parsed<MoeEntry> {
         skipped.push({ line, message: `${at}: empty definition${reference === undefined ? "" : ` (cross-reference only: ${reference})`}` });
         continue;
       }
-      senses.push(type === undefined ? { def } : { pos: type, def });
+      senses.push(type === undefined ? { heteronym, def } : { heteronym, pos: type, def });
     }
     if (senses.length > 0) rows.push({ word, senses });
   }
