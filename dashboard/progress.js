@@ -232,7 +232,8 @@ window.CANTO_PROGRESS = {
           id: "P1-T13", title: "Merge sources into one entry model", status: "doing",
           files: ["data-pipeline/src/merge/types.ts", "data-pipeline/src/merge/merge.ts", "data-pipeline/test/merge.test.ts"],
           subtasks: [
-            "Pick the word-frequency source for freq (rime words dict has NO weights): check rime-cantonese essay-cantonese.txt (license, format), pin it in urls.ts, add a parser + fixture test",
+            "Word-frequency source: rime-cantonese essay-cantonese.txt (CC BY 4.0, pinned with the words dict) parsed by src/sources/rimeEssay.ts — done in 8d52a04 + review fixes",
+            "freq = log10(1 + weight); words with no weight get 0. Common Cantonese words the source lacks (我哋, 佢哋, 你哋, …; it spells 我地) get weights from a small hand-curated override table with a comment per word — NOT a general 哋→地 fallback (it only rescues 我哋 and borrows Mandarin senses like 輕輕地); list every override in the build report",
             "Define Entry type in types.ts (trad, simp, kind, freq, readings, mandarin, definitions, examples) matching the spec schema",
             "Write failing test: rime + words.hk keys in different character forms merge into one entry after OpenCC normalization",
             "Write failing test: reading priority rime > LSHK > Unihan; for a char rime covers, an LSHK/Unihan reading rime lacks becomes rank 'variant' (e.g. 五 m5, 你 lei5, 我 o5), never default; add 'variant' to ReadingRank",
