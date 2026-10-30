@@ -2,7 +2,7 @@
 // Toneless Jyutping syllables attested in real data: the union of
 //   - LSHK Jyutping table (CC BY 4.0): https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv
 //   - rime-cantonese-upstream char.csv (CC BY 4.0): https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/char.csv
-// Generated 2026-10-30. Regenerate: cd data-pipeline && npx tsx scripts/gen-syllables.ts
+// Regenerate: cd data-pipeline && npx tsx scripts/gen-syllables.ts
 export const ATTESTED_SYLLABLES: readonly string[] = [
   "a",
   "aa",

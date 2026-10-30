@@ -1,28 +1,15 @@
 // Jyutping syllable validation and splitting. Pure TypeScript: no Node or React Native imports,
 // because both the data pipeline and the app import this file.
 import { ATTESTED_SYLLABLES } from "./syllableList";
+import { PARTICLES, TONED_SYLLABLE, TONE_DIGIT, TONE_DIGITS_GLOBAL } from "./pattern";
 
-/**
- * Sentence-final particles that some sources write outside the standard table
- * (e.g. la1, ga3). Keep this list small and explicit; it widens what counts as Jyutping.
- * Most are also attested in rime char.csv; listing them here keeps them valid even if a
- * future data refresh drops them.
- */
-export const PARTICLES: readonly string[] = ["a", "aa", "ga", "gaa", "la", "laa", "ma", "maa", "me", "ne", "o", "wo", "ze", "zaa"];
-
-const TONE_DIGIT = /[1-6]/;
 const MAX_BASE_LENGTH = Math.max(...ATTESTED_SYLLABLES.map((s) => s.length), ...PARTICLES.map((s) => s.length));
 const BASES: ReadonlySet<string> = new Set([...ATTESTED_SYLLABLES, ...PARTICLES]);
 
-/** True for a toneless base that is an attested syllable or a listed particle. */
-function isBase(base: string): boolean {
-  return BASES.has(base);
-}
-
-/** True for a base plus a single tone digit 1-6, e.g. "sik1". Lowercase only. */
+/** True for a base (attested syllable or particle) plus a single tone digit 1-6, e.g. "sik1". Lowercase only. */
 export function isValidSyllable(text: string): boolean {
-  const match = /^([a-z]+)([1-6])$/.exec(text);
-  return match !== null && isBase(match[1]);
+  const match = TONED_SYLLABLE.exec(text);
+  return match !== null && BASES.has(match[1]);
 }
 
 /** Lowercase, trim, and collapse internal whitespace to single spaces. */
@@ -32,21 +19,29 @@ export function normalize(text: string): string {
 
 /** Remove tone digits 1-6. */
 export function stripTones(text: string): string {
-  return text.replace(/[1-6]/g, "");
+  return text.replace(TONE_DIGITS_GLOBAL, "");
 }
 
-/** Split one space-free chunk into syllables (greedy longest match, backtracking), or null. */
-function splitChunk(chunk: string, start: number): string[] | null {
-  if (start === chunk.length) return [];
-  const maxEnd = Math.min(chunk.length, start + MAX_BASE_LENGTH);
-  for (let end = maxEnd; end > start; end--) {
-    if (!isBase(chunk.slice(start, end))) continue;
-    // An optional tone digit may follow the base.
-    const withTone = end < chunk.length && TONE_DIGIT.test(chunk[end]) ? end + 1 : end;
-    const rest = splitChunk(chunk, withTone);
-    if (rest) return [chunk.slice(start, withTone), ...rest];
-  }
-  return null;
+/**
+ * Split one space-free chunk into syllables (greedy longest match, backtracking), or null.
+ * Failed start positions are memoized, so this is O(length x MAX_BASE_LENGTH).
+ */
+function splitChunk(chunk: string): string[] | null {
+  const failedAt = new Set<number>();
+  const splitFrom = (start: number): string[] | null => {
+    if (start === chunk.length) return [];
+    if (failedAt.has(start)) return null;
+    for (let end = Math.min(chunk.length, start + MAX_BASE_LENGTH); end > start; end--) {
+      if (!BASES.has(chunk.slice(start, end))) continue;
+      // An optional tone digit may follow the base.
+      const next = end < chunk.length && TONE_DIGIT.test(chunk[end]) ? end + 1 : end;
+      const rest = splitFrom(next);
+      if (rest) return [chunk.slice(start, next), ...rest];
+    }
+    failedAt.add(start);
+    return null;
+  };
+  return splitFrom(0);
 }
 
 /**
@@ -58,7 +53,7 @@ export function splitSyllables(text: string): string[] | null {
   if (normalized === "") return null;
   const result: string[] = [];
   for (const chunk of normalized.split(" ")) {
-    const parts = splitChunk(chunk, 0);
+    const parts = splitChunk(chunk);
     if (!parts) return null;
     result.push(...parts);
   }

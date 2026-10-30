@@ -1,5 +1,5 @@
 // Shared test: uses only global describe/it/expect (runs under vitest now, Jest later).
-import { isValidSyllable, splitSyllables, normalize, stripTones, PARTICLES } from "./syllables";
+import { isValidSyllable, splitSyllables, normalize, stripTones } from "./syllables";
 
 describe("isValidSyllable", () => {
   it("accepts attested syllables with tones 1-6", () => {
@@ -24,7 +24,6 @@ describe("isValidSyllable", () => {
   it("accepts sentence-final particles", () => {
     expect(isValidSyllable("la1")).toBe(true);
     expect(isValidSyllable("ga3")).toBe(true);
-    expect(PARTICLES).toContain("la");
   });
   it("accepts a hand-copied sample of real LSHK syllables", () => {
     const sample = [
@@ -56,6 +55,14 @@ describe("splitSyllables", () => {
     expect(splitSyllables("xyz")).toBeNull();
     expect(splitSyllables("sik faanx")).toBeNull();
     expect(splitSyllables("sik7")).toBeNull();
+  });
+  it("fails fast on long input that is not splittable", () => {
+    expect(splitSyllables("ngaa".repeat(50) + "x")).toBeNull();
+  });
+  it("splits long valid input", () => {
+    const result = splitSyllables("sikfaan".repeat(20));
+    expect(result).toHaveLength(40);
+    expect(result?.slice(0, 2)).toEqual(["sik", "faan"]);
   });
   it("returns null for empty or whitespace input", () => {
     expect(splitSyllables("")).toBeNull();
