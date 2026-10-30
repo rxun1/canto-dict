@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fetchToCache, overrideEnvVar } from "../src/download";
+
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
 
 let server: Server;
 let baseUrl: string;
@@ -132,5 +135,48 @@ describe("fetchToCache", () => {
     const path = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir });
     expect(path).toBe(join(cacheDir, "ok.txt"));
     expect(requestCount).toBe(1);
+  });
+});
+
+describe("fetchToCache sha256 pin", () => {
+  it("accepts a download whose hash matches", async () => {
+    const path = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir, sha256: sha256("hello cache") });
+    expect(await readFile(path, "utf8")).toBe("hello cache");
+  });
+
+  it("throws on a hash mismatch, naming the URL and both hashes, and leaves no file", async () => {
+    const url = `${baseUrl}/ok.txt`;
+    const expected = sha256("something else");
+    const err = await fetchToCache(url, "ok.txt", { cacheDir, sha256: expected }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain(url);
+    expect(err.message).toContain(expected);
+    expect(err.message).toContain(sha256("hello cache"));
+    expect(err.message).toMatch(/update the pinned hash in urls\.ts/);
+    expect(await readdir(cacheDir)).toEqual([]);
+  });
+
+  it("verifies a cached file's hash instead of trusting it", async () => {
+    await writeFile(join(cacheDir, "ok.txt"), "stale content");
+    const err = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir, sha256: sha256("hello cache") }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain(sha256("stale content"));
+    expect(err.message).toContain(sha256("hello cache"));
+    expect(requestCount).toBe(0);
+  });
+
+  it("returns a cached file whose hash matches without downloading", async () => {
+    await writeFile(join(cacheDir, "ok.txt"), "hello cache");
+    const path = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir, sha256: sha256("hello cache") });
+    expect(path).toBe(join(cacheDir, "ok.txt"));
+    expect(requestCount).toBe(0);
+  });
+
+  it("does not hash-check an override file", async () => {
+    const manual = join(cacheDir, "manual.csv");
+    await writeFile(manual, "my own data");
+    process.env[overrideEnvVar("pinned")] = manual;
+    const path = await fetchToCache(`${baseUrl}/ok.txt`, "pinned", { cacheDir, sha256: sha256("hello cache") });
+    expect(path).toBe(manual);
   });
 });

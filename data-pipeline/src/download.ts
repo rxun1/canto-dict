@@ -1,6 +1,6 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { access, mkdir, rename, rm } from "node:fs/promises";
+import { access, mkdir, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -16,6 +16,23 @@ export function cachedPath(name: string): string {
 
 export interface FetchToCacheOptions {
   cacheDir?: string;
+  /**
+   * Expected SHA-256 (lowercase hex) of the file, for sources that cannot be pinned by commit.
+   * Checked on download and on every cached read; override files (CANTO_SRC_*) are never checked.
+   */
+  sha256?: string;
+}
+
+async function sha256OfFile(path: string): Promise<string> {
+  return createHash("sha256").update(await readFile(path)).digest("hex");
+}
+
+function hashMismatchMessage(what: string, expected: string, actual: string): string {
+  return (
+    `${what} has SHA-256 ${actual}, expected ${expected}. ` +
+    "The upstream file changed (or the cache is stale); if you accept the new data, " +
+    "update the pinned hash in urls.ts deliberately."
+  );
 }
 
 /** Env var that lets the user supply a source file by hand, e.g. CANTO_SRC_WORDSHK_DUMP for name "wordshk-dump". */
@@ -52,7 +69,18 @@ export async function fetchToCache(
   }
 
   const target = options.cacheDir === undefined ? cachedPath(name) : join(resolve(options.cacheDir), name);
-  if (await exists(target)) return target;
+  if (await exists(target)) {
+    if (options.sha256 !== undefined) {
+      const actual = await sha256OfFile(target);
+      if (actual !== options.sha256) {
+        throw new Error(
+          `Cached file ${target} (from ${url}): ${hashMismatchMessage("it", options.sha256, actual)} ` +
+            "Delete the cached file to re-download.",
+        );
+      }
+    }
+    return target;
+  }
 
   await mkdir(dirname(target), { recursive: true });
   const tmp = `${target}.tmp-${randomBytes(6).toString("hex")}`;
@@ -75,6 +103,10 @@ export async function fetchToCache(
       Readable.fromWeb(response.body as WebReadableStream),
       createWriteStream(tmp),
     );
+    if (options.sha256 !== undefined) {
+      const actual = await sha256OfFile(tmp);
+      if (actual !== options.sha256) throw new Error(hashMismatchMessage(`the download of ${url}`, options.sha256, actual));
+    }
     await rename(tmp, target);
     return target;
   } catch (err) {

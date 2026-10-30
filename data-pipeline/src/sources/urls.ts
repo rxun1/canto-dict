@@ -41,3 +41,15 @@ export const UNIHAN_COMMIT = "9ca8f73b44b2dd1bee180447537a2af2f437ae12";
 export const UNIHAN_URL = `https://raw.githubusercontent.com/unicode-org/unihan-database/${UNIHAN_COMMIT}/kCantonese.txt`;
 
 export const UNIHAN_CACHE_NAME = `unihan-kcantonese-${shortSha(UNIHAN_COMMIT)}.txt`;
+
+/**
+ * words.hk word list (public domain, credit appreciated). words.hk regenerates this file daily and
+ * publishes no commit to pin, so the download is pinned by content hash instead: a refresh that
+ * changes the bytes fails loudly. Bumping WORDSHK_LIST_SHA256 is a deliberate act: re-fetch,
+ * review the diff and the parser's skipped counts, then update this hash (the cache name follows it).
+ */
+export const WORDSHK_LIST_URL = "https://words.hk/faiman/analysis/wordslist.csv";
+
+export const WORDSHK_LIST_SHA256 = "617e714fdcf0a5bfb327c61952c1f2c2b9f5bea3d713bd5aac42aa5714ea033b";
+
+export const WORDSHK_LIST_CACHE_NAME = `wordshk-list-${shortSha(WORDSHK_LIST_SHA256)}.csv`;

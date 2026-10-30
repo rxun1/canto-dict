@@ -14,4 +14,10 @@ export interface CharReading {
 export interface WordReading {
   readonly word: string;
   readonly syllables: readonly string[];
+  /**
+   * 0-based indexes into `syllables` of loan pronunciations (words.hk writes them with a leading
+   * "!", e.g. "!es1" in DSE). Those syllables are stored WITHOUT the "!" and may not be valid
+   * Jyutping (es1), so consumers must not validate them as such. Present only when non-empty.
+   */
+  readonly loanSyllables?: readonly number[];
 }
