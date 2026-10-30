@@ -1,17 +1,12 @@
 import { createReadStream } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { createGunzip } from "node:zlib";
-import { fetchToCache } from "../download";
 import { readTarEntries } from "../tar";
-import { keptRows } from "./load";
 import { LuaSyntaxError, readExportList, type LuaDataEntry } from "./luaDataModule";
 import { throwIfProblems, type Parsed, type Problem } from "./problems";
-import type { DialSynPair } from "./types";
-import {
-  WIKTIONARY_DIALSYN_CACHE_NAME,
-  WIKTIONARY_DIALSYN_SHA256,
-  WIKTIONARY_DIALSYN_TAR_DIR,
-  WIKTIONARY_DIALSYN_URL,
-} from "./urls";
+import type { DialSynForm, DialSynPair } from "./types";
+import { WIKTIONARY_DIALSYN_SHA256, WIKTIONARY_DIALSYN_TAR_DIR, WIKTIONARY_DIALSYN_URL } from "./urls";
 
 const SOURCE_NAME = "Wiktionary dial-syn";
 
@@ -46,23 +41,31 @@ export interface DialSynModule {
 }
 
 /**
- * The plain form inside one Wiktionary synonym item, following the zh-dial-syn renderer: text after
- * the first ":" is a note (usage labels such as "撳芯筆:regional" or "四眼佬:man", symbols such as
- * ":†" and ":‡", regions such as "充電寶:Mainland China"), "_N" picks an etymology section
- * ("肥腯腯_1"), and [[…]] marks links. Notes are dropped, so dated or obsolete forms are kept as
- * plain forms. Latin letters, spaces and "……" placeholders are kept: they are part of real forms
- * (阿Sir, QR code, 話……知).
+ * The form and note inside one Wiktionary synonym item, following the zh-dial-syn renderer: the
+ * item splits on ":" into the form and its note (the text up to any second ":"), "_N" after the form
+ * picks an etymology section ("肥腯腯_1") and [[…]] marks links. Notes are usage labels ("撳芯筆:
+ * regional", "四眼佬:man", "冇:dated"), regions ("充電寶:Mainland China") or per-table footnote
+ * symbols (":†", ":‡", ":<"); they are trimmed and kept, an empty note is dropped. Latin letters,
+ * spaces and "……" placeholders stay in the form: they are part of real forms (阿Sir, QR code, 話……知).
  */
-export function cleanDialSynForm(raw: string): string {
-  const [withEtymology = ""] = raw.split(":");
+export function cleanDialSynForm(raw: string): DialSynForm {
+  const [withEtymology = "", rawNote] = raw.split(":");
   const [form = ""] = withEtymology.split("_");
-  return form.replace(WIKILINK, "$1").trim();
+  const cleaned = form.replace(WIKILINK, "$1").trim();
+  const note = rawNote?.trim() ?? "";
+  return note === "" ? { form: cleaned } : { form: cleaned, note };
 }
 
-/** The cleaned, de-duplicated forms of a row; [] when absent or when its first item is "" (how Wiktionary marks an empty row). */
-function rowForms(entry: LuaDataEntry | undefined): string[] {
+/** Drops empty forms and later repeats of a form, keeping each form's first occurrence (and its note). */
+function uniqueForms(forms: readonly DialSynForm[]): DialSynForm[] {
+  const seen = new Set<string>();
+  return forms.filter(({ form }) => form !== "" && !seen.has(form) && seen.add(form));
+}
+
+/** The cleaned forms of a row; [] when absent or when its first item is "" (how Wiktionary marks an empty row). */
+function rowForms(entry: LuaDataEntry | undefined): DialSynForm[] {
   if (entry === undefined || typeof entry.value === "string" || entry.value[0] === "") return [];
-  return [...new Set(entry.value.map(cleanDialSynForm).filter((form) => form !== ""))];
+  return uniqueForms(entry.value.map(cleanDialSynForm));
 }
 
 /**
@@ -72,7 +75,9 @@ function rowForms(entry: LuaDataEntry | undefined): string[] {
  * For each table, the Written Standard Chinese forms come from its "Formal" row; { "" } there means
  * the page name (minus a "-2" sense suffix) and { "-" } means none. The Cantonese forms are the
  * Hong Kong, Guangzhou and Macau rows merged in that order. Forms are cleaned by cleanDialSynForm
- * and de-duplicated. A table yields one pair per Written Standard form, and nothing when it has no
+ * and de-duplicated on the form: the first occurrence wins with its note, so when the same form
+ * appears with different notes (or with and without one) the Hong Kong row's version is kept. Notes
+ * are kept on Cantonese forms only; Written Standard forms become plain strings. A table yields one pair per Written Standard form, and nothing when it has no
  * Written Standard form or no Cantonese form (not a problem: most tables cover only some varieties).
  *
  * Severity policy:
@@ -118,8 +123,8 @@ export function parseDialSynModules(modules: readonly DialSynModule[]): Parsed<D
 
     const formalItems = formal.value as readonly string[];
     if (formalItems[0] === NO_FORMAL) continue;
-    const mandarin = formalItems[0] === "" ? [name.replace(SENSE_SUFFIX, "")] : rowForms(formal);
-    const cantonese = [...new Set(CANTONESE_LOCATION_KEYS.flatMap((key) => rowForms(fields.get(key))))];
+    const mandarin = formalItems[0] === "" ? [name.replace(SENSE_SUFFIX, "")] : rowForms(formal).map(({ form }) => form);
+    const cantonese = uniqueForms(CANTONESE_LOCATION_KEYS.flatMap((key) => rowForms(fields.get(key))));
     if (cantonese.length === 0) continue;
     for (const form of mandarin) rows.push({ mandarin: form, cantonese });
   }
@@ -148,10 +153,109 @@ export async function readDialSynTarball(path: string): Promise<DialSynModule[]>
   return entries.map(({ path: entryPath, data }) => ({ name: moduleName(entryPath)!, text: decoder.decode(data) }));
 }
 
-/** Fetches (or reuses the cached, hash-checked) module tarball and parses its dial-syn tables. */
+/**
+ * The committed extract: parseDialSynModules' output over the pinned tarball, written by
+ * scripts/gen-dialsyn.ts. kaikki keeps no old tarballs, so the pipeline reads this file rather than
+ * the download, and a fresh checkout builds offline.
+ */
+export const DIALSYN_EXTRACT_PATH = resolve(import.meta.dirname, "../../data/wiktionary-dialsyn.json");
+
+const EXTRACT_SOURCE_NAME = `${SOURCE_NAME} extract`;
+
+/** Provenance written at the top of the extract; tarballSha256 must match the pin in urls.ts. */
+const EXTRACT_ABOUT = {
+  source: WIKTIONARY_DIALSYN_URL,
+  tarballSha256: WIKTIONARY_DIALSYN_SHA256,
+  tables: `${MODULE_PREFIX}*`,
+  license: "CC BY-SA 4.0 (Wiktionary)",
+  regenerate: "cd data-pipeline && npx tsx scripts/gen-dialsyn.ts",
+} as const;
+
+/** 1-based line of the first pair in formatDialSynExtract's layout (after "{", about, pairCount, "pairs": [). */
+const FIRST_PAIR_LINE = 5;
+
+/** A pair as one JSON line, with keys in a fixed order (form, then note only when present). */
+function pairLine({ mandarin, cantonese }: DialSynPair): string {
+  return JSON.stringify({ mandarin, cantonese: cantonese.map(({ form, note }) => (note === undefined ? { form } : { form, note })) });
+}
+
+/** Code-unit order: deterministic, unlike localeCompare. */
+const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * Serializes pairs as the extract: a provenance object, the pair count and one pair per line, sorted
+ * by Mandarin and then by the line itself, so the output depends only on the set of pairs and
+ * regenerating after an upstream change gives a reviewable line diff.
+ */
+export function formatDialSynExtract(pairs: readonly DialSynPair[]): string {
+  const sorted = pairs
+    .map((pair) => ({ mandarin: pair.mandarin, line: pairLine(pair) }))
+    .sort((a, b) => byCodeUnits(a.mandarin, b.mandarin) || byCodeUnits(a.line, b.line))
+    .map(({ line }) => `    ${line}`);
+  const body = sorted.length === 0 ? "[]" : `[\n${sorted.join(",\n")}\n  ]`;
+  return `{\n  "about": ${JSON.stringify(EXTRACT_ABOUT)},\n  "pairCount": ${pairs.length},\n  "pairs": ${body}\n}\n`;
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value !== "";
+
+/** True for {form: non-empty string} or {form, note: non-empty string}, with no other keys. */
+function isForm(value: unknown): value is DialSynForm {
+  if (!isObject(value) || !isNonEmptyString(value.form)) return false;
+  const keys = Object.keys(value);
+  return keys.every((key) => key === "form" || key === "note") && (!("note" in value) || isNonEmptyString(value.note));
+}
+
+/**
+ * Reads and validates the extract written by formatDialSynExtract. Every problem is structural (the
+ * file is generated, so any defect means it was edited or is stale) and all are thrown together:
+ * invalid JSON, a wrong top-level shape, provenance not matching the pin in urls.ts, a pairCount that
+ * disagrees with the pairs, or a malformed pair (line numbers assume the generated layout).
+ */
+export function parseDialSynExtract(text: string): DialSynPair[] {
+  const fail = (line: number, message: string): never => {
+    throwIfProblems(EXTRACT_SOURCE_NAME, [{ line, message }]);
+    throw new Error("unreachable");
+  };
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    fail(1, "not valid JSON");
+  }
+  if (!isObject(data) || !isObject(data.about) || typeof data.pairCount !== "number" || !Array.isArray(data.pairs)) {
+    return fail(1, 'expected an object with "about", "pairCount" and "pairs"');
+  }
+  const problems: Problem[] = [];
+  if (data.about.tarballSha256 !== WIKTIONARY_DIALSYN_SHA256) {
+    problems.push({ line: 2, message: `extract was generated from tarball sha256 ${String(data.about.tarballSha256)}, but urls.ts pins ${WIKTIONARY_DIALSYN_SHA256}; regenerate it` });
+  }
+  if (data.pairCount !== data.pairs.length) {
+    problems.push({ line: 3, message: `pairCount is ${data.pairCount} but there are ${data.pairs.length} pairs` });
+  }
+  const pairs: DialSynPair[] = [];
+  for (const [index, pair] of data.pairs.entries()) {
+    const at = { line: FIRST_PAIR_LINE + index, label: `pair ${index + 1}` };
+    if (!isObject(pair) || !isNonEmptyString(pair.mandarin)) {
+      problems.push({ line: at.line, message: `${at.label}: mandarin must be a non-empty string` });
+      continue;
+    }
+    if (!Array.isArray(pair.cantonese) || pair.cantonese.length === 0) {
+      problems.push({ line: at.line, message: `${at.label}: cantonese must be a non-empty list` });
+      continue;
+    }
+    const bad = pair.cantonese.findIndex((form) => !isForm(form));
+    if (bad !== -1) {
+      problems.push({ line: at.line, message: `${at.label}: cantonese form ${bad + 1} must be {"form": non-empty string, "note"?: non-empty string}` });
+      continue;
+    }
+    pairs.push({ mandarin: pair.mandarin, cantonese: pair.cantonese as DialSynForm[] });
+  }
+  throwIfProblems(EXTRACT_SOURCE_NAME, problems);
+  return pairs;
+}
+
+/** Reads the committed extract (no network); regenerate it with scripts/gen-dialsyn.ts. */
 export async function loadWiktionaryDialSyn(): Promise<DialSynPair[]> {
-  const path = await fetchToCache(WIKTIONARY_DIALSYN_URL, WIKTIONARY_DIALSYN_CACHE_NAME, { sha256: WIKTIONARY_DIALSYN_SHA256 });
-  const modules = await readDialSynTarball(path);
-  console.log(`${SOURCE_NAME}: read ${modules.length} tables`);
-  return keptRows(SOURCE_NAME, parseDialSynModules(modules));
+  return parseDialSynExtract(await readFile(DIALSYN_EXTRACT_PATH, "utf8"));
 }

@@ -96,11 +96,24 @@ export interface KfcdRow {
 }
 
 /**
+ * One Cantonese form from a Wiktionary dialectal-synonyms table, with the usage note Wiktionary
+ * attached to it (the text after ":" in "冇:dated"), e.g. "dated", "slang", "man", "regional".
+ * Symbol notes ("†", "‡", "§", "<", ">", "↑", …) are footnote markers whose meaning is defined per
+ * table in its "note" text (e.g. "† - wok; ‡ - pot"), not a fixed label such as "obsolete".
+ */
+export interface DialSynForm {
+  readonly form: string;
+  /** Present only when Wiktionary gives a non-empty note. */
+  readonly note?: string;
+}
+
+/**
  * One Written Standard Chinese (Mandarin) word and its Cantonese equivalents, from a Wiktionary
  * dialectal-synonyms table (Module:zh/data/dial-syn/<word>), e.g. 沒有 -> 冇, 冇有. Forms are
  * traditional characters, as Wiktionary writes them; Cantonese forms come from the Hong Kong,
- * Guangzhou and Macau rows only, in that order, de-duplicated, with Wiktionary's annotations
- * (":dated", "_1" etymology numbers, [[links]]) stripped.
+ * Guangzhou and Macau rows only, in that order, de-duplicated on the form (the first occurrence
+ * wins, note included), with "_1" etymology numbers and [[links]] stripped. The Mandarin side
+ * is a plain string: its notes (mostly regions such as "Mainland China", "Taiwan") are dropped.
  *
  * A table with several Written Standard forms gives one pair per form, all with the same
  * Cantonese list; tables for different senses of the same word (張, 張-2, …) give separate pairs,
@@ -111,5 +124,5 @@ export interface KfcdRow {
  */
 export interface DialSynPair {
   readonly mandarin: string;
-  readonly cantonese: readonly string[];
+  readonly cantonese: readonly DialSynForm[];
 }

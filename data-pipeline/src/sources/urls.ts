@@ -83,10 +83,11 @@ export const KAIFANGCIDIAN_ZIP_ENTRY_SIMP = "cidian_zhyue-jt-kfcd-ylshu-2021714.
  * Module:zh/data/dial-syn/<word> (3,774 entries in this copy). kaikki rebuilds the tarball about
  * weekly at the same URL and keeps no old copies, so it is pinned by SHA-256 (this copy:
  * Last-Modified 2026-10-25, module pages dated 2026-10-23; 93,949,335 bytes) and a fresh download
- * fails loudly once upstream moves on. To bump: download WIKTIONARY_DIALSYN_URL, run
- * `shasum -a 256` on it, review the parser's skipped modules and kept-pair counts, then update
- * the hash (the cache name follows it). Until then a kept cache file or the CANTO_SRC_* override
- * still works.
+ * fails loudly once upstream moves on. That is why the pipeline never downloads it: it reads the
+ * committed extract data/wiktionary-dialsyn.json, which only scripts/gen-dialsyn.ts (run by hand)
+ * builds from this tarball. To bump: download WIKTIONARY_DIALSYN_URL, run `shasum -a 256` on it,
+ * update the hash (the cache name follows it), run `npx tsx scripts/gen-dialsyn.ts`, and review its
+ * skipped modules and the extract's diff. The loader rejects an extract made from another hash.
  */
 export const WIKTIONARY_DIALSYN_URL = "https://kaikki.org/dictionary/wiktionary-modules.tar.gz";
 
