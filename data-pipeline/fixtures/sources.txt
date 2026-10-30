@@ -1,0 +1,1 @@
+rime-char.csv | https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/char.csv | CC BY 4.0 (CanCLID rime-cantonese-upstream) | fetched 2026-10-29 | excerpt: header + 行 (all readings) + multi-syllable, rare, obsolete, common and ordinary rows
