@@ -55,12 +55,38 @@ describe("parseRimeEssay", () => {
     expect(words.at(-1)).toBe("革");
   });
 
-  it("skips rows without a Han character (punctuation, digits, symbols), with line numbers", () => {
+  it("skips punctuation, symbol and digit-only rows, with line numbers", () => {
     const { rows, skipped } = parseRimeEssay(fixture);
     for (const word of ["、", "1", "5", "○"]) expect(rows.some((r) => r.word === word)).toBe(false);
-    expect(skipped.map((s) => s.line)).toEqual([16, 22, 24, 29, 32, 33]);
-    expect(skipped.find((s) => s.line === 29)?.message).toMatch(/no Han character/);
-    expect(skipped.find((s) => s.line === 24)?.message).toMatch(/punctuation, symbol or space/);
+    const nonWord = skipped.filter((s) => /punctuation, symbol, space or other non-word character/.test(s.message));
+    expect(nonWord.map((s) => s.line)).toEqual([24, 33]); // 、 ○
+    const noHan = skipped.filter((s) => /no Han character/.test(s.message));
+    expect(noHan.map((s) => s.line)).toEqual([29, 32]); // 1 5
+  });
+
+  it("skips a word with an ideographic variation selector (no real row has a combining mark)", () => {
+    const { rows, skipped } = parseRimeEssay("甲\u{E0100}\t5\n乙\t6\n");
+    expect(rows).toEqual([{ word: "乙", weight: 6 }]);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].line).toBe(1);
+    expect(skipped[0].message).toMatch(/other non-word character/);
+  });
+
+  it("names the next occurrence's line when a word appears three times", () => {
+    const { rows, skipped } = parseRimeEssay("甲\t1\n乙\t9\n甲\t2\n甲\t3\n");
+    expect(rows).toEqual([
+      { word: "乙", weight: 9 },
+      { word: "甲", weight: 3 },
+    ]);
+    expect(skipped.map((s) => [s.line, s.message])).toEqual([
+      [1, expect.stringMatching(/甲 1 superseded by line 3 \(2\)/)],
+      [3, expect.stringMatching(/甲 2 superseded by line 4 \(3\)/)],
+    ]);
+  });
+
+  it("counts blank lines when numbering skipped rows", () => {
+    const { skipped } = parseRimeEssay("甲\t1\n\n\n、\t2\n");
+    expect(skipped.map((s) => s.line)).toEqual([4]);
   });
 
   it("keeps mixed Latin+Han words and supplementary-plane characters", () => {
@@ -83,6 +109,22 @@ describe("parseRimeEssay", () => {
     expect(skipped).toHaveLength(1);
     expect(skipped[0].line).toBe(3);
     expect(skipped[0].message).toMatch(/negative weight -2 for 甲/);
+  });
+
+  it("treats a minus-signed zero as a negative weight", () => {
+    const { rows, skipped } = parseRimeEssay("甲\t-0\n乙\t0\n");
+    expect(rows).toEqual([{ word: "乙", weight: 0 }]);
+    expect(Object.is(rows[0].weight, 0)).toBe(true);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].message).toMatch(/negative weight -0 for 甲/);
+  });
+
+  it("accepts the largest safe integer and throws on a weight beyond 2^53 - 1", () => {
+    expect(parseRimeEssay(`甲\t${Number.MAX_SAFE_INTEGER}\n`).rows).toEqual([
+      { word: "甲", weight: Number.MAX_SAFE_INTEGER },
+    ]);
+    expect(() => parseRimeEssay("甲\t9007199254740993\n")).toThrow(/line 1: weight is not a safe integer for 甲/);
+    expect(() => parseRimeEssay("甲\t-9007199254740993\n")).toThrow(/line 1: weight is not a safe integer for 甲/);
   });
 
   it("accepts CRLF line endings and a BOM, and ignores blank lines", () => {

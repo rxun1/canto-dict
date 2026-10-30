@@ -32,10 +32,14 @@ export interface WordReading {
  * jyut6ping3 candidates by. Words are unique (a repeated word's last row wins) and contain at least
  * one Han character; most are traditional-script words, a few mix in Latin letters (T恤).
  *
- * `weight` is a non-negative integer on a relative, unitless count scale: per the repo's
- * essay-cantonese branch build, rime-essay's (Mandarin) corpus counts plus Cifu's Hong Kong
- * Cantonese counts (all four genres summed, rescaled so 日本 matches essay's count), summed per
- * word after OpenCC conversion, with a few hand-set rows (𥄫 20000, 革 800). It ranges from 0 to
+ * `weight` is a non-negative integer on a relative, unitless count scale. Per the repo's
+ * essay-cantonese branch build (essay/build.py: `write_dict({**a, **b})`), it is the rescaled Cifu
+ * Hong Kong Cantonese count (four genres summed, × essay日本/Cifu日本 = 27319/307 ≈ 89) where Cifu
+ * has the word, and rime-essay's Mandarin corpus count otherwise; the Cifu count REPLACES the essay
+ * count, it is not added (哥哥: 1376 × 27319/307 = 122446, exactly the file's value). Keys that
+ * collapse together under the OpenCC conversion are then summed (merge_freq.py), and a few rows
+ * are hand-set (𥄫 20000, 革 800). So the scale mixes two corpora: Cantonese counts for Cifu's
+ * ~51.8k words, Mandarin counts for the rest. It ranges from 0 to
  * about 12.8 million (我) with a long tail (median ≈ 444); 0 occurs only on rare single characters.
  * Only the order and ratios are meaningful, not the absolute numbers. The source keeps its own
  * spellings: e.g. it has 我地 but not 我哋.

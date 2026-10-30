@@ -6,13 +6,18 @@ import { RIME_ESSAY_CACHE_NAME, RIME_ESSAY_URL } from "./urls";
 
 const SOURCE_NAME = "rime essay";
 
-/** A weight cell: an optionally negative decimal integer (negatives are rejected per row). */
+/** A weight cell: an optionally minus-signed decimal integer (minus-signed ones are rejected per row). */
 const INTEGER = /^-?\d+$/;
+
+const MINUS = "-";
 
 const HAN = /\p{Script=Han}/u;
 
-/** Letters (incl. Han), numbers (incl. 〇) and combining marks: no punctuation, symbol or space. */
-const WORD_CHARS = /^[\p{L}\p{N}\p{M}]+$/u;
+/**
+ * Letters (incl. Han) and numbers (incl. 〇) only. No combining marks either: no real row has one,
+ * and allowing them would let ideographic variation selectors (U+E0100…) through.
+ */
+const WORD_CHARS = /^[\p{L}\p{N}]+$/u;
 
 /**
  * Parses rime-cantonese's essay-cantonese.txt: no header, one `word<TAB>weight` row per line,
@@ -27,10 +32,12 @@ const WORD_CHARS = /^[\p{L}\p{N}\p{M}]+$/u;
  *
  * Severity policy:
  * - STRUCTURAL problems (row without a weight, extra column, empty word, weight that is not an
- *   integer, no data rows at all) mean we misunderstand the file, so they are collected and thrown once.
- * - ROW-LEVEL problems (negative weight, word with punctuation, a symbol or a space, word without
- *   a Han character such as "、", "1" or "○", a superseded duplicate) are skipped and recorded in
- *   `skipped` with their 1-based line numbers.
+ *   integer or not a safe integer, no data rows at all) mean we misunderstand the file, so they are
+ *   collected and thrown once.
+ * - ROW-LEVEL problems (minus-signed weight, "-0" included; word with punctuation, a symbol, a
+ *   space or another non-word character such as "、", "○" or a variation selector; word without a
+ *   Han character such as "1"; a superseded duplicate) are skipped and recorded in `skipped` with
+ *   their 1-based line numbers.
  */
 export function parseRimeEssay(text: string): Parsed<WordFrequency> {
   const kept = new Map<string, { weight: number; line: number }>();
@@ -60,12 +67,16 @@ export function parseRimeEssay(text: string): Parsed<WordFrequency> {
     }
 
     const weight = Number(weightCell);
-    if (weight < 0) {
-      skipped.push({ line: lineNumber, message: `negative weight ${weight} for ${word}` });
+    if (!Number.isSafeInteger(weight)) {
+      structural.push({ line: lineNumber, message: `weight is not a safe integer for ${word}: "${weightCell}"` });
+      return;
+    }
+    if (weightCell.startsWith(MINUS)) {
+      skipped.push({ line: lineNumber, message: `negative weight ${weightCell} for ${word}` });
       return;
     }
     if (!WORD_CHARS.test(word)) {
-      skipped.push({ line: lineNumber, message: `punctuation, symbol or space in word "${word}"` });
+      skipped.push({ line: lineNumber, message: `punctuation, symbol, space or other non-word character in word "${word}"` });
       return;
     }
     if (!HAN.test(word)) {

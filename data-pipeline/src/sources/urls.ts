@@ -14,6 +14,8 @@ export const RIME_CHARS_CACHE_NAME = `rime-char-${shortSha(RIME_CHARS_COMMIT)}.c
 /**
  * Pinned upstream commit of rime/rime-cantonese (jyut6ping3.words.dict.yaml).
  * After bumping this, re-run scripts/gen-syllables.ts: the dict also feeds the attested syllable list.
+ * Bumping it also moves the essay-cantonese.txt pin (RIME_ESSAY_COMMIT aliases it), so review that
+ * parser's skipped rows too.
  */
 export const RIME_WORDS_COMMIT = "259f0e48bba840c3a2e0d117539e96937f3d89bc";
 
@@ -27,6 +29,14 @@ export const RIME_WORDS_CACHE_NAME = `rime-words-${shortSha(RIME_WORDS_COMMIT)}.
  * Pinned to the same snapshot as the words dict, so frequencies and readings come from one commit
  * (at this pin: 266,870 lines, 3,416,812 bytes; last changed in e55b938, 2026-06-29). If you bump
  * one independently, give this its own commit constant and review the parser's skipped rows.
+ *
+ * Caveat: the corpus is mixed. Words Cifu (a Hong Kong Cantonese frequency lexicon) has carry its
+ * rescaled Cantonese counts; all other words carry rime-essay's Mandarin counts (see WordFrequency).
+ *
+ * Why this source (compared 2026-10-30, distinct words): essay covers 60.7% of the rime words dict
+ * and 64.9% of the words.hk list. Cifu (gwinterstein/Cifu) covers only 18.1% / 35.0%, is GPL-3.0,
+ * last changed in 2020, and 97% of its words are already in essay. HKCanCor (fcbond/hkcancor) is a
+ * ~230k-token corpus, not a frequency list.
  */
 export const RIME_ESSAY_COMMIT = RIME_WORDS_COMMIT;
 
