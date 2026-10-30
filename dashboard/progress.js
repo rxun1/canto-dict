@@ -143,7 +143,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/charFallbacks.test.ts → pass",
         },
         {
-          id: "P1-T7", title: "Source: words.hk public word list (public domain)", status: "doing",
+          id: "P1-T7", title: "Source: words.hk public word list (public domain)", status: "done",
           files: ["data-pipeline/src/sources/wordshkList.ts", "data-pipeline/fixtures/wordshk-list.csv", "data-pipeline/test/sources/wordshkList.test.ts"],
           subtasks: [
             "Save ~40 real rows to fixtures (include a loan syllable with '!' like !es1)",
@@ -165,6 +165,7 @@ window.CANTO_PROGRESS = {
             "Save ~10 real entries to fixtures (include multi-sense, an example with a zho: line, a non-public row)",
             "Write failing test: parse id, headword(s), jyutping, senses[{ pos, yue }], examples[{ yue, jyutping, zho }] (eng: lines are ignored — English is out of scope)",
             "Write failing test: rows with public=false are skipped",
+            "Write failing test: the variants column yields the entry's alternative headword forms (e.g. 揀 ↔ 㨂) as aliases — P1-T13 uses them to fold words.hk variantForm rows",
             "Run tests → fail",
             "Implement parser for (pos:…)(label:…) tags, <explanation> yue: lines and <eg> blocks",
             "Run tests → pass",
@@ -237,7 +238,7 @@ window.CANTO_PROGRESS = {
             "Write failing test: 冇 gets mandarin [没有, 没, 无] from Kaifangcidian and Wiktionary, de-duplicated",
             "Write failing test: every entry and example gets a simplified form via OpenCC t2s; 嘅/冇/喺 stay unchanged",
             "Write failing test: WordReading.loanSyllables survives into Entry readings (validate skips loan syllables; audio must not look for clips like es1)",
-            "Write failing test: words.hk variantForm rows (e.g. 㨂, 一分爲二) fold into the entry of their OpenCC-normalized standard form (揀, 一分為二) as aliases, never as separate headwords; drop with a count if no standard entry exists",
+            "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from the words.hk dump (P1-T8) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; report unlinked variant rows with a count",
             "Run tests → fail",
             "Implement merge.ts",
             "Run tests → pass",
@@ -755,5 +756,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T4 done: rime char.csv parser (ce3b943 + 535f62b + f990987). 34,362 readings; source pinned to commit 4cb67a4; set the parser template (pure parse + loader, splitLines, collect-then-throw with line numbers, urls.ts for pinned sources). Found 60 chars (e.g. 行) with no default reading." },
     { date: "2026-10-30", text: "P1-T5 done: rime words dict parser (ebd28ae, d13282d, 0bc16a3). 102,378 word readings kept; 699 punctuation proverbs skipped (accepted for v1). Added 26 colloquial syllables to the attested list (745). Dict has no weights → frequency source moves to P1-T13." },
     { date: "2026-10-30", text: "P1-T6 done: LSHK (38,194 readings, pinned dad2dd6) + Unihan kCantonese (29,929; pinned 9ca8f73, verified identical to Unicode 17.0.0) parsers (56ca9f1, b63b1ef, 2cba232). Review caught an out-of-range code point crash; extracted shared code-point, loader and Jyutping-cell helpers." },
+    { date: "2026-10-30", text: "P1-T7 done: words.hk word list (d087cd3, 9e5da23). 64,652 readings kept; 99.34% agree with rime on shared words; downloads of unpinnable sources are now SHA-256 checked. Review found OpenCC does not fold variant spellings (㨂→揀) — variant links will come from the words.hk dump instead." },
   ],
 };

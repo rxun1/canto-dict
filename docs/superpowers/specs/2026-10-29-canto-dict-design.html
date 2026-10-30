@@ -188,7 +188,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 </ul>
 <h3>4.3 <code>canto.db</code> schema</h3>
 <pre><code class="language-sql">entries     (id INTEGER PK, trad TEXT, simp TEXT, kind TEXT CHECK(kind IN (&#39;char&#39;,&#39;word&#39;)), freq REAL)
-readings    (entry_id, jyutping TEXT, rank TEXT, source TEXT)
+readings    (entry_id, jyutping TEXT, rank TEXT, source TEXT, loan TEXT NULL)  -- loan: comma-separated 0-based indexes of loan syllables (e.g. es1 in DSE)
 mandarin    (entry_id, word_simp TEXT, word_trad TEXT, source TEXT)
 definitions (entry_id, sense INTEGER, pos TEXT, yue TEXT, zho TEXT, source TEXT)
 examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT, zho TEXT)
