@@ -3,7 +3,8 @@ import { gunzipSync } from "node:zlib";
 import { parse } from "csv-parse/sync";
 import { overrideEnvVar, overridePath } from "../download";
 import { describeBadSyllable, parseLoanAwareSyllables } from "./jyutpingCell";
-import { formatProblems, throwIfProblems, type Parsed, type Problem } from "./problems";
+import { keptRows } from "./load";
+import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import type { WordshkEntry, WordshkHeadword } from "./types";
 import { EntryError, parseEntryContent } from "./wordshkEntryMarkup";
 
@@ -155,7 +156,5 @@ export async function loadWordshkDump(): Promise<WordshkEntry[]> {
         `requested at ${WORDSHK_DUMP_REQUEST_URL} (it cannot be downloaded automatically)`,
     );
   }
-  const { rows, skipped } = parseWordshkDump(gunzipSync(await readFile(path)).toString("utf8"));
-  if (skipped.length > 0) console.warn(formatProblems(SOURCE_NAME, skipped));
-  return rows;
+  return keptRows(SOURCE_NAME, parseWordshkDump(gunzipSync(await readFile(path)).toString("utf8")));
 }

@@ -131,6 +131,29 @@ describe("yaleToJyutping", () => {
     });
   });
 
+  describe("Yale y initial before finals that are NOT the yu-finals", () => {
+    it.each([
+      ["yuk9", "juk6"],
+      ["yung6", "jung6"],
+      ["yi4", "ji4"],
+      ["yiu4", "jiu4"],
+      ["yeung4", "joeng4"],
+    ])("%s -> %s", (yale, jyutping) => {
+      expect(yaleToJyutping(yale)).toBe(jyutping);
+    });
+  });
+
+  describe("longest initial wins", () => {
+    it.each([
+      ["ngaam1", "ngaam1"], // ng, not n + gaam
+      ["nga4", "ngaa4"],
+      ["chyun4", "cyun4"], // ch, not c + hyun
+      ["gwai3", "gwai3"], // gw, not g + wai
+    ])("%s -> %s", (yale, jyutping) => {
+      expect(yaleToJyutping(yale)).toBe(jyutping);
+    });
+  });
+
   describe("real syllables from the Kaifangcidian data", () => {
     it.each([
       ["mou5", "mou5"], // 冇

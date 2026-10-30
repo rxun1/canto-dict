@@ -4,7 +4,8 @@ import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
 import { yaleToJyutping } from "../yaleToJyutping";
 import { describeBadSyllable, syllableCountMismatch } from "./jyutpingCell";
-import { formatProblems, throwIfProblems, type Parsed, type Problem } from "./problems";
+import { keptRows } from "./load";
+import { throwIfProblems, type Parsed, type Problem } from "./problems";
 import { splitLines } from "./text";
 import type { KfcdRow, MandarinEquivalent } from "./types";
 import {
@@ -24,14 +25,20 @@ const COLUMN_HEADER_SIMP = "［粤语词汇］\t［耶鲁拼音］\t［国语解
 const COLUMN_COUNT = 3;
 
 /**
- * Separators between Mandarin equivalents. The file uses "，" throughout; "、" (3 rows) and "；" (1 row)
- * also occur in the 2021-07-14 file and likewise separate equivalents.
+ * Separators between Mandarin equivalents in the 2021-07-14 file: "，" almost everywhere, plus "、"
+ * (4 rows), "；" (1 row) and the small comma "﹐" U+FE50 (8 rows) inside some equivalents.
  */
-const MANDARIN_SEPARATORS = /[，、；]/;
+const MANDARIN_SEPARATORS = /[，、；﹐]/;
+
+/** One row (後底乸) ends its last equivalent with "。"; "！" and "？" are kept, they belong to the equivalent. */
+const TRAILING_FULL_STOP = /。$/;
 
 /** Splits a Mandarin cell into its trimmed, non-empty equivalents in file order (not de-duplicated). */
 function splitMandarin(cell: string): string[] {
-  return cell.split(MANDARIN_SEPARATORS).map((p) => p.trim()).filter((p) => p !== "");
+  return cell
+    .split(MANDARIN_SEPARATORS)
+    .map((p) => p.trim().replace(TRAILING_FULL_STOP, "").trim())
+    .filter((p) => p !== "");
 }
 
 /** Pairs traditional and simplified items by position and drops repeated (trad, simp) pairs, keeping first-seen order. */
@@ -107,7 +114,7 @@ export function parseKaifangcidian(tradText: string, simpText: string): Parsed<K
       structural.push({ line: lineNumber, message: `${label} file: empty word or romanization: "${line}"` });
       return undefined;
     }
-    return { word, yale: yale.trim().split(/\s+/).join(" "), mandarin };
+    return { word: word.trim(), yale: yale.trim().split(/\s+/).join(" "), mandarin };
   };
 
   for (const [index, tradLine] of tradLines.entries()) {
@@ -150,7 +157,8 @@ export function parseKaifangcidian(tradText: string, simpText: string): Parsed<K
       }
       syllables.push(syllable);
     }
-    problem ??= syllableCountMismatch(trad.word, syllables) ?? syllableCountMismatch(simp.word, syllables);
+    const mismatch = syllableCountMismatch(trad.word, syllables) ?? syllableCountMismatch(simp.word, syllables);
+    problem ??= mismatch === undefined ? undefined : `${mismatch}: "${trad.yale}"`;
     if (problem !== undefined) {
       skipped.push({ line: lineNumber, message: problem });
       continue;
@@ -178,7 +186,5 @@ export function readKaifangcidianZip(zip: Uint8Array): { trad: string; simp: str
 export async function loadKaifangcidian(): Promise<KfcdRow[]> {
   const path = await fetchToCache(KAIFANGCIDIAN_URL, KAIFANGCIDIAN_CACHE_NAME, { sha256: KAIFANGCIDIAN_SHA256 });
   const { trad, simp } = readKaifangcidianZip(await readFile(path));
-  const { rows, skipped } = parseKaifangcidian(trad, simp);
-  if (skipped.length > 0) console.warn(formatProblems(SOURCE_NAME, skipped));
-  return rows;
+  return keptRows(SOURCE_NAME, parseKaifangcidian(trad, simp));
 }

@@ -5,6 +5,8 @@
  *
  * Pure and table-driven; it only checks that the pieces are known. Whether the result is a real
  * Jyutping syllable is the caller's job (isValidSyllable), e.g. "ak7" converts but "aa7" does not.
+ * Yale "eu" always maps to Jyutping oe, so a reading of Jyutping's colloquial eu final (e.g. deu6)
+ * comes out as oe; rime readings outrank Kaifangcidian's in merge.
  */
 
 /** Yale initial -> Jyutping initial. Everything not listed here is spelled the same in both. */

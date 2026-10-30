@@ -81,6 +81,10 @@ export interface MandarinEquivalent {
  * reading converted from the file's Yale to Jyutping (one syllable per character), and its Mandarin
  * equivalents (e.g. 冇 -> 没有, 没, 无). `mandarin` is empty when the source gives none. Both scripts
  * come from the source's own traditional and simplified files, so no script conversion is needed.
+ *
+ * Rows are NOT unique per (word, reading): 919 such keys repeat with different Mandarin equivalents
+ * (one row per sense), and Mandarin items may carry annotations like （婉）性交 or "…" placeholders.
+ * Consumers (merge) must handle both.
  */
 export interface KfcdRow {
   /** Traditional headword (from the ft file). */

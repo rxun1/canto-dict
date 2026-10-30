@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import { parseKaifangcidian, readKaifangcidianZip } from "../../src/sources/kaifangcidian";
+import { KAIFANGCIDIAN_ZIP_ENTRY_SIMP, KAIFANGCIDIAN_ZIP_ENTRY_TRAD } from "../../src/sources/urls";
 
 const fixtureDir = join(import.meta.dirname, "../../fixtures");
 const ft = readFileSync(join(fixtureDir, "kfcd-cidian-ft.txt"), "utf8");
@@ -21,16 +22,16 @@ function parsePair(...rows: [string, string][]) {
 }
 
 describe("parseKaifangcidian", () => {
-  it("keeps 34 of the 40 fixture rows, skips 6, and ignores the whitespace-only last line", () => {
+  it("keeps 36 of the 42 fixture rows and skips 6", () => {
     const { rows, skipped } = parseKaifangcidian(ft, jt);
-    expect(rows).toHaveLength(34);
+    expect(rows).toHaveLength(36);
     expect(skipped).toHaveLength(6);
     expect(skipped.map((s) => s.line)).toEqual([16, 17, 18, 20, 21, 25]);
   });
 
-  it("keeps 27 rows with at least one Mandarin equivalent and 7 without", () => {
+  it("keeps 29 rows with at least one Mandarin equivalent and 7 without", () => {
     const { rows } = parseKaifangcidian(ft, jt);
-    expect(rows.filter((r) => r.mandarin.length > 0)).toHaveLength(27);
+    expect(rows.filter((r) => r.mandarin.length > 0)).toHaveLength(29);
     expect(rows.filter((r) => r.mandarin.length === 0)).toHaveLength(7);
   });
 
@@ -119,6 +120,43 @@ describe("parseKaifangcidian", () => {
     ]);
   });
 
+  it("also splits on the small comma ﹐ (U+FE50) used inside some equivalents", () => {
+    const { rows } = parseKaifangcidian(ft, jt);
+    expect(rows.find((r) => r.word === "呢便")?.mandarin).toEqual([
+      { trad: "這邊", simp: "这边" },
+      { trad: "這兒", simp: "这儿" },
+      { trad: "這裡", simp: "这里" },
+      { trad: "這面", simp: "这面" },
+      { trad: "這個地方", simp: "这个地方" },
+    ]);
+  });
+
+  it("strips a trailing 。 from an equivalent", () => {
+    const { rows } = parseKaifangcidian(ft, jt);
+    expect(rows.find((r) => r.word === "後底乸")).toEqual({
+      word: "後底乸",
+      wordSimp: "后底乸",
+      syllables: ["hau6", "dai2", "naa2"],
+      mandarin: [
+        { trad: "繼母", simp: "继母" },
+        { trad: "後母", simp: "后母" },
+        { trad: "後媽", simp: "后妈" },
+        { trad: "後娘", simp: "后娘" },
+      ],
+    });
+  });
+
+  it("keeps a trailing ！ or ？ (they are part of the equivalent) and splits all four separators", () => {
+    const { rows } = parsePair(["冇\tmou5\t甲，乙、丙；丁﹐戊！，己。", "冇\tmou5\t甲，乙、丙；丁﹐戊！，己。"]);
+    expect(rows[0]?.mandarin.map((m) => m.trad)).toEqual(["甲", "乙", "丙", "丁", "戊！", "己"]);
+  });
+
+  it("trims whitespace around the word", () => {
+    const { rows } = parsePair([" 冇 \tmou5\t沒有", "冇 \tmou5\t没有"]);
+    expect(rows[0]?.word).toBe("冇");
+    expect(rows[0]?.wordSimp).toBe("冇");
+  });
+
   it("keeps a pair that differs in one script only (not a duplicate)", () => {
     const { rows } = parsePair(["甲\tgaap3\t髮，發", "甲\tgaap3\t发，发"]);
     expect(rows[0]?.mandarin).toEqual([
@@ -146,8 +184,8 @@ describe("parseKaifangcidian", () => {
   it("skips a row whose syllable count differs from its character count, naming its line", () => {
     const { rows, skipped } = parseKaifangcidian(ft, jt);
     expect(rows.some((r) => r.word === "亞sir" || r.word === "…親")).toBe(false);
-    expect(skipped.find((s) => s.line === 16)?.message).toMatch(/亞sir has 4 characters but 2 syllables/);
-    expect(skipped.find((s) => s.line === 20)?.message).toMatch(/…親 has 2 characters but 1 syllables/);
+    expect(skipped.find((s) => s.line === 16)?.message).toBe('亞sir has 4 characters but 2 syllables: "a3 seu4"');
+    expect(skipped.find((s) => s.line === 20)?.message).toBe('…親 has 2 characters but 1 syllables: "chan1"');
   });
 
   it("skips a row whose romanization has an unknown Yale syllable, naming its line", () => {
@@ -197,19 +235,18 @@ describe("parseKaifangcidian", () => {
     ).toThrow(/line counts differ.*12.*11/s);
   });
 
-  it("throws, listing every offending line, for a row without exactly three columns", () => {
+  it("throws, listing every offending line, for a wrong column count or an empty word or romanization", () => {
     const bad = ["冇\tmou5", "冇\tmou5\t沒有\textra", "\tmou5\t沒有", "冇\t\t沒有"];
-    const badSimp = bad.map((l) => l);
     const text = (header: string, lines: string[]) => `${header}${lines.join("\n")}\n`;
-    expect(() => parseKaifangcidian(text(FT_HEADER, bad), text(JT_HEADER, badSimp))).toThrow(
+    expect(() => parseKaifangcidian(text(FT_HEADER, bad), text(JT_HEADER, bad))).toThrow(
       /line 10:.*line 11:.*line 12:.*line 13:/s,
     );
   });
 });
 
 describe("readKaifangcidianZip", () => {
-  const TRAD_ENTRY = "cidian_zhyue-ft-kfcd-ylshu-2021714.txt";
-  const SIMP_ENTRY = "cidian_zhyue-jt-kfcd-ylshu-2021714.txt";
+  const TRAD_ENTRY = KAIFANGCIDIAN_ZIP_ENTRY_TRAD;
+  const SIMP_ENTRY = KAIFANGCIDIAN_ZIP_ENTRY_SIMP;
   const encode = (s: string) => new TextEncoder().encode(s);
 
   it("returns the text of both pinned entries, ignoring the other entries", () => {
