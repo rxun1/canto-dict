@@ -147,7 +147,7 @@ window.CANTO_PROGRESS = {
           files: ["data-pipeline/src/sources/wordshkList.ts", "data-pipeline/fixtures/wordshk-list.csv", "data-pipeline/test/sources/wordshkList.test.ts"],
           subtasks: [
             "Save ~40 real rows to fixtures (include a loan syllable with '!' like !es1)",
-            "Write failing test: returns { word, jyutping[] }; '!' loan syllables are kept but flagged loan: true",
+            "Write failing test: returns WordReading { word, syllables, loanSyllables? } — '!' loan syllables kept without '!', their indexes in loanSyllables",
             "Run test → fails",
             "Implement parser + download (words.hk/faiman/analysis/)",
             "Run test → passes",
@@ -236,6 +236,8 @@ window.CANTO_PROGRESS = {
             "Write failing test: a char with no 預設 reading (60 such chars in rime, e.g. 行) keeps all its readings with their ranks — never assume exactly one default",
             "Write failing test: 冇 gets mandarin [没有, 没, 无] from Kaifangcidian and Wiktionary, de-duplicated",
             "Write failing test: every entry and example gets a simplified form via OpenCC t2s; 嘅/冇/喺 stay unchanged",
+            "Write failing test: WordReading.loanSyllables survives into Entry readings (validate skips loan syllables; audio must not look for clips like es1)",
+            "Write failing test: words.hk variantForm rows (e.g. 㨂, 一分爲二) fold into the entry of their OpenCC-normalized standard form (揀, 一分為二) as aliases, never as separate headwords; drop with a count if no standard entry exists",
             "Run tests → fail",
             "Implement merge.ts",
             "Run tests → pass",
@@ -251,7 +253,7 @@ window.CANTO_PROGRESS = {
           id: "P1-T14", title: "Build canto.db (schema, indexes, search keys)", status: "todo",
           files: ["data-pipeline/src/build/schema.sql", "data-pipeline/src/build/writeDb.ts", "data-pipeline/src/build/searchKeys.ts", "data-pipeline/test/writeDb.test.ts"],
           subtasks: [
-            "Write schema.sql exactly as spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys + indexes)",
+            "Write schema.sql per spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys + indexes), plus a nullable readings.loan column (comma-separated 0-based loan syllable indexes)",
             "Write failing test: searchKeys('sik6 faan6') → toned 'sik6faan6', toneless 'sikfaan', joined forms",
             "Write failing test: writeDb(fixture entries) → SELECT via search_keys key LIKE 'sik%' finds 食",
             "Write failing test: entries.simp lookup finds 饭 for 飯",
