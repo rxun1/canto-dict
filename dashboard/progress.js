@@ -161,10 +161,10 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Request the dump at words.hk/faiman/request_data/ (manual; save path in CANTO_SRC_WORDSHK_DUMP)",
             "Save ~10 real entries to fixtures (include multi-sense, an example with a zho: line, a non-public row)",
-            "Write failing test: parse id, headword(s), jyutping, senses[{ pos, yue, eng }], examples[{ yue, jyutping, zho, eng }]",
+            "Write failing test: parse id, headword(s), jyutping, senses[{ pos, yue }], examples[{ yue, jyutping, zho }] (eng: lines are ignored — English is out of scope)",
             "Write failing test: rows with public=false are skipped",
             "Run tests → fail",
-            "Implement parser for (pos:…)(label:…) tags, <explanation> yue:/eng: lines and <eg> blocks",
+            "Implement parser for (pos:…)(label:…) tags, <explanation> yue: lines and <eg> blocks",
             "Run tests → pass",
             "Commit",
           ],
@@ -224,20 +224,6 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/moedict.test.ts → pass",
         },
         {
-          id: "P1-T12", title: "Sources: CC-Canto + CC-CEDICT Cantonese readings (English fallback)", status: "todo",
-          files: ["data-pipeline/src/sources/ccCanto.ts", "data-pipeline/fixtures/cccanto.txt", "data-pipeline/test/sources/ccCanto.test.ts"],
-          subtasks: [
-            "Save ~30 real lines of each file to fixtures (include a dou3*2 changed tone and a '/' alternative)",
-            "Write failing test: returns { trad, simp, jyutping[], english[] }; dou3*2 → dou2; alternatives after '/' dropped",
-            "Run test → fails",
-            "Implement one parser for both files (same CEDICT format) + downloads (cantonese.org/download.html)",
-            "Run test → passes",
-            "Commit",
-          ],
-          dod: ["No '*' or '/' characters remain in parsed Jyutping"],
-          test: "cd data-pipeline && npx vitest run test/sources/ccCanto.test.ts → pass",
-        },
-        {
           id: "P1-T13", title: "Merge sources into one entry model", status: "todo",
           files: ["data-pipeline/src/merge/types.ts", "data-pipeline/src/merge/merge.ts", "data-pipeline/test/merge.test.ts"],
           subtasks: [
@@ -258,13 +244,13 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/merge.test.ts → pass",
         },
         {
-          id: "P1-T14", title: "Build canto.db (schema, indexes, search keys, English FTS)", status: "todo",
+          id: "P1-T14", title: "Build canto.db (schema, indexes, search keys)", status: "todo",
           files: ["data-pipeline/src/build/schema.sql", "data-pipeline/src/build/writeDb.ts", "data-pipeline/src/build/searchKeys.ts", "data-pipeline/test/writeDb.test.ts"],
           subtasks: [
-            "Write schema.sql exactly as spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys, english_fts + indexes)",
+            "Write schema.sql exactly as spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys + indexes)",
             "Write failing test: searchKeys('sik6 faan6') → toned 'sik6faan6', toneless 'sikfaan', joined forms",
             "Write failing test: writeDb(fixture entries) → SELECT via search_keys key LIKE 'sik%' finds 食",
-            "Write failing test: english_fts MATCH 'eat' finds 食; entries.simp lookup finds 饭 for 飯",
+            "Write failing test: entries.simp lookup finds 饭 for 飯",
             "Run tests → fail",
             "Implement writeDb with better-sqlite3 in one transaction, then VACUUM",
             "Run tests → pass",
@@ -274,7 +260,7 @@ window.CANTO_PROGRESS = {
             "Schema matches spec §4.3 table-for-table",
             "Build runs inside one transaction (no half-written DB on failure)",
           ],
-          test: "cd data-pipeline && npx vitest run test/writeDb.test.ts → pass; sqlite3 assets/test/canto.fixture.db '.tables' lists all 7 tables",
+          test: "cd data-pipeline && npx vitest run test/writeDb.test.ts → pass; sqlite3 assets/test/canto.fixture.db '.tables' lists all 6 tables",
         },
         {
           id: "P1-T15", title: "Audio pack (words.hk syllable recordings)", status: "todo",
@@ -364,17 +350,16 @@ window.CANTO_PROGRESS = {
           id: "P2-T2", title: "Spike: confirm native capabilities on device", status: "todo",
           files: ["app/dev-checks.tsx"],
           subtasks: [
-            "Add a hidden dev-checks screen with three buttons",
-            "Check 1: expo-sqlite can CREATE VIRTUAL TABLE … USING fts5",
-            "Check 2: to-jyutping returns Jyutping for 食飯 on Hermes",
-            "Check 3: opencc-js converts 学校 → 學校 on Hermes",
+            "Add a hidden dev-checks screen with two buttons",
+            "Check 1: to-jyutping returns Jyutping for 食飯 on Hermes",
+            "Check 2: opencc-js converts 学校 → 學校 on Hermes",
             "Run on the simulator and on your iPhone; record results in the spec's risk table",
             "Commit",
           ],
           dod: [
-            "All three checks pass, or each failure has a decided workaround written into the spec",
+            "Both checks pass, or each failure has a decided workaround written into the spec",
           ],
-          test: "Open dev-checks screen → three green \"OK\" results on simulator and device",
+          test: "Open dev-checks screen → two green \"OK\" results on simulator and device",
         },
         {
           id: "P2-T3", title: "Database module (expo-sqlite + test adapter)", status: "todo",
@@ -399,7 +384,7 @@ window.CANTO_PROGRESS = {
           id: "P2-T4", title: "Input classifier", status: "todo",
           files: ["src/dictionary/classify.ts", "src/dictionary/classify.test.ts"],
           subtasks: [
-            "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping+english; 'eat' → jyutping+english (e + at are attested syllables); 'water' → english; '食 sik' → hanzi",
+            "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping (toneless); 'water' → none (not searchable); '食 sik' → hanzi",
             "Run tests → fail",
             "Implement using splitSyllables from src/jyutping/syllables.ts",
             "Run tests → pass",
@@ -414,7 +399,7 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Write failing test: search('食') returns 食 first, then words starting with 食, then words containing it",
             "Write failing test: search('饭') and search('飯') return the same entries",
-            "Write failing test: search('sik') returns groups { jyutping: [...], english: [...] } with jyutping first",
+            "Write failing test: search('sik') matches all tones (sik1…sik6 entries); search('water') returns [] without querying",
             "Write failing test: results capped at 50; ties broken by freq then length",
             "Run tests → fail",
             "Implement search.ts on top of src/db",
@@ -431,7 +416,7 @@ window.CANTO_PROGRESS = {
           files: ["app/(tabs)/lookup.tsx", "src/dictionary/useSearch.ts", "app/(tabs)/lookup.test.tsx"],
           subtasks: [
             "Write failing RNTL test: typing '食' shows result rows after debounce (fake timers, 150 ms)",
-            "Write failing RNTL test: mixed results show 'Jyutping' and 'English' section headers",
+            "Write failing RNTL test: non-Jyutping Latin input (e.g. 'water') shows the hint 输入汉字或粤拼 instead of results",
             "Write failing RNTL test: tapping a row navigates to /entry/[id]",
             "Run tests → fail",
             "Implement useSearch hook (debounce) and the screen",
@@ -439,7 +424,7 @@ window.CANTO_PROGRESS = {
             "Commit",
           ],
           dod: ["Typing feels instant in the simulator with the full DB"],
-          test: "npx jest app/\\(tabs\\)/lookup → pass; simulator: type sik → grouped results",
+          test: "npx jest app/\\(tabs\\)/lookup → pass; simulator: type sik → results for all tones",
         },
         {
           id: "P2-T7", title: "Entry screen", status: "todo",
@@ -524,7 +509,7 @@ window.CANTO_PROGRESS = {
           files: [],
           subtasks: [
             "Connect iPhone, sign with your Apple ID in Xcode, run npx expo run:ios --device",
-            "QA: search by 字 (simplified and traditional), Jyutping with and without tones, English",
+            "QA: search by 字 (simplified and traditional), Jyutping with and without tones",
             "QA: syllable audio on characters and words; airplane mode still works",
             "QA: favorites and history survive an app restart",
             "Check installed app size in iPhone Settings → General → iPhone Storage",
@@ -757,5 +742,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-29", text: "Spec approved." },
     { date: "2026-10-29", text: "Work split into 3 plans (data pipeline, app + lookup, translation) with subtasks, definition of done and tests per task." },
     { date: "2026-10-29", text: "P1-T1 done: data-pipeline scaffold (0f8717a + review fixes 97898ef). Code review caught a silent no-op entry point and an over-broad ../src include; both fixed and re-verified." },
+    { date: "2026-10-30", text: "Scope change: English dropped (no English search, definitions or glosses). Removed P1-T12 (CC-Canto/CC-CEDICT), english_fts, and the FTS5 device check; search is now 字 or Jyutping only." },
   ],
 };

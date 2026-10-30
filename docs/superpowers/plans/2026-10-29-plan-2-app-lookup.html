@@ -47,7 +47,7 @@
 
 <h1>Plan 2 — App shell + lookup</h1>
 <blockquote><p><strong>For agentic workers:</strong> use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Task status lives in <code>dashboard/progress.js</code>.</p></blockquote>
-<p><strong>Goal:</strong> an iPhone app you can install that looks up any Cantonese character or word offline — by 字, Jyutping or English — shows readings, Mandarin meaning, definitions and examples, plays real-person syllable audio, and keeps favorites and history.</p>
+<p><strong>Goal:</strong> an iPhone app you can install that looks up any Cantonese character or word offline — by 字 or Jyutping — shows readings, Mandarin meaning, definitions and examples, plays real-person syllable audio, and keeps favorites and history.</p>
 <p><strong>Architecture:</strong> Expo dev build with Expo Router tabs. Screens are thin; logic lives in <code>src/</code> modules behind small interfaces. The dictionary is the read-only <code>canto.db</code> from Plan 1; user data is a separate writable <code>user.db</code>. Tests run in Jest on the Mac against <code>assets/test/canto.fixture.db</code> through a better-sqlite3 adapter.</p>
 <p><strong>Tech stack:</strong> Expo (current SDK), TypeScript, Expo Router, expo-sqlite, expo-audio, expo-file-system, Jest (jest-expo), React Native Testing Library, better-sqlite3 (tests only).</p>
 <p><strong>Spec sections:</strong> §3 (layout), §5 (lookup), §7 (errors), §8 (testing).</p>
@@ -67,7 +67,7 @@ src/db/expoDb.ts             expo-sqlite adapter (bundled asset)
 src/db/testDb.ts             better-sqlite3 adapter for Jest
 src/db/entries.ts            entry queries
 src/db/DbGate.tsx            DB error screen + retry
-src/dictionary/classify.ts   input → hanzi / jyutping / english
+src/dictionary/classify.ts   input → hanzi / jyutping / not searchable
 src/dictionary/search.ts     search + ranking
 src/dictionary/useSearch.ts  debounced hook
 src/dictionary/mandarinLine.ts  Mandarin fallback order
@@ -77,7 +77,7 @@ src/userdata/*.ts            user.db: favorites + history</code></pre>
 
 <h2>Order and dependencies</h2>
 <ul>
-<li>P2-T1 → P2-T2 (spike) first: the spike decides whether FTS5, to-jyutping and opencc-js work on device before anything depends on them.</li>
+<li>P2-T1 → P2-T2 (spike) first: the spike decides whether to-jyutping and opencc-js work on device before anything depends on them.</li>
 <li>P2-T3 before every data-reading task. P2-T4 → P2-T5 → P2-T6. P2-T7 needs P2-T3.</li>
 <li>P2-T8 and P2-T9 are independent; P2-T10 needs P2-T9; P2-T12 is last.</li>
 </ul>

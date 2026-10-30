@@ -50,7 +50,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 <h2>1. Goal</h2>
 <p>A personal iPhone app (React Native / Expo) that:</p>
 <ol>
-<li>Looks up Cantonese characters (字) and words (詞) <strong>offline</strong>, showing Jyutping (e.g. <code>sik6</code>), a Mandarin meaning, English, example sentences, and real-person pronunciation audio.</li>
+<li>Looks up Cantonese characters (字) and words (詞) <strong>offline</strong>, showing Jyutping (e.g. <code>sik6</code>), a Mandarin meaning, example sentences, and real-person pronunciation audio.</li>
 <li>Translates a Mandarin sentence into Cantonese with Jyutping and reads it aloud. Works offline with a rule-based converter; when online, upgrades the result using a free LLM API (Gemini by default).</li>
 </ol>
 <h2>2. Decisions and constraints</h2>
@@ -83,7 +83,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 </tr>
 <tr>
 <td>v1 extras</td>
-<td>Search history, favorites, search by Jyutping / English, example sentences</td>
+<td>Search history, favorites, search by Jyutping, example sentences. <strong>English is out of scope</strong> (no English search, definitions or glosses).</td>
 </tr>
 <tr>
 <td>Online translation</td>
@@ -154,7 +154,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 <td>CC BY 4.0 / public domain</td>
 </tr>
 <tr>
-<td>Definitions (yue + eng), examples (yue / zho / eng)</td>
+<td>Definitions (yue), examples (yue / zho). English lines in the dump are ignored.</td>
 <td>words.hk full dump (<code>all-*.csv.gz</code> via the request form)</td>
 <td>words.hk NC-ODL 1.0</td>
 </tr>
@@ -167,11 +167,6 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 <td>Mandarin definitions of standard words</td>
 <td>MoE 國語辭典 via g0v/moedict-data</td>
 <td>CC BY-ND 3.0 TW</td>
-</tr>
-<tr>
-<td>English fallback</td>
-<td>CC-Canto, CC-CEDICT Cantonese readings</td>
-<td>CC BY-SA 3.0</td>
 </tr>
 <tr>
 <td>Syllable audio</td>
@@ -188,17 +183,16 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 <ul>
 <li>Normalize every headword key with OpenCC so rime (OpenCC forms) and words.hk (HK forms) join correctly. Store <code>trad</code> and <code>simp</code> for every headword and example.</li>
 <li>Reading rank from rime (預設 default / 常用 common / 罕見 rare / 棄用 obsolete). LSHK merged &quot;lazy&quot; readings (e.g. <code>m5</code>/<code>ng5</code>) become <code>variant</code>, never default.</li>
-<li>Strip or translate source-specific markers: CC-Canto <code>dou3*2</code> changed tones, words.hk <code>!</code> loan-syllable markers.</li>
+<li>Strip or translate source-specific markers, e.g. words.hk <code>!</code> loan-syllable markers.</li>
 <li>Validate every Jyutping against the syllable inventory, allowing sentence particles (<code>la1</code>, <code>ga3</code>, …).</li>
 </ul>
 <h3>4.3 <code>canto.db</code> schema</h3>
 <pre><code class="language-sql">entries     (id INTEGER PK, trad TEXT, simp TEXT, kind TEXT CHECK(kind IN (&#39;char&#39;,&#39;word&#39;)), freq REAL)
 readings    (entry_id, jyutping TEXT, rank TEXT, source TEXT)
 mandarin    (entry_id, word_simp TEXT, word_trad TEXT, source TEXT)
-definitions (entry_id, sense INTEGER, pos TEXT, yue TEXT, eng TEXT, zho TEXT, source TEXT)
-examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT, zho TEXT, eng TEXT)
+definitions (entry_id, sense INTEGER, pos TEXT, yue TEXT, zho TEXT, source TEXT)
+examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT, zho TEXT)
 search_keys (key TEXT, entry_id, type TEXT CHECK(type IN (&#39;toned&#39;,&#39;toneless&#39;,&#39;joined&#39;)))
-english_fts USING fts5(entry_id UNINDEXED, text)
 -- indexes on entries(trad), entries(simp), search_keys(key)
 </code></pre>
 <h3>4.4 Audio pack</h3>
@@ -230,13 +224,13 @@ english_fts USING fts5(entry_id UNINDEXED, text)
 </tr>
 <tr>
 <td>Latin without digits that splits into valid Jyutping syllables (<code>sik</code>, <code>sikfaan</code>, <code>sin</code>)</td>
-<td>Jyutping <strong>and</strong> English</td>
-<td>Two labelled groups, Jyutping first. Toneless syllables match all tones.</td>
+<td>Jyutping (toneless)</td>
+<td>Prefix on <code>search_keys</code> toneless keys; matches all tones.</td>
 </tr>
 <tr>
-<td>Any other Latin text (<code>water</code>). Note: some English words, e.g. <code>eat</code> = e + at, are also valid Jyutping and fall in the row above</td>
-<td>English only</td>
-<td>FTS5 on <code>english_fts</code></td>
+<td>Any other Latin text (<code>water</code>)</td>
+<td>Not searchable</td>
+<td>No query; show the hint “输入汉字或粤拼” (type characters or Jyutping)</td>
 </tr>
 </tbody></table>
 <p>Ranking: match quality (exact &gt; prefix &gt; contains) → <code>freq</code> (rime weights) → shorter headword.</p>
@@ -245,7 +239,7 @@ english_fts USING fts5(entry_id UNINDEXED, text)
 <li>Headword in simplified (large) + traditional (small) when different.</li>
 <li>Each reading with 🔊 (real-person syllables) and its rank tag.</li>
 <li>Mandarin line, in fallback order: (1) <code>mandarin</code> table equivalents; (2) MoE definition (<code>definitions.zho</code>); (3) words.hk Cantonese explanation, labelled 粤语释义.</li>
-<li>English, definitions by sense, examples with Jyutping, Mandarin and 🔊.</li>
+<li>Definitions by sense, examples with Jyutping, Mandarin and 🔊.</li>
 <li>For words: each character links to its own entry.</li>
 <li>☆ toggles favorite. Opening an entry appends to history.</li>
 </ul>
@@ -334,12 +328,13 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
 <li><strong>DB tests:</strong> <code>src/db</code> depends on a small <code>Db</code> interface; tests use <code>better-sqlite3</code> against a fixture DB built by the pipeline from <code>data-pipeline/fixtures/</code>.</li>
 <li><strong>Pipeline tests:</strong> each source parser against fixture files (e.g. Yale → Jyutping).</li>
 <li><strong>Translation eval:</strong> <code>npm run eval:translate</code> prints chrF of the offline converter on the test set; the score is tracked on the dashboard.</li>
-<li><strong>Device QA checklist:</strong> search (characters / Jyutping / English), syllable and sentence audio, translate in airplane mode, online upgrade replaces the offline result.</li>
+<li><strong>Device QA checklist:</strong> search (characters / Jyutping), syllable and sentence audio, translate in airplane mode, online upgrade replaces the offline result.</li>
 <li>Development is test-first.</li>
 </ul>
 <h2>9. Out of scope for v1</h2>
 <ul>
 <li>Android, App Store distribution.</li>
+<li>English: search by English, English definitions and glosses (dropped 2026-10-30).</li>
 <li>On-device neural translation models (size budget).</li>
 <li>Per-word recordings (Lingua Libre / Commons) and Common Voice alignment. Possible v1.x add-on.</li>
 <li>Cloud TTS (Azure / Google / Polly).</li>
@@ -372,10 +367,6 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
 <tr>
 <td>words.hk dump requires a manual request form</td>
 <td>Pipeline accepts a manually downloaded file path if automated download fails</td>
-</tr>
-<tr>
-<td><code>expo-sqlite</code> FTS5 availability</td>
-<td>Confirm in the first plan task; fall back to <code>LIKE</code> on a lowercase English column</td>
 </tr>
 </tbody></table>
 
