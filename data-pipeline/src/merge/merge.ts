@@ -252,19 +252,37 @@ interface Weight {
 
 /**
  * The entry's weight: the displayed trad first, then rime's spellings of the key (the essay is
- * rime's and keeps its spellings), then the other sources' spellings, all in code-unit order. An
- * override (freqOverrides.ts) for any of these spellings wins over the essay.
+ * rime's and keeps its spellings), then the other sources' spellings, all in code-unit order. When
+ * none of these has a weight, the heaviest essay word with the entry's key stands in: the essay
+ * spells many words in a form no source uses (張床 for 張牀, 族羣 for 族群). An override
+ * (freqOverrides.ts) for any of the entry's spellings wins over the essay.
  */
-function findWeight(builder: EntryBuilder, trad: string, weights: ReadonlyMap<string, number>, overrides: ReadonlyMap<string, number>): Weight {
+function findWeight(
+  builder: EntryBuilder,
+  trad: string,
+  weights: ReadonlyMap<string, number>,
+  keyWeights: ReadonlyMap<string, number>,
+  overrides: ReadonlyMap<string, number>,
+): Weight {
   const rime = builder.spelledBy("rime");
   const others = [...builder.spellings.keys()].filter((s) => !rime.includes(s)).sort(byCodeUnits);
   const candidates = [...new Set([trad, ...rime, ...others])];
-  const essayWeight = candidates.map((s) => weights.get(s)).find((w) => w !== undefined);
+  const essayWeight = candidates.map((s) => weights.get(s)).find((w) => w !== undefined) ?? keyWeights.get(builder.key);
   const overrideWord = candidates.find((s) => overrides.has(s));
   if (overrideWord !== undefined) {
     return { weight: overrides.get(overrideWord), override: { word: overrideWord, ...(essayWeight !== undefined && { essayWeight }) } };
   }
   return { weight: essayWeight };
+}
+
+/** The heaviest essay weight per headword key, for words the essay spells another way. */
+function weightsByKey(essay: MergeInputs["essay"]): Map<string, number> {
+  const byKey = new Map<string, number>();
+  for (const { word, weight } of essay) {
+    const key = headwordKey(word);
+    byKey.set(key, Math.max(weight, byKey.get(key) ?? weight));
+  }
+  return byKey;
 }
 
 /** Adds one to `counts[source]`. */
@@ -434,6 +452,7 @@ export function merge(inputs: MergeInputs): MergeResult {
     builder.moe.push(moeEntry);
   }
 
+  const keyWeights = weightsByKey(inputs.essay);
   const overrides = new Map(FREQ_OVERRIDES.map(({ word, weight }) => [word, weight]));
   const overridesUsed: { word: string; weight: number; essayWeight?: number }[] = [];
   const readingCounts: Partial<Record<RowSource, number>> = {};
@@ -458,7 +477,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       const { definitions, examples } = finishDefinitions(builder, chooseMoe(builder, trad), moeDrops);
       for (const d of definitions) count(definitionCounts, d.source);
       for (const e of examples) count(exampleCounts, e.source);
-      const { weight, override } = findWeight(builder, trad, weights, overrides);
+      const { weight, override } = findWeight(builder, trad, weights, keyWeights, overrides);
       if (override !== undefined) overridesUsed.push({ word: override.word, weight: weight!, ...(override.essayWeight !== undefined && { essayWeight: override.essayWeight }) });
       return {
         key: builder.key,

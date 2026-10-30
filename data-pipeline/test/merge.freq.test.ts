@@ -36,6 +36,43 @@ describe("merge: freq", () => {
     expect(result.entries[0].freq).toBe(Math.log10(1 + 3070));
   });
 
+  it("falls back to the essay's weight under another spelling of the key (張牀 ← 張床 10945, 族群 ← 族羣 932)", () => {
+    const result = merge(
+      inputs({
+        rimeWords: [{ word: "張牀", syllables: ["zoeng1", "cong4"] }],
+        wordshkList: [{ word: "族群", syllables: ["zuk6", "kwan4"] }],
+        essay: [
+          { word: "張床", weight: 10945 },
+          { word: "族羣", weight: 932 },
+        ],
+      }),
+    );
+    expect(result.entries.map((e) => [e.trad, e.freq])).toEqual([
+      ["張牀", Math.log10(1 + 10945)],
+      ["族群", Math.log10(1 + 932)],
+    ]);
+    expect(result.stats.freq.entriesWithFreq).toBe(2);
+  });
+
+  it("takes the heaviest essay spelling when several share the key (為着 ← 爲着 649, not 為著 50)", () => {
+    // 為着, 為著 and 爲着 all fold to the key 爲着; the 為著 weight is made up.
+    const essay = [
+      { word: "為著", weight: 50 },
+      { word: "爲着", weight: 649 },
+    ];
+    const result = merge(inputs({ wordshkList: [{ word: "為着", syllables: ["wai6", "zoek6"] }], essay }));
+    expect(result.entries[0].freq).toBe(Math.log10(1 + 649));
+  });
+
+  it("still prefers an exact spelling's weight to a heavier one under another spelling of the key", () => {
+    const essay = [
+      { word: "為着", weight: 3 },
+      { word: "爲着", weight: 649 },
+    ];
+    const result = merge(inputs({ wordshkList: [{ word: "為着", syllables: ["wai6", "zoek6"] }], essay }));
+    expect(result.entries[0].freq).toBe(Math.log10(1 + 3));
+  });
+
   it("is 0 for a word with no weight, with no 哋→地 fallback (輕輕哋 does not borrow 輕輕地 800)", () => {
     const result = merge(
       inputs({ wordshkList: [{ word: "輕輕哋", syllables: ["heng6", "heng1", "dei2"] }], essay: [{ word: "輕輕地", weight: 800 }] }),
