@@ -572,6 +572,7 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Write curated.ts with ~300 hand-checked Mandarin → Cantonese pairs (的→嘅, 是→係, 没有→冇, 他/她→佢, 在→喺, 看→睇, 什么→乜嘢, 吃→食, …)",
             "Write failing test: reversed Kaifangcidian/Wiktionary pairs are added; curated pairs win on conflict",
+            "Write failing test: only Wiktionary Cantonese forms WITHOUT a usage note are used as translations (notes like dated/slang/† mark forms to avoid; symbol notes such as † differ per table, so any note excludes the form)",
             "Write failing test: output table phrase_map(mandarin_trad, cantonese_trad, source) written into canto.db",
             "Run tests → fail",
             "Implement phraseTable.ts and add it to the pipeline build step",
