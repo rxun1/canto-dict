@@ -262,6 +262,8 @@ window.CANTO_PROGRESS = {
           subtasks: [
             "Write schema.sql per spec §4.3 (entries, readings, mandarin, definitions, examples, search_keys + indexes), plus a nullable readings.loan column (comma-separated 0-based loan syllable indexes)",
             "Store only MoE (國語辭典) entries that matched a Cantonese entry in merge — the full set is ~161k entries / ~24 MB of text",
+            "Make Entry.aliases (folded words.hk variant spellings, e.g. 㨂 → 揀) searchable: CJK search must find the standard entry when the user types an alias",
+            "Store both verbatim traditional and simplified definition text (MoE zho + simplified copy, words.hk yue + simplified copy) — the app displays simplified",
             "Write failing test: searchKeys('sik6 faan6') → toned 'sik6faan6', toneless 'sikfaan', joined forms",
             "Write failing test: writeDb(fixture entries) → SELECT via search_keys key LIKE 'sik%' finds 食",
             "Write failing test: entries.simp lookup finds 饭 for 飯",
