@@ -63,11 +63,29 @@ interface ReadingCandidate {
 
 /**
  * A Kaifangcidian Mandarin item without its （…） annotations (（婉）性交 → 性交, 蓋（房子） → 蓋), or ""
- * when nothing else is left. "…" placeholders are kept: in items such as 又…又… (兼夾) or 就…吧 the
- * pattern is the meaning, and Kaifangcidian has 68 such items.
+ * when nothing else is left. "…" placeholders are kept (see isKfcdFragment for the items dropped).
  */
 export function cleanKfcdItem(item: string): string {
   return item.replace(KFCD_ANNOTATION, "").trim();
+}
+
+/** Kaifangcidian's placeholder for the words a Mandarin pattern leaves open (又…又…). */
+const KFCD_PLACEHOLDER = "…";
+
+/** A "…" item needs this many characters besides the placeholders to mean something on its own. */
+const KFCD_PATTERN_MIN_WORD_LENGTH = 2;
+
+/**
+ * True for a Kaifangcidian "…" item that is a bare fragment: fewer than two characters left once
+ * the placeholders are removed (…子 and …人 for 佬, 老… for 生晒, 就… for 咪). Such an affix means
+ * nothing without the words that fill the gap, and each of these rows has a plain equivalent too
+ * (佬: 男人, 漢子). Items with two or more characters are kept, on one side of the gap or both:
+ * 又…又… (兼夾), 就…吧 (一於), 在…之間 (介乎), 不太… (唔係幾); there the words are the meaning.
+ * The rule drops 7 of Kaifangcidian's 68 "…" items. An item without "…" is never a fragment.
+ */
+export function isKfcdFragment(item: string): boolean {
+  if (!item.includes(KFCD_PLACEHOLDER)) return false;
+  return [...item.replaceAll(KFCD_PLACEHOLDER, "")].length < KFCD_PATTERN_MIN_WORD_LENGTH;
 }
 
 /**
@@ -395,7 +413,7 @@ export function merge(inputs: MergeInputs): MergeResult {
 
   // Attach-only sources: they add to existing entries and never create one.
   const weights = new Map(inputs.essay.map(({ word, weight }) => [word, weight]));
-  const kfcdStats = { annotationsRemoved: 0, emptyItemsDropped: 0 };
+  const kfcdStats = { annotationsRemoved: 0, emptyItemsDropped: 0, fragmentsDropped: 0 };
   let kfcdUnmatchedRows = 0;
   const kfcdUnmatchedWords = new Set<string>();
   for (const row of inputs.kaifangcidian) {
@@ -405,6 +423,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       const simp = cleanKfcdItem(item.simp);
       if (trad !== item.trad || simp !== item.simp) kfcdStats.annotationsRemoved++;
       if (trad === "" || simp === "") kfcdStats.emptyItemsDropped++;
+      else if (isKfcdFragment(trad) || isKfcdFragment(simp)) kfcdStats.fragmentsDropped++;
       else mandarin.push({ trad, simp });
     }
     const builder = builders.get(headwordKey(row.word));

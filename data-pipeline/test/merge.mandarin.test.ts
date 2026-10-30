@@ -1,5 +1,5 @@
 // Mandarin equivalents from Kaifangcidian and (reversed) Wiktionary. Rows are copied from the pinned sources.
-import { cleanKfcdItem } from "../src/merge/merge";
+import { cleanKfcdItem, isKfcdFragment } from "../src/merge/merge";
 import { merge } from "../src/merge/merge";
 import type { DialSynPair, KfcdRow } from "../src/sources/types";
 import { inputs } from "./mergeInputs";
@@ -47,7 +47,7 @@ describe("merge: Mandarin equivalents", () => {
   it("merges Kaifangcidian rows repeated per sense, removing （…） annotations", () => {
     const result = merge(inputs({ rimeWords: [{ word: "行埋", syllables: ["haang4", "maai4"] }], kaifangcidian: KFCD_HAANGMAAI }));
     expect(result.entries[0].mandarin.map((m) => m.simp)).toEqual(["走在一起", "走到一起", "走在一块儿", "性交", "同房"]);
-    expect(result.stats.kaifangcidian).toEqual({ annotationsRemoved: 1, emptyItemsDropped: 0 });
+    expect(result.stats.kaifangcidian).toEqual({ annotationsRemoved: 1, emptyItemsDropped: 0, fragmentsDropped: 0 });
   });
 
   it("cleans Kaifangcidian items: drops （…） annotations and hints, keeps … placeholders", () => {
@@ -58,6 +58,39 @@ describe("merge: Mandarin equivalents", () => {
     expect(cleanKfcdItem("又…又…")).toBe("又…又…");
     expect(cleanKfcdItem("就…吧")).toBe("就…吧");
     expect(cleanKfcdItem("（婉）")).toBe("");
+  });
+
+  it("keeps \"…\" patterns whose words carry meaning (又…又…, 就…吧, 不太…) and drops bare one-character fragments (…子, 老…)", () => {
+    for (const item of ["又…又…", "就…吧", "在…之間", "時……時……", "不太…", "…不了多少"]) expect(isKfcdFragment(item), item).toBe(false);
+    for (const item of ["…子", "…人", "…起", "老…", "就…", "…"]) expect(isKfcdFragment(item), item).toBe(true);
+    // Not a pattern at all.
+    expect(isKfcdFragment("子")).toBe(false);
+  });
+
+  it("drops Kaifangcidian fragments from entries and counts them (佬: 男人, 漢子, …人, …子)", () => {
+    const result = merge(
+      inputs({
+        rimeChars: [{ char: "佬", jyutping: "lou2", rank: "default" }],
+        kaifangcidian: [
+          {
+            word: "佬",
+            wordSimp: "佬",
+            syllables: ["lou2"],
+            mandarin: [
+              { trad: "男人", simp: "男人" },
+              { trad: "漢子", simp: "汉子" },
+              { trad: "…人", simp: "…人" },
+              { trad: "…子", simp: "…子" },
+            ],
+          },
+          { word: "兼夾", wordSimp: "兼夹", syllables: ["gim1", "gaap3"], mandarin: [{ trad: "而且", simp: "而且" }, { trad: "又…又…", simp: "又…又…" }] },
+        ],
+        rimeWords: [{ word: "兼夾", syllables: ["gim1", "gaap3"] }],
+      }),
+    );
+    const byTrad = Object.fromEntries(result.entries.map((e) => [e.trad, e.mandarin.map((m) => m.trad)]));
+    expect(byTrad).toEqual({ 佬: ["男人", "漢子"], 兼夾: ["而且", "又…又…"] });
+    expect(result.stats.kaifangcidian.fragmentsDropped).toBe(2);
   });
 
   it("de-duplicates a cleaned Kaifangcidian item against Wiktionary (起: 蓋（房子） and Wiktionary 蓋)", () => {

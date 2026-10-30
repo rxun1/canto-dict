@@ -172,6 +172,8 @@ export interface MergeStats {
     readonly annotationsRemoved: number;
     /** Items that were only an annotation, dropped. */
     readonly emptyItemsDropped: number;
+    /** "…" items dropped as bare fragments (…子, 老…; see isKfcdFragment). */
+    readonly fragmentsDropped: number;
   };
   readonly wiktionary: {
     /** Cantonese forms skipped for carrying a usage note (dated, slang, †, …). */
