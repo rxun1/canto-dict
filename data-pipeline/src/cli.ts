@@ -1,5 +1,3 @@
-import { fileURLToPath } from "node:url";
-
 export const STEPS = ["download", "parse", "merge", "validate", "build"] as const;
 
 export type Step = (typeof STEPS)[number];
@@ -27,6 +25,6 @@ export function main(args: string[]): void {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   main(process.argv.slice(2));
 }

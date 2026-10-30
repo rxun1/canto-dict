@@ -4,10 +4,9 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["src", "test", "../src"]
+  "include": ["src", "test", "../src/jyutping", "vitest.config.ts"]
 }
