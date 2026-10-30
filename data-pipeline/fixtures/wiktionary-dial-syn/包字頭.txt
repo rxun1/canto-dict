@@ -1,0 +1,14 @@
+local export = {}
+
+export.list = {
+	["title"]					= "",
+	["meaning"]					= "Chinese character component 勹",
+	["note"]					= "",
+	
+	["Formal"]					= { "包字頭", "句字框" },
+	
+	["Beijing"]					= { "包字頭兒" },
+	
+}
+
+return export

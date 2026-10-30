@@ -76,3 +76,23 @@ export const KAIFANGCIDIAN_CACHE_NAME = `kaifangcidian-zhyue-${shortSha(KAIFANGC
 export const KAIFANGCIDIAN_ZIP_ENTRY_TRAD = "cidian_zhyue-ft-kfcd-ylshu-2021714.txt";
 
 export const KAIFANGCIDIAN_ZIP_ENTRY_SIMP = "cidian_zhyue-jt-kfcd-ylshu-2021714.txt";
+
+/**
+ * kaikki.org's tarball of every English Wiktionary Lua module (CC BY-SA 4.0 + GFDL, like all
+ * Wiktionary text), from which we read only the Chinese dialectal-synonym tables
+ * Module:zh/data/dial-syn/<word> (3,774 entries in this copy). kaikki rebuilds the tarball about
+ * weekly at the same URL and keeps no old copies, so it is pinned by SHA-256 (this copy:
+ * Last-Modified 2026-10-25, module pages dated 2026-10-23; 93,949,335 bytes) and a fresh download
+ * fails loudly once upstream moves on. To bump: download WIKTIONARY_DIALSYN_URL, run
+ * `shasum -a 256` on it, review the parser's skipped modules and kept-pair counts, then update
+ * the hash (the cache name follows it). Until then a kept cache file or the CANTO_SRC_* override
+ * still works.
+ */
+export const WIKTIONARY_DIALSYN_URL = "https://kaikki.org/dictionary/wiktionary-modules.tar.gz";
+
+export const WIKTIONARY_DIALSYN_SHA256 = "434fffa3b4afc5cc94699a9e2e4055dd55a678a65cc21b3fe4427b5a983b2c30";
+
+export const WIKTIONARY_DIALSYN_CACHE_NAME = `wiktionary-modules-${shortSha(WIKTIONARY_DIALSYN_SHA256)}.tar.gz`;
+
+/** Directory of the dial-syn tables inside the tarball: kaikki stores Module:X as Module/X.txt. */
+export const WIKTIONARY_DIALSYN_TAR_DIR = "Module/zh/data/dial-syn/";

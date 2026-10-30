@@ -94,3 +94,22 @@ export interface KfcdRow {
   readonly syllables: readonly string[];
   readonly mandarin: readonly MandarinEquivalent[];
 }
+
+/**
+ * One Written Standard Chinese (Mandarin) word and its Cantonese equivalents, from a Wiktionary
+ * dialectal-synonyms table (Module:zh/data/dial-syn/<word>), e.g. 沒有 -> 冇, 冇有. Forms are
+ * traditional characters, as Wiktionary writes them; Cantonese forms come from the Hong Kong,
+ * Guangzhou and Macau rows only, in that order, de-duplicated, with Wiktionary's annotations
+ * (":dated", "_1" etymology numbers, [[links]]) stripped.
+ *
+ * A table with several Written Standard forms gives one pair per form, all with the same
+ * Cantonese list; tables for different senses of the same word (張, 張-2, …) give separate pairs,
+ * so `mandarin` is not unique.
+ *
+ * License: Wiktionary text is CC BY-SA 4.0 (dual-licensed with the GFDL); this app uses it for
+ * personal, offline use only.
+ */
+export interface DialSynPair {
+  readonly mandarin: string;
+  readonly cantonese: readonly string[];
+}

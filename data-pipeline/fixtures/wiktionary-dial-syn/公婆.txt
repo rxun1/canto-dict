@@ -1,0 +1,22 @@
+local export = {}
+
+export.list = {
+	["title"]					= "",
+	["meaning"]					= "parents-in-law (of a married woman); husband's parents",
+	["note"]					= "",
+	
+	["Formal"]					= { "公婆" },
+	
+	["Hong Kong"]				= { "[[老爺]][[奶奶]]", "[[家公]][[家婆]]" },
+	
+	["Xiamen"]					= { "大家官", "家官" },
+	["Quanzhou"]				= { "大家官", "家官" },
+	["Zhangzhou"]				= { "大家官", "家官" },
+	["Tainan"]					= { "大家官" }, --written as 大家倌
+	["Singapore-MN"]			= { "大家官" },
+	["Philippine-MN"]			= { "大家官", "家官" },
+	["Jieyang"]					= { "大家官" },
+	
+}
+
+return export

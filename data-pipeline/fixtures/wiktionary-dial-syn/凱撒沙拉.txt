@@ -1,0 +1,16 @@
+local export = {}
+
+export.list = {
+	["title"]					= "",
+	["meaning"]					= "Caesar salad",
+	["note"]					= "",
+	
+	["Formal"]					= { "-" },
+	
+	["Taiwan"]					= { "凱撒沙拉" },
+	
+	["Hong Kong"]				= { "凱撒沙律" },
+	
+}
+
+return export

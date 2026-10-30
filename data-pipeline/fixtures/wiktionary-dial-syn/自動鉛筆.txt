@@ -1,0 +1,20 @@
+local export = {}
+
+export.list = {
+	["meaning"]					= "mechanical pencil",
+	["note"]					= "",
+	
+	["Formal"]					= { "自動鉛筆" }, --活動鉛筆?
+	
+	["Taiwan"]					= { "自動鉛筆" },
+	["Malaysia-M"]				= { "筆芯筆" }, --按筆?
+	
+	["Hong Kong"]				= { "鉛芯筆", "撳芯筆:regional" },
+	["Macau"]					= { "撳芯筆" }, --鉛芯筆?
+	["Dongguan"]				= { "自動鉛筆" },
+	["Kuala Lumpur"]			= { "" }, --撳筆?
+	["Ipoh"]					= { "mechanic pen", "auto pen" },
+	
+}
+
+return export

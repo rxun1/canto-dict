@@ -1,0 +1,21 @@
+local export = {}
+
+export.list = {
+	["meaning"]					= "powerbank; portable charger",
+	["note"]					= "",
+	
+	["Formal"]					= { "移動電源:Mainland China", "充電寶:Mainland China", "隨身充:Mainland China", "行動電源:Taiwan" },
+	
+	["Beijing"]					= { "" }, --充電寶兒?
+	["Taiwan"]					= { "行動電源", "行動充", "行充" },
+	
+	["Guilin"]					= { "充電寶" },
+	
+	["Guangzhou"]				= { "充電寶", "奶媽" }, --移動充?
+	["Hong Kong"]				= { "尿袋", "隨叉", "外置叉電器", "外置充電器", "流動叉電器", "流動充電器" }, --充電寶, 奶媽, 隨身充電器, 隨身叉電器, 流動電源, 行動電源, 移動電源, 叉電器?
+	["Macau"]					= { "奶媽" },
+	["Ipoh"]					= { "powerbank" },
+	
+}
+
+return export

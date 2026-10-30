@@ -1,0 +1,131 @@
+local export = {}
+
+export.list = {
+	["meaning"]					= "to not have (+ noun)",
+	["note"]					= "",
+	
+	["Classical"]				= { "無", "無有" },
+	["Formal"]					= { "沒有" },
+	
+	["Beijing"]					= { "沒有", "沒" },
+	["Taiwan"]					= { "沒有", "沒" },
+	["Malaysia-M"]				= { "沒有", "沒" },
+	["Singapore-M"]				= { "沒有", "沒" },
+	
+	["Jinan"]					= { "沒有", "沒" },
+	
+	["Muping"]					= { "沒有" },
+	
+	["Xi'an"]					= { "沒有", "沒" },
+	
+	["Chengdu"]					= { "沒得", "莫得", "沒有" },
+	["Wuhan"]					= { "冇得" },
+	["Guiyang"]					= { "沒得", "不得" },
+	["Guilin"]					= { "沒得" },
+	["Liuzhou"]					= { "沒得" },
+	["Dagudi"]					= { "不有" },
+	["Reshuitang"]				= { "不有" },
+	["Mae Salong"]				= { "不有" },
+	["Mae Sai"]					= { "不有" },
+	
+	["Nanjing"]					= { "沒得" },
+	["Yangzhou"]				= { "不得", "沒得" },
+	["Hefei"]					= { "沒" },
+	
+	["Taiyuan"]					= { "沒", "沒啦" },
+	
+	["Shanghai"]				= { "嘸沒", "嘸:dated" },
+	["Suzhou"]					= { "嘸不" },
+	["Danyang"]					= { "無則", "沒得" },
+	["Hangzhou"]				= { "沒有" },
+	["Yuhang"]					= { "嘸不" }, --also mi (未?)
+	["Shaoxing"]				= { "唔有" },
+	["Ningbo"]					= { "嘸沒", "嘸:dated" },
+	["Wenzhou"]					= { "冇" },
+	["Jinhua"]					= { "嘸","嘸沒" },
+	
+	["Changsha"]				= { "冇得"},
+	["Shuangfeng"]				= { "冇得" },
+	
+	["Nanchang"]				= { "冇有" },
+	
+	["Meixian"]					= { "無" },
+	["Miaoli"]					= { "無" },
+	["Liudui"]					= { "無" },
+	["Hsinchu"]					= { "無" },
+	["Dongshi"]					= { "無" },
+	["Raoping"]					= { "無" },
+	["Yunlin"]					= { "無" },
+	["Hong Kong-H"]				= { "冇" },
+	["Singapore-DB"]			= { "無" },
+	
+	["Jixi"]					= { "沒" },
+	
+	["Guangzhou"]				= { "冇", "冇有" },
+	["Hong Kong"]				= { "冇" },
+	["HK Weitou"]				= { "冇" },
+	["Ting Kok"]				= { "冇" },
+	["Tung Ping Chau"]			= { "冇" },
+	["Taishan"]					= { "冇" },
+	["Hepu"]					= { "冇有" },
+	["Hepu-ST"]					= { "冇有" },
+	["Beihai"]					= { "冇", "冇有" },
+	["Beihai-NK"]				= { "冇" },
+	["Beihai-YP"]				= { "冇有" },
+	["Beihai-QG"]				= { "冇", "冇有" },
+	["Beihai-QG-CB"]			= { "冇", "冇有" },
+	["Fangchenggang-FC"]		= { "冇", "冇有" },
+	["Kuala Lumpur"]			= { "冇" },
+	["Penang-C"]				= { "冇" },
+	["Singapore-C"]				= { "冇" },
+	["Ho Chi Minh City"]		= { "冇" },
+	["Mong Cai"]				= { "冇", "冇有" },
+	
+	["Xiamen"]					= { "無" },
+	["Quanzhou"]				= { "無" },
+	["Zhangzhou"]				= { "無" },
+	["Zhao'an"]					= { "無" },
+	["Taipei"]					= { "無" },
+	["Sanxia"]					= { "無" },
+	["Kaohsiung"]				= { "無" },
+	["Yilan"]					= { "無" },
+	["Lukang"]					= { "無" },
+	["Taichung"]				= { "無" },
+	["Tainan"]					= { "無" },
+	["Hsinchu-MN"]				= { "無" },
+	["Kinmen"]					= { "無" },
+	["Magong"]					= { "無" },
+	["Malaysia-MN"]				= { "無" },
+	["Singapore-MN"]			= { "無" },
+	["Philippine-MN"]			= { "無" },
+	["Chaozhou"]				= { "無" },
+	["Shantou"]					= { "無" },
+	["Chaoyang"]				= { "無" },
+	["Jieyang"]					= { "無" },
+	["Haifeng"]					= { "無" },
+	["Thailand-MN-T"]			= { "無" },
+	["Singapore-MN-T"]			= { "無" },
+	["Batam-MN-T"]				= { "無" },
+	["Pontianak-MN-T"]			= { "無" },
+	["Wenchang"]				= { "無" },
+	["Qionghai"]				= { "無" },
+	["Singapore-MN-H"]			= { "無" },
+	
+	["Putian"]					= { "無" },
+	["Putian-JK"]				= { "無" },
+	["Putian-NR"]				= { "無" },
+	["Xianyou"]					= { "無" },
+	["Xianyou-FT"]				= { "無" },
+	["Xianyou-YY"]				= { "無" },
+	
+	["Shaxi"]					= { "無" },
+	
+	["Fuzhou"]					= { "無" },
+	["Singapore-MD-FQ"]			= { "無" }, --written as 冇
+	["Sitiawan-MD-GT"]			= { "無" },
+	
+	["Jian'ou"]					= { "無" },
+	
+}
+
+return export

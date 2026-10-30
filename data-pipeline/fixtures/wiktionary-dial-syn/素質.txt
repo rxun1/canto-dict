@@ -1,0 +1,19 @@
+local export = {}
+
+export.list = {
+	["meaning"]					= "inner quality (of a person)",
+	["note"]					= "",
+	
+	["Formal"]					= { "" },
+	
+	["Beijing"]					= { "素質" },
+	["Taiwan"]					= { "素質" },
+	
+	["Shanghai"]				= { "素質" },
+	
+	["Guangzhou"]				= { "質素" },
+	["Hong Kong"]				= { "質素" },
+	
+}
+
+return export
