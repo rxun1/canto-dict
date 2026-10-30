@@ -3,6 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PARTICLES, TONED_SYLLABLE } from "../../src/jyutping/pattern";
+import { rimeDictBody } from "../src/sources/text";
 import { RIME_CHARS_URL, RIME_WORDS_URL } from "../src/sources/urls";
 
 const LSHK_URL = "https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv";
@@ -43,12 +44,8 @@ const lshkToned = new Set<string>();
 for (const line of lshk.split("\n").slice(1)) collect(line.split("\t")[2] ?? "", bases, lshkRejected, lshkToned);
 // rime char.csv: header row, jyutping is the 2nd column (e.g. "ling4"); no quoted commas in practice.
 for (const line of rime.split("\n").slice(1)) collect(line.split(",")[1] ?? "", bases, rimeRejected);
-// rime words dict: skip everything through the YAML end marker "..."; data rows are `word<TAB>codes`.
-const wordLines = words.split(/\r?\n/);
-for (const line of wordLines.slice(wordLines.findIndex((l) => l.trim() === "...") + 1)) {
-  if (line.trim() === "" || line.startsWith("#")) continue;
-  collect(line.split("\t")[1] ?? "", bases, wordsRejected);
-}
+// rime words dict: data rows are `word<TAB>codes`, after the YAML end marker.
+for (const { line } of rimeDictBody(words)) collect(line.split("\t")[1] ?? "", bases, wordsRejected);
 
 // Validate BEFORE writing so a bad refresh never overwrites the committed list.
 if (lshkRejected.size > 0) throw new Error(`Unparseable LSHK tokens: ${[...lshkRejected].join(", ")}`);

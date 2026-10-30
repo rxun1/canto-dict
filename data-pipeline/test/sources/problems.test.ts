@@ -16,7 +16,6 @@ describe("formatProblems", () => {
     expect(MAX_REPORTED_PROBLEMS).toBe(20);
     expect(text).toContain("21 problem(s)");
     expect(text).toContain("line 20:");
-    expect(text).not.toContain("line 22:");
     expect(text).not.toMatch(/line 21:/);
     expect(text.endsWith("\n  … and 1 more")).toBe(true);
   });

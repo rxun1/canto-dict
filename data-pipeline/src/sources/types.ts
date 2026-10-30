@@ -13,5 +13,5 @@ export interface CharReading {
  */
 export interface WordReading {
   readonly word: string;
-  readonly jyutping: readonly string[];
+  readonly syllables: readonly string[];
 }
