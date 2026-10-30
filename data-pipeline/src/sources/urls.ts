@@ -103,3 +103,20 @@ export const WIKTIONARY_MODULE_TAR_SUFFIX = ".txt";
 
 /** Directory of the dial-syn tables inside the tarball, derived from the page prefix. */
 export const WIKTIONARY_DIALSYN_TAR_DIR = WIKTIONARY_DIALSYN_PAGE_PREFIX.replace(/^Module:/, "Module/");
+
+/**
+ * Pinned commit of g0v/moedict-data (dict-revised.json.xz): g0v's JSON conversion of the Ministry of
+ * Education's 《重編國語辭典修訂本》 (CC BY-ND 3.0 TW), 161,194 entries; 14,739,512 bytes of xz
+ * (80,300,977 bytes of JSON) at this pin. g0v has no JSON of the smaller 《國語辭典簡編本》, so the
+ * revised edition is the one we use. To bump: check the new commit's message for the MoE release it
+ * imports and update MOEDICT_RELEASE with it (the attribution cites it), then review the parser's
+ * skipped counts.
+ */
+export const MOEDICT_COMMIT = "a6dc997417507eb510fc29822bc514de2c92728c";
+
+/** MoE's 版本編號 of the dictionary text at MOEDICT_COMMIT, from g0v commit 2c6ffd0 ("Update: dict_revised_2015_20260625 from MOE"). */
+export const MOEDICT_RELEASE = "2015_20260625";
+
+export const MOEDICT_URL = `https://raw.githubusercontent.com/g0v/moedict-data/${MOEDICT_COMMIT}/dict-revised.json.xz`;
+
+export const MOEDICT_CACHE_NAME = `moedict-revised-${shortSha(MOEDICT_COMMIT)}.json.xz`;
