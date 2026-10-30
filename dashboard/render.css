@@ -1,0 +1,33 @@
+/* Shared task styles for dashboard/index.html and the plan docs. */
+:root {
+  --r-card: #fff; --r-line: #e5e5e5; --r-muted: #6e6e73; --r-code: #f2f2f0;
+  --done: #2e7d32; --doing: #b26a00; --todo: #8a8a8e; --blocked: #c62828;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --r-card: #1f1f21; --r-line: #333; --r-muted: #a1a1a6; --r-code: #232325;
+    --done: #66bb6a; --doing: #ffb74d; --todo: #8e8e93; --blocked: #ef5350;
+  }
+}
+.phase { background: var(--r-card); border: 1px solid var(--r-line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+.phase h2 { font-size: 17px; margin: 0 0 8px; padding: 0; border: 0; display: flex; gap: 10px; align-items: baseline; }
+.phase h2 a { font-size: 13px; font-weight: normal; }
+.phase h2 small { margin-left: auto; color: var(--r-muted); font-weight: normal; font-size: 13px; }
+.bar { height: 6px; background: var(--r-line); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.bar > div { height: 100%; background: var(--done); }
+.task { border-top: 1px solid var(--r-line); padding: 7px 0; }
+.task summary { cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: baseline; }
+.task summary::-webkit-details-marker { display: none; }
+.task summary::before { content: "▸"; color: var(--r-muted); width: 10px; }
+.task[open] summary::before { content: "▾"; }
+div.task { display: flex; gap: 10px; align-items: baseline; padding-left: 20px; }
+.chip { flex: 0 0 56px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.done { color: var(--done); } .doing { color: var(--doing); } .todo { color: var(--todo); } .blocked { color: var(--blocked); }
+.task-title small { color: var(--r-muted); }
+.task-body { padding: 4px 0 8px 86px; font-size: 14px; }
+.task-body h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--r-muted); }
+.subtasks, .dod, .files { margin: 0; padding-left: 20px; }
+.subtasks li.checked { color: var(--r-muted); text-decoration: line-through; }
+.files li { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+pre.test { background: var(--r-code); padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; margin: 0; font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+@media (max-width: 700px) { .task-body { padding-left: 20px; } }

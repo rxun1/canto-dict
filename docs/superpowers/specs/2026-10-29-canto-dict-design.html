@@ -391,6 +391,11 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
   const statusEl = document.getElementById("status");
   let fileHandle = null;
   let dirty = false;
+  // Draft autosave is optional: fall back to a no-op store where localStorage is blocked.
+  const store = (() => {
+    try { localStorage.getItem(DRAFT_KEY); return localStorage; }
+    catch { return { getItem: () => null, setItem() {}, removeItem() {} }; }
+  })();
 
   const setStatus = (text) => { statusEl.textContent = text; };
 
@@ -447,7 +452,7 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
         setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
       }
       dirty = false;
-      localStorage.removeItem(DRAFT_KEY);
+      store.removeItem(DRAFT_KEY);
     } catch (e) {
       if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
     }
@@ -455,7 +460,7 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
 
   doc.addEventListener("input", () => {
     dirty = true;
-    localStorage.setItem(DRAFT_KEY, doc.innerHTML);
+    store.setItem(DRAFT_KEY, doc.innerHTML);
     setStatus("Unsaved changes (draft kept in this browser)");
   });
   editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
@@ -467,13 +472,13 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
   });
   window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
 
-  const draft = localStorage.getItem(DRAFT_KEY);
+  const draft = store.getItem(DRAFT_KEY);
   if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
     doc.innerHTML = draft;
     dirty = true;
     setStatus("Restored unsaved draft — Save to keep it");
   } else if (draft) {
-    localStorage.removeItem(DRAFT_KEY);
+    store.removeItem(DRAFT_KEY);
   }
   buildToc();
 })();

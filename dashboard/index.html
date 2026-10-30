@@ -4,77 +4,62 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>canto-dict · progress</title>
+<link rel="stylesheet" href="render.css" />
 <style>
-  :root {
-    --bg: #f7f7f5; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --line: #e5e5e5;
-    --done: #2e7d32; --doing: #b26a00; --todo: #8a8a8e; --blocked: #c62828; --bar: #2e7d32;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #161617; --card: #1f1f21; --text: #f2f2f2; --muted: #a1a1a6; --line: #333;
-      --done: #66bb6a; --doing: #ffb74d; --todo: #8e8e93; --blocked: #ef5350; --bar: #66bb6a;
-    }
-  }
-  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang HK", sans-serif; background: var(--bg); color: var(--text); }
-  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+  :root { --bg: #f7f7f5; --text: #1d1d1f; --muted: #6e6e73; --line: #e5e5e5; --card: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #161617; --text: #f2f2f2; --muted: #a1a1a6; --line: #333; --card: #1f1f21; } }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "PingFang HK", sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
   h1 { margin: 0 0 4px; font-size: 26px; }
-  .sub { color: var(--muted); margin-bottom: 24px; }
-  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .sub { color: var(--muted); margin-bottom: 20px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .sub button { font: inherit; font-size: 13px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; }
+  .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px; }
   .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
   .tile b { display: block; font-size: 24px; }
   .tile span { color: var(--muted); font-size: 13px; }
-  .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-bottom: 28px; }
-  .bar > div { height: 100%; background: var(--bar); }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
-  section h2 { font-size: 16px; margin: 0 0 10px; display: flex; justify-content: space-between; }
-  section h2 small { color: var(--muted); font-weight: normal; }
-  ul { list-style: none; margin: 0; padding: 0; }
-  li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: baseline; }
-  li:first-child { border-top: 0; }
-  .chip { flex: 0 0 64px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-  .done { color: var(--done); } .doing { color: var(--doing); } .todo { color: var(--todo); } .blocked { color: var(--blocked); }
-  .note { color: var(--muted); font-size: 13px; display: block; }
-  .log li { color: var(--muted); font-size: 14px; }
+  .overall { height: 10px; margin-bottom: 24px; }
+  .log { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .log h2 { font-size: 17px; margin: 0 0 8px; }
+  .log ul { list-style: none; margin: 0; padding: 0; }
+  .log li { color: var(--muted); font-size: 14px; padding: 5px 0; border-top: 1px solid var(--line); }
+  .log li:first-child { border-top: 0; }
+  @media (max-width: 700px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
 </style>
 </head>
 <body>
 <main>
-  <h1>canto-dict 粵語字典</h1>
-  <div class="sub" id="updated"></div>
+  <h1>canto-dict 粤语字典</h1>
+  <div class="sub"><span id="updated"></span>
+    <button id="expand">Expand all</button><button id="collapse">Collapse all</button></div>
   <div class="tiles" id="tiles"></div>
-  <div class="bar"><div id="bar"></div></div>
+  <div class="bar overall"><div id="overall"></div></div>
   <div id="phases"></div>
   <section class="log"><h2>Activity log</h2><ul id="log"></ul></section>
 </main>
 <script src="progress.js"></script>
+<script src="render.js"></script>
 <script>
-  const STATUSES = ["done", "doing", "todo", "blocked"];
+  const { esc, count, pct, renderPhase } = window.CantoRender;
   const data = window.CANTO_PROGRESS;
   const all = data.phases.flatMap((p) => p.tasks);
-  const count = (list, s) => list.filter((t) => t.status === s).length;
-  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 
   document.getElementById("updated").textContent = `Last updated ${data.updated}`;
-  document.getElementById("tiles").innerHTML = STATUSES
-    .map((s) => `<div class="tile"><b class="${s}">${count(all, s)}</b><span>${s}</span></div>`)
-    .join("");
-  document.getElementById("bar").style.width = `${Math.round((100 * count(all, "done")) / all.length)}%`;
-
-  document.getElementById("phases").innerHTML = data.phases
-    .map((p) => `
-      <section>
-        <h2>${esc(p.name)} <small>${count(p.tasks, "done")}/${p.tasks.length} done</small></h2>
-        <ul>${p.tasks.map((t) => `
-          <li><span class="chip ${t.status}">${t.status}</span>
-            <span>${esc(t.title)}${t.note ? `<span class="note">${esc(t.note)}</span>` : ""}</span></li>`).join("")}
-        </ul>
-      </section>`)
-    .join("");
-
+  document.getElementById("tiles").innerHTML =
+    `<div class="tile"><b>${pct(all)}%</b><span>complete</span></div>` +
+    ["done", "doing", "todo", "blocked"]
+      .map((s) => `<div class="tile"><b class="${s}">${count(all, s)}</b><span>${s}</span></div>`)
+      .join("");
+  document.getElementById("overall").style.width = `${pct(all)}%`;
+  document.getElementById("phases").innerHTML = data.phases.map((p) => renderPhase(p)).join("");
   document.getElementById("log").innerHTML = data.log
     .slice().reverse()
     .map((e) => `<li>${esc(e.date)} — ${esc(e.text)}</li>`)
     .join("");
+
+  const setOpen = (open) => document.querySelectorAll("details.task").forEach((d) => (d.open = open));
+  document.getElementById("expand").onclick = () => setOpen(true);
+  document.getElementById("collapse").onclick = () => setOpen(false);
+  if (location.hash) document.querySelector(location.hash)?.setAttribute("open", "");
 </script>
 </body>
 </html>

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plan 3 — Translation + settings</title>
+<style>
+  :root { --bg:#fbfbfa; --text:#1d1d1f; --muted:#6e6e73; --line:#e3e3e3; --code:#f2f2f0; --accent:#0a66c2; --edit:#fff8e1; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161617; --text:#f2f2f2; --muted:#a1a1a6; --line:#333; --code:#232325; --accent:#6cb4ff; --edit:#2a2614; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","PingFang HK",sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:10; display:flex; gap:8px; align-items:center; padding:8px 16px;
+    background:var(--bg); border-bottom:1px solid var(--line); font-size:14px; }
+  #toolbar button { font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; }
+  #toolbar button.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { color:var(--muted); margin-left:auto; }
+  .layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:32px; max-width:1180px; margin:0 auto; padding:24px 20px 80px; }
+  #toc { position:sticky; top:56px; align-self:start; max-height:calc(100vh - 72px); overflow:auto; font-size:13px; }
+  #toc a { display:block; color:var(--muted); text-decoration:none; padding:2px 0; }
+  #toc a.h3 { padding-left:12px; }
+  #toc a:hover { color:var(--accent); }
+  @media (max-width: 860px) { .layout { grid-template-columns:1fr; } #toc { display:none; } }
+  main { min-width:0; outline:none; }
+  main[contenteditable="true"] { background:var(--edit); border-radius:8px; padding:8px 12px; margin:-8px -12px; }
+  h1 { font-size:30px; margin-top:0; } h2 { margin-top:2em; padding-bottom:4px; border-bottom:1px solid var(--line); } h3 { margin-top:1.6em; }
+  a { color:var(--accent); }
+  code { background:var(--code); padding:1px 5px; border-radius:4px; font:0.88em ui-monospace,SFMono-Regular,Menlo,monospace; }
+  pre { background:var(--code); padding:12px 14px; border-radius:8px; overflow:auto; }
+  pre code { padding:0; background:none; }
+  table { border-collapse:collapse; width:100%; margin:1em 0; font-size:14px; display:block; overflow-x:auto; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  blockquote { margin:1em 0; padding:0 1em; border-left:3px solid var(--line); color:var(--muted); }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="editBtn" title="Toggle editing (⌘E)">Edit</button>
+  <button id="saveBtn" title="Save this file (⌘S)">Save</button>
+  <span id="status"></span>
+</div>
+<div class="layout">
+  <nav id="toc"></nav>
+  <div class="content"><main id="doc">
+
+<h1>Plan 3 — Translation + settings</h1>
+<blockquote><p><strong>For agentic workers:</strong> use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task by task. Task status lives in <code>dashboard/progress.js</code>.</p></blockquote>
+<p><strong>Goal:</strong> type a Mandarin sentence and get Cantonese with Jyutping instantly offline, upgraded by a free LLM (Gemini by default) when online, and read it aloud with the iOS Cantonese voice or real-person syllables.</p>
+<p><strong>Architecture:</strong> <code>translate(text, onUpdate)</code> runs the offline engine (OpenCC → phrase table → reorder rules → Jyutping) and immediately reports the result, then optionally calls an OpenAI-compatible endpoint and reports again. Providers are data presets; the key lives in the iOS Keychain. Offline quality is tracked with a chrF eval script.</p>
+<p><strong>Tech stack:</strong> opencc-js, to-jyutping, expo-secure-store, expo-network, expo-speech, fetch + AbortController, Jest, RNTL.</p>
+<p><strong>Spec sections:</strong> §6 (translation), §7 (errors), §8 (testing).</p>
+
+<h2>Prerequisites</h2>
+<ul>
+<li>Plans 1 and 2 done (canto.db, Db interface, syllable player, user data, app shell).</li>
+<li>A free Gemini API key from <a href="https://aistudio.google.com">aistudio.google.com</a> — only for P3-T13 QA; all automated tests mock the network.</li>
+</ul>
+
+<h2>File structure</h2>
+<pre><code>src/translate/script.ts            OpenCC s2t / t2s
+src/jyutping/text.ts               text → Jyutping per character
+src/translate/offline/curated.ts   ~300 hand-checked phrase pairs
+src/translate/offline/substitute.ts longest-match phrase replacement
+src/translate/offline/rules.ts     reorder rules
+src/translate/online/prompt.ts     system prompt + few-shot pairs
+src/translate/online/client.ts     OpenAI-compatible client
+src/translate/index.ts             translate() orchestrator
+src/settings/presets.ts            Gemini / Z.ai / Custom
+src/settings/settings.ts           persisted config + Keychain key
+src/audio/speakSentence.ts         iOS voice / syllable toggle
+app/(tabs)/translate.tsx, settings.tsx, app/licenses.tsx
+data-pipeline/src/build/phraseTable.ts  phrase_map table in canto.db
+scripts/chrf.ts, scripts/eval-translate.ts, eval/test-set.tsv</code></pre>
+
+<h2>Order and dependencies</h2>
+<ul>
+<li>P3-T1, P3-T2, P3-T3 first (independent). P3-T4 needs P3-T3; P3-T5 needs P3-T4; P3-T6 needs P3-T5.</li>
+<li>P3-T7 → P3-T8 → P3-T9. P3-T10 needs Plan 2's syllable player.</li>
+<li>P3-T11 needs P3-T9 + P3-T10; P3-T12 needs P3-T7; P3-T13 is last.</li>
+</ul>
+
+<h2>Conventions (all plans)</h2>
+<ul>
+<li><strong>Test-first.</strong> Every code task follows: write the failing test → run it and see it fail → write the minimal code → run it and see it pass → commit. The subtasks spell these steps out.</li>
+<li><strong>A task is done only when every item in its Definition of done holds and its How to test check passes.</strong> Run the check; don't assume.</li>
+<li><strong>Commits:</strong> one commit per task, message <code>&lt;task id&gt;: &lt;what changed&gt;</code>, e.g. <code>P1-T4: parse rime-cantonese char.csv</code>. Never push without asking.</li>
+<li><strong>Dashboard:</strong> when starting a task set its <code>status</code> to <code>"doing"</code> in <code>dashboard/progress.js</code>; bump <code>progress</code> as subtasks finish; set <code>"done"</code> and add a log line when the DoD is met.</li>
+<li><strong>Docs are HTML, not markdown</strong> (including generated reports).</li>
+<li><strong>Fixtures:</strong> parser tests run against small real samples saved in <code>data-pipeline/fixtures/</code>, never against made-up formats.</li>
+</ul>
+
+<h2>Tasks</h2>
+<p><em>The task list below — subtasks, definition of done and how to test — is drawn live from <code>dashboard/progress.js</code>, the same data the dashboard uses, so the two never drift apart. Ask Claude to change tasks, or edit that file.</em></p>
+
+  </main>
+  <div id="tasks"></div></div>
+</div>
+<script>
+// Editing: toggle contenteditable on <main>. Drafts autosave to localStorage.
+// Save: Chrome/Edge write straight back to the file (File System Access API);
+// other browsers download "2026-10-29-plan-3-translation.html" for you to replace the original.
+(() => {
+  const FILE_NAME = "2026-10-29-plan-3-translation.html";
+  const DRAFT_KEY = "editable-doc:" + location.pathname;
+  const doc = document.getElementById("doc");
+  const editBtn = document.getElementById("editBtn");
+  const statusEl = document.getElementById("status");
+  let fileHandle = null;
+  let dirty = false;
+  // Draft autosave is optional: fall back to a no-op store where localStorage is blocked.
+  const store = (() => {
+    try { localStorage.getItem(DRAFT_KEY); return localStorage; }
+    catch { return { getItem: () => null, setItem() {}, removeItem() {} }; }
+  })();
+
+  const setStatus = (text) => { statusEl.textContent = text; };
+
+  function buildToc() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    doc.querySelectorAll("h2, h3").forEach((h, i) => {
+      if (!h.id) h.id = "s" + i;
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = h.tagName.toLowerCase();
+      toc.appendChild(a);
+    });
+  }
+
+  function setEditing(on) {
+    doc.contentEditable = on ? "true" : "false";
+    editBtn.classList.toggle("on", on);
+    editBtn.textContent = on ? "Done editing" : "Edit";
+    if (on) doc.focus(); else buildToc();
+  }
+
+  function serialize() {
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector("#doc").removeAttribute("contenteditable");
+    clone.querySelector("#toc").innerHTML = "";
+    clone.querySelector("#tasks").innerHTML = "";
+    clone.querySelector("#status").textContent = "";
+    const btn = clone.querySelector("#editBtn");
+    btn.classList.remove("on");
+    btn.textContent = "Edit";
+    return "<!doctype html>\n" + clone.outerHTML;
+  }
+
+  async function save() {
+    const html = serialize();
+    try {
+      if (window.showSaveFilePicker) {
+        if (!fileHandle) {
+          fileHandle = await showSaveFilePicker({
+            suggestedName: FILE_NAME,
+            types: [{ description: "HTML", accept: { "text/html": [".html"] } }],
+          });
+        }
+        const w = await fileHandle.createWritable();
+        await w.write(html);
+        await w.close();
+        setStatus("Saved " + new Date().toLocaleTimeString());
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        a.download = FILE_NAME;
+        a.click();
+        setStatus("Downloaded " + FILE_NAME + " — replace the original with it");
+      }
+      dirty = false;
+      store.removeItem(DRAFT_KEY);
+    } catch (e) {
+      if (e.name !== "AbortError") setStatus("Save failed: " + e.message);
+    }
+  }
+
+  doc.addEventListener("input", () => {
+    dirty = true;
+    store.setItem(DRAFT_KEY, doc.innerHTML);
+    setStatus("Unsaved changes (draft kept in this browser)");
+  });
+  editBtn.addEventListener("click", () => setEditing(doc.contentEditable !== "true"));
+  document.getElementById("saveBtn").addEventListener("click", save);
+  document.addEventListener("keydown", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    if (e.key === "s") { e.preventDefault(); save(); }
+    if (e.key === "e") { e.preventDefault(); setEditing(doc.contentEditable !== "true"); }
+  });
+  window.addEventListener("beforeunload", (e) => { if (dirty) e.preventDefault(); });
+
+  const draft = store.getItem(DRAFT_KEY);
+  if (draft && draft !== doc.innerHTML && confirm("Restore your unsaved edits to this document?")) {
+    doc.innerHTML = draft;
+    dirty = true;
+    setStatus("Restored unsaved draft — Save to keep it");
+  } else if (draft) {
+    store.removeItem(DRAFT_KEY);
+  }
+  buildToc();
+})();
+</script>
+
+<style>.content { min-width: 0; } #tasks { margin-top: 8px; }</style>
+<link rel="stylesheet" href="../../../dashboard/render.css" />
+<script src="../../../dashboard/progress.js"></script>
+<script src="../../../dashboard/render.js"></script>
+<script>
+  (() => {
+    const file = location.pathname.split("/").pop();
+    const phase = window.CANTO_PROGRESS.phases.find((p) => p.doc && p.doc.endsWith(file));
+    document.getElementById("tasks").innerHTML = phase
+      ? window.CantoRender.renderPhase(phase, { linkDoc: false })
+      : "<p>No tasks found for this doc in dashboard/progress.js.</p>";
+  })();
+</script>
+</body>
+</html>
