@@ -71,7 +71,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run ../src/jyutping/syllables.test.ts → all pass",
         },
         {
-          id: "P1-T3", title: "Download + cache utility", status: "doing",
+          id: "P1-T3", title: "Download + cache utility", status: "done",
           files: ["data-pipeline/src/download.ts", "data-pipeline/test/download.test.ts"],
           subtasks: [
             "Write failing test: fetchToCache(url, name) downloads from a local node:http test server into .cache/<name>",
@@ -87,10 +87,10 @@ window.CANTO_PROGRESS = {
             "No partial file is left in .cache/ when a download fails",
             "Manual-file override works (needed for the words.hk dump)",
           ],
-          test: "cd data-pipeline && npx vitest run test/download.test.ts → 4 passed",
+          test: "cd data-pipeline && npx vitest run test/download.test.ts → all pass",
         },
         {
-          id: "P1-T4", title: "Source: rime-cantonese character readings (char.csv)", status: "todo",
+          id: "P1-T4", title: "Source: rime-cantonese character readings (char.csv)", status: "doing",
           files: ["data-pipeline/src/sources/rimeChars.ts", "data-pipeline/fixtures/rime-char.csv", "data-pipeline/test/sources/rimeChars.test.ts"],
           subtasks: [
             "Save ~40 real rows of char.csv to fixtures (include 行 with several readings and a 罕見 row)",
@@ -160,6 +160,7 @@ window.CANTO_PROGRESS = {
           files: ["data-pipeline/src/sources/wordshkDump.ts", "data-pipeline/fixtures/wordshk-all.csv", "data-pipeline/test/sources/wordshkDump.test.ts"],
           subtasks: [
             "Request the dump at words.hk/faiman/request_data/ (manual; save path in CANTO_SRC_WORDSHK_DUMP)",
+            "Read the dump path via overrideEnvVar('wordshk-dump') — never pass the request page as a download URL (it is HTML); if unset, fail with the env var name and the request URL",
             "Save ~10 real entries to fixtures (include multi-sense, an example with a zho: line, a non-public row)",
             "Write failing test: parse id, headword(s), jyutping, senses[{ pos, yue }], examples[{ yue, jyutping, zho }] (eng: lines are ignored — English is out of scope)",
             "Write failing test: rows with public=false are skipped",
@@ -745,5 +746,6 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-29", text: "P1-T1 done: data-pipeline scaffold (0f8717a + review fixes 97898ef). Code review caught a silent no-op entry point and an over-broad ../src include; both fixed and re-verified." },
     { date: "2026-10-30", text: "Scope change: English dropped (no English search, definitions or glosses). Removed P1-T12 (CC-Canto/CC-CEDICT), english_fts, and the FTS5 device check; search is now 字 or Jyutping only." },
     { date: "2026-10-30", text: "P1-T2 done: shared Jyutping module (a91a9b4 + review fixes 3a615ba). 719 attested syllables from LSHK + rime; review caught exponential backtracking (12.9 s on 41 chars) — now linear (0.27 ms on 201 chars)." },
+    { date: "2026-10-30", text: "P1-T3 done: fetchToCache with streaming atomic writes and CANTO_SRC_* overrides (5737a8b + review fixes f03091c). Review caught proxy HTML pages being cached as data — now rejected." },
   ],
 };

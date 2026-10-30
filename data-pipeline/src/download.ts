@@ -77,7 +77,9 @@ export async function fetchToCache(
     await rm(tmp, { force: true });
     let reason = err instanceof Error ? err.message : String(err);
     if (err instanceof Error && err.cause instanceof Error) {
-      reason += ` (${err.cause.message})`;
+      // AggregateError (all addresses of a multi-address host failed) has an empty message.
+      const detail = err.cause.message || (err.cause as NodeJS.ErrnoException).code;
+      if (detail) reason += ` (${detail})`;
     }
     const statusNote = status === undefined ? "" : ` (HTTP ${status})`;
     throw new Error(`Failed to download ${url}: ${reason}${statusNote}`, { cause: err });
