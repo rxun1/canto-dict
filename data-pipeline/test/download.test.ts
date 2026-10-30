@@ -19,6 +19,9 @@ beforeEach(async () => {
     if (req.url === "/ok.txt") {
       res.writeHead(200, { "content-type": "text/plain" });
       res.end("hello cache");
+    } else if (req.url === "/html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end("<html>Blocked by proxy</html>");
     } else if (req.url === "/broken") {
       // Promise more bytes than we send, then kill the socket mid-body.
       res.writeHead(200, { "content-length": "1000" });
@@ -45,6 +48,7 @@ afterEach(async () => {
 
 describe("overrideEnvVar", () => {
   it("uppercases and replaces non-alphanumerics with underscores", () => {
+    expect(overrideEnvVar("wordshk-dump")).toBe("CANTO_SRC_WORDSHK_DUMP");
     expect(overrideEnvVar("wordshk-all.csv.gz")).toBe("CANTO_SRC_WORDSHK_ALL_CSV_GZ");
   });
 });
@@ -75,7 +79,7 @@ describe("fetchToCache", () => {
     const err = await fetchToCache(url, "missing.txt", { cacheDir }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toContain(url);
-    expect(err.message).toContain("404");
+    expect(err.message).toContain("Not Found (HTTP 404)");
     expect(await readdir(cacheDir)).toEqual([]);
   });
 
@@ -90,19 +94,43 @@ describe("fetchToCache", () => {
   it("uses the override path instead of downloading", async () => {
     const manual = join(cacheDir, "manual.gz");
     await writeFile(manual, "manual");
-    process.env[overrideEnvVar("wordshk-all.csv.gz")] = manual;
-    const path = await fetchToCache(`${baseUrl}/ok.txt`, "wordshk-all.csv.gz", { cacheDir });
+    process.env[overrideEnvVar("wordshk-dump")] = manual;
+    const path = await fetchToCache(`${baseUrl}/ok.txt`, "wordshk-dump", { cacheDir });
     expect(path).toBe(manual);
     expect(requestCount).toBe(0);
   });
 
   it("throws naming the variable and path when the override file is missing", async () => {
     const missing = join(cacheDir, "nope.gz");
-    process.env[overrideEnvVar("wordshk-all.csv.gz")] = missing;
-    const err = await fetchToCache(`${baseUrl}/ok.txt`, "wordshk-all.csv.gz", { cacheDir }).catch((e) => e);
+    process.env[overrideEnvVar("wordshk-dump")] = missing;
+    const err = await fetchToCache(`${baseUrl}/ok.txt`, "wordshk-dump", { cacheDir }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
-    expect(err.message).toContain("CANTO_SRC_WORDSHK_ALL_CSV_GZ");
+    expect(err.message).toContain("CANTO_SRC_WORDSHK_DUMP");
     expect(err.message).toContain(missing);
     expect(requestCount).toBe(0);
+  });
+
+  it("rejects a 200 text/html page and leaves no files", async () => {
+    const url = `${baseUrl}/html`;
+    const err = await fetchToCache(url, "a.zip", { cacheDir }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain(url);
+    expect(err.message).toContain("HTML page");
+    expect(await readdir(cacheDir)).toEqual([]);
+  });
+
+  it("includes the underlying cause for network failures", async () => {
+    const port = (server.address() as AddressInfo).port;
+    await new Promise((resolve) => server.close(resolve));
+    const err = await fetchToCache(`http://127.0.0.1:${port}/ok.txt`, "x", { cacheDir }).catch((e) => e);
+    expect(err.message).toMatch(/fetch failed \(.+\)/);
+    expect(await readdir(cacheDir)).toEqual([]);
+  });
+
+  it("treats an empty override env var as unset", async () => {
+    process.env[overrideEnvVar("ok.txt")] = "";
+    const path = await fetchToCache(`${baseUrl}/ok.txt`, "ok.txt", { cacheDir });
+    expect(path).toBe(join(cacheDir, "ok.txt"));
+    expect(requestCount).toBe(1);
   });
 });

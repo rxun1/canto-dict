@@ -13,7 +13,7 @@ export interface FetchToCacheOptions {
   cacheDir?: string;
 }
 
-/** Env var that lets the user supply a source file by hand, e.g. CANTO_SRC_WORDSHK_ALL_CSV_GZ. */
+/** Env var that lets the user supply a source file by hand, e.g. CANTO_SRC_WORDSHK_DUMP for name "wordshk-dump". */
 export function overrideEnvVar(name: string): string {
   return `CANTO_SRC_${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}`;
 }
@@ -52,12 +52,20 @@ export async function fetchToCache(
 
   await mkdir(dirname(target), { recursive: true });
   const tmp = `${target}.tmp-${randomBytes(6).toString("hex")}`;
+  console.log(`Downloading ${url} \u2192 ${target}`);
   let status: number | undefined;
   try {
     const response = await fetch(url);
     status = response.status;
     if (!response.ok || !response.body) {
-      throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+      await response.body?.cancel();
+      throw new Error(response.statusText || "bad response");
+    }
+    if (response.headers.get("content-type")?.includes("text/html")) {
+      await response.body.cancel();
+      throw new Error(
+        "got an HTML page, likely a proxy block/login page, instead of a data file",
+      );
     }
     await pipeline(
       Readable.fromWeb(response.body as WebReadableStream),
@@ -67,8 +75,11 @@ export async function fetchToCache(
     return target;
   } catch (err) {
     await rm(tmp, { force: true });
-    const reason = err instanceof Error ? err.message : String(err);
-    const statusNote = status === undefined || reason.startsWith("HTTP ") ? "" : ` (HTTP ${status})`;
+    let reason = err instanceof Error ? err.message : String(err);
+    if (err instanceof Error && err.cause instanceof Error) {
+      reason += ` (${err.cause.message})`;
+    }
+    const statusNote = status === undefined ? "" : ` (HTTP ${status})`;
     throw new Error(`Failed to download ${url}: ${reason}${statusNote}`, { cause: err });
   }
 }
