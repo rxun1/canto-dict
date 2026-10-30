@@ -3,9 +3,9 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PARTICLES, TONED_SYLLABLE } from "../../src/jyutping/pattern";
+import { RIME_CHARS_URL } from "../src/sources/rimeChars";
 
 const LSHK_URL = "https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv";
-const RIME_URL = "https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/char.csv";
 const OUT = fileURLToPath(new URL("../../src/jyutping/syllableList.ts", import.meta.url));
 
 async function fetchText(url: string): Promise<string> {
@@ -28,7 +28,7 @@ function collect(cell: string, bases: Set<string>, rejected: Set<string>, toned?
   }
 }
 
-const [lshk, rime] = await Promise.all([fetchText(LSHK_URL), fetchText(RIME_URL)]);
+const [lshk, rime] = await Promise.all([fetchText(LSHK_URL), fetchText(RIME_CHARS_URL)]);
 const bases = new Set<string>();
 const lshkRejected = new Set<string>();
 const rimeRejected = new Set<string>();
@@ -54,7 +54,7 @@ writeFileSync(
   `// GENERATED FILE - do not edit by hand.
 // Toneless Jyutping syllables attested in real data: the union of
 //   - LSHK Jyutping table (CC BY 4.0): ${LSHK_URL}
-//   - rime-cantonese-upstream char.csv (CC BY 4.0): ${RIME_URL}
+//   - rime-cantonese-upstream char.csv (CC BY 4.0): ${RIME_CHARS_URL}
 // Regenerate: cd data-pipeline && npx tsx scripts/gen-syllables.ts
 export const ATTESTED_SYLLABLES: readonly string[] = [
 ${body}

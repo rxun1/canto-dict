@@ -1,20 +1,32 @@
 import { readFile } from "node:fs/promises";
 import { isValidSyllable } from "../../../src/jyutping/syllables";
 import { fetchToCache } from "../download";
+import { splitLines } from "./text";
 import type { CharReading, ReadingRank } from "./types";
 
-export const RIME_CHARS_URL =
-  "https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/char.csv";
+/** Pinned upstream commit of CanCLID/rime-cantonese-upstream, so rebuilds are reproducible. */
+export const RIME_CHARS_COMMIT = "4cb67a486312e5f0f13cc842433617104d75de87";
+
+export const RIME_CHARS_URL = `https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/${RIME_CHARS_COMMIT}/char.csv`;
+
+/** Cache name includes the short SHA so a different pin never reuses a stale download. */
+export const RIME_CHARS_CACHE_NAME = `rime-char-${RIME_CHARS_COMMIT.slice(0, 7)}.csv`;
 
 /** Single source of truth for the pron_rank column (3rd column of char.csv). */
-export const RANK_BY_RIME_LABEL: Record<string, ReadingRank> = {
-  預設: "default",
-  常用: "common",
-  罕見: "rare",
-  棄用: "obsolete",
-};
+const RANK_BY_RIME_LABEL: ReadonlyMap<string, ReadingRank> = new Map<string, ReadingRank>([
+  ["預設", "default"],
+  ["常用", "common"],
+  ["罕見", "rare"],
+  ["棄用", "obsolete"],
+]);
 
 const HEADER_PREFIX = "char,jyutping,";
+const MAX_REPORTED_PROBLEMS = 20;
+
+interface Problem {
+  line: number;
+  message: string;
+}
 
 /**
  * Parses rime-cantonese char.csv: `char,jyutping,pron_rank,tone_var,literary_vernacular,comment`.
@@ -22,37 +34,46 @@ const HEADER_PREFIX = "char,jyutping,";
  * An empty rank cell yields `rank: undefined` (the real file has none, but we don't invent one).
  * A jyutping cell may hold several space-separated syllables (e.g. `sap6 sing1`); it is kept
  * as one reading with single spaces.
+ * All problems (bad char, bad syllable, unknown rank) are collected and thrown as one Error.
  */
 export function parseRimeChars(text: string): CharReading[] {
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/);
   const readings: CharReading[] = [];
-  const unknownRanks = new Set<string>();
+  const problems: Problem[] = [];
 
-  for (const line of lines) {
-    if (line.trim() === "" || line.startsWith(HEADER_PREFIX)) continue;
-    const [char, jyutpingCell = "", rankCell = ""] = line.split(",");
+  splitLines(text).forEach((line, index) => {
+    if (line.trim() === "" || line.startsWith(HEADER_PREFIX)) return;
+    const lineNumber = index + 1;
+    const [charCell = "", jyutpingCell = "", rankCell = ""] = line.split(",");
+    const char = charCell.trim();
     const syllables = jyutpingCell.trim().split(/\s+/);
-    for (const syllable of syllables) {
-      if (!isValidSyllable(syllable)) {
-        throw new Error(`Invalid Jyutping for ${char}: "${jyutpingCell}"`);
-      }
-    }
     const label = rankCell.trim();
-    let rank: ReadingRank | undefined;
-    if (label !== "") {
-      rank = RANK_BY_RIME_LABEL[label];
-      if (rank === undefined) unknownRanks.add(label);
-    }
-    readings.push({ char, jyutping: syllables.join(" "), rank });
-  }
+    const rank = label === "" ? undefined : RANK_BY_RIME_LABEL.get(label);
+    const before = problems.length;
 
-  if (unknownRanks.size > 0) {
-    throw new Error(`Unknown rime rank value(s): ${[...unknownRanks].join(", ")}`);
+    if ([...char].length !== 1) {
+      problems.push({ line: lineNumber, message: `char must be exactly one character: "${charCell}"` });
+    }
+    const bad = syllables.find((s) => !isValidSyllable(s));
+    if (bad !== undefined) {
+      problems.push({ line: lineNumber, message: `invalid Jyutping for ${char}: "${jyutpingCell}"` });
+    }
+    if (label !== "" && rank === undefined) {
+      problems.push({ line: lineNumber, message: `unknown rank "${label}" for ${char}` });
+    }
+    if (problems.length === before) readings.push({ char, jyutping: syllables.join(" "), rank });
+  });
+
+  if (problems.length > 0) {
+    const shown = problems
+      .slice(0, MAX_REPORTED_PROBLEMS)
+      .map((p) => `  line ${p.line}: ${p.message}`)
+      .join("\n");
+    throw new Error(`char.csv has ${problems.length} problem(s):\n${shown}`);
   }
   return readings;
 }
 
 export async function loadRimeChars(): Promise<CharReading[]> {
-  const path = await fetchToCache(RIME_CHARS_URL, "rime-char.csv");
+  const path = await fetchToCache(RIME_CHARS_URL, RIME_CHARS_CACHE_NAME);
   return parseRimeChars(await readFile(path, "utf8"));
 }

@@ -1,7 +1,7 @@
 // GENERATED FILE - do not edit by hand.
 // Toneless Jyutping syllables attested in real data: the union of
 //   - LSHK Jyutping table (CC BY 4.0): https://raw.githubusercontent.com/lshk-org/jyutping-table/master/list.tsv
-//   - rime-cantonese-upstream char.csv (CC BY 4.0): https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/main/char.csv
+//   - rime-cantonese-upstream char.csv (CC BY 4.0): https://raw.githubusercontent.com/CanCLID/rime-cantonese-upstream/4cb67a486312e5f0f13cc842433617104d75de87/char.csv
 // Regenerate: cd data-pipeline && npx tsx scripts/gen-syllables.ts
 export const ATTESTED_SYLLABLES: readonly string[] = [
   "a",
