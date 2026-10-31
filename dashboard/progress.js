@@ -477,8 +477,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest test/lookup src/dictionary/useSearch → pass; simulator: type sik → results for all tones",
         },
         {
-          id: "P2-T7", title: "Entry screen", status: "todo",
-          files: ["app/entry/[id].tsx", "src/dictionary/mandarinLine.ts", "src/dictionary/mandarinLine.test.ts", "app/entry/entry.test.tsx"],
+          id: "P2-T7", title: "Entry screen", status: "done",
+          files: ["app/entry/[id].tsx", "src/dictionary/mandarinLine.ts", "src/dictionary/mandarinLine.test.ts", "src/dictionary/useEntry.ts", "src/dictionary/partOfSpeech.ts", "test/entry.test.tsx"],
           subtasks: [
             "Write failing test for mandarinLine(entry): equivalents → MoE definition → 粤语释义 fallback order",
             "Run → fails; implement mandarinLine.ts; run → passes",
@@ -486,6 +486,9 @@ window.CANTO_PROGRESS = {
             "Write failing RNTL test: word entries link each character to its own entry",
             "Run → fail; implement the screen; run → pass",
             "Commit",
+            "Done 2026-10-31 (87ba4a4..HEAD; root 136 tests): mandarinLine(entry) → {source: mandarin, words[]} | {source: zho|yue, trad, simp} | null (YUE_GLOSS_LABEL shared with lookup); useEntry(db, id) → loading | missing | error | ready {entry, mandarin, chars}; findCharEntries(db, chars) in src/db/entries.ts (trad first, then aliases); entry screen: simp 44pt + trad 22pt when different, readings with rank tags (首选 常用 罕用 旧读 异读), <AudioSlot jyutping> placeholders (render null) next to readings and examples, 普通话：line, definitions grouped by source with simplified pos (partOfSpeech.ts char map), examples under their sense, Han chars of a word link to their own entry. Fixture lacks 冇/學校 → test/entry.test.tsx adds stand-ins via openDbCopy(); full-DB tests check the real ones. Simulator: 行 and 雪柜 screenshots OK; taps not checked",
+            "Open: full canto.db has no words.hk definitions/examples (dump not on disk, see P1-T17), so the 粤语释义 fallback and examples show only with the fixture; words.hk pos labels beyond the fixture's are unverified in partOfSpeech.ts. 17 chars inside word trad spellings (人頭税, 便秘…) link to a stray simplified-only entry until the P2-T5 pipeline fold. Product calls for the user: cap on the number of 普通话 equivalents (冇 lists 7), rank tag wording",
+            "Next: P2-T8 — src/audio/syllablePack.ts + playSyllables.ts; wire AudioSlot (app/entry/[id].tsx, render-null placeholder taking jyutping) to play. Pack: assets/syllables.* from data-pipeline (see P1 audio pack task / audioPack.ts for the index format: offset+length per syllable); slice clips into the cache with expo-file-system, play with expo-audio (both via npx expo install → native rebuild with npx expo run:ios; react-dom stays pinned to 19.3.0; metro.config.js may need the pack's extensions in assetExts like db). Missing clip → TTS fallback (expo-speech) speaking the character, usedTts: true; particles la1/a1/ga3/ma3 have no clip (P1-T16) so they hit this path. Tests mock expo-file-system/expo-audio; tests under src/ or test/, never app/. Simulator: temporary redirect to /entry/<食 id> can't tap — trigger a play on mount temporarily to listen, revert. Device listening step (MP3 priming blank) needs the iPhone — defer to P2-T12 if not available and say so",
           ],
           dod: [
             "Headword shown simplified (large) with traditional (small) when different",
