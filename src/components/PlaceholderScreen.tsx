@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { PlatformColor, StyleSheet, Text, View } from "react-native";
 
 /** Centered label for a screen that isn't built yet. */
 export function PlaceholderScreen({ label }: { label: string }) {
@@ -11,6 +11,5 @@ export function PlaceholderScreen({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center" },
-  // System secondary gray: readable on both the light and dark themes.
-  label: { fontSize: 17, color: "#8e8e93" },
+  label: { fontSize: 17, color: PlatformColor("secondaryLabel") },
 });
