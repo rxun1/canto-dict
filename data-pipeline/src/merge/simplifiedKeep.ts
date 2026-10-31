@@ -9,13 +9,47 @@
  * code point.
  */
 export const CANTONESE_KEEP: readonly string[] = [
-  // hai6 "to be": OpenCC gives 系, which Cantonese readers do not write for the copula. Mandarin
-  // words inside Cantonese text keep it too (關係 → 关係).
+  // hai6 "to be": OpenCC gives 系, which Cantonese readers do not write for the copula. The
+  // Mandarin-origin words below (XI_TEXT_PHRASES, XI_HEADWORDS) still get 系.
   "係",
   // go2 "that": OpenCC gives 𠮶 (U+20BB6), outside the BMP; also in NON_BMP_KEEP.
   "嗰",
   // sung3 "dishes eaten with rice": OpenCC gives 𩠌 (U+2980C), outside the BMP; also in NON_BMP_KEEP.
   "餸",
+];
+
+/**
+ * Mandarin-origin words in which Cantonese text still simplifies 係 to 系, matched anywhere in the
+ * text before the keep-list applies. A phrase goes here only when every occurrence in the words.hk
+ * dump (definitions, examples) and in every headword is that word, never the copula 係 next to a
+ * character that happens to complete it. merge reports how often each one applied.
+ */
+export const XI_TEXT_PHRASES: readonly string[] = [
+  // 關係 "relationship": all 194 hits in words.hk definitions and examples, and all 38 headwords
+  // (人際關係, 沒關係, 關係到, …), are the noun; none is a word ending in 關 (海關, 機關) + copula.
+  "關係",
+];
+
+/**
+ * Headwords in which every 係 simplifies to 系, matched only as the whole headword, because in
+ * running text the 係 can be the copula: 佢係數學老師 "he is a maths teacher", 但係數量. Each was
+ * checked against its reading and sense; merge reports which applied.
+ */
+export const XI_HEADWORDS: readonly string[] = [
+  // 係數 "coefficient" (hai6 sou3), and the headwords containing it (rime words): 二項式係數
+  // "binomial coefficient", 勁度係數 "stiffness", 基尼係數 / 堅尼係數 "Gini coefficient". In
+  // words.hk text all 3 hits of 係數 are copula + 數 (淨係數嘢, 但係數量, 係數學界).
+  "係數",
+  "二項式係數",
+  "勁度係數",
+  "基尼係數",
+  "堅尼係數",
+  // 介係詞 "preposition" (rime; 介系詞 in Taiwan, 介系词 simplified).
+  "介係詞",
+  // University departments (系), rime words: 外文係 "foreign languages department", 漢學係
+  // "sinology department". Not matched as 學係/文係 in text: 香港大學係喺1911年成立.
+  "外文係",
+  "漢學係",
 ];
 
 /**

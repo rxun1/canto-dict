@@ -1,14 +1,16 @@
 import OpenCC from "opencc-js";
 import { isSingleCodePoint } from "../sources/codePoints";
-import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
+import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "./simplifiedKeep";
 
 /**
  * What kind of text toSimplified converts (headwordKey ignores it): its language, which picks the
  * keep-list (simplifiedKeep.ts), and the variant table its traditional forms are read with, which
  * picks the OpenCC config.
  * - "yue": Cantonese in Hong Kong forms, OpenCC hk→cn (衞生 → 卫生; tw→cn would leave 衞), keeping
- *   CANTONESE_KEEP (係, 嗰, 餸) and NON_BMP_KEEP. Used for the displayed headword (from words.hk,
- *   rime, LSHK or Unihan) and the words.hk dump's definitions and example sentences.
+ *   CANTONESE_KEEP (係, 嗰, 餸) and NON_BMP_KEEP, except that 係 becomes 系 inside XI_TEXT_PHRASES
+ *   (關係 → 关系). Used for the words.hk dump's definitions and example sentences.
+ * - "headword": "yue" for the displayed headword (from words.hk, rime, LSHK or Unihan); a headword
+ *   in XI_HEADWORDS (基尼係數) is converted whole, its 係 becoming 系.
  * - "zho-hk": Mandarin in Hong Kong forms, OpenCC hk→cn keeping NON_BMP_KEEP only (關係 → 关系).
  *   Used for the Mandarin translations of words.hk examples.
  * - "zho-tw": Mandarin in Taiwan forms, OpenCC tw→cn keeping NON_BMP_KEEP only; tw→cn reads 著 the
@@ -16,7 +18,7 @@ import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
  *   words (著涼 → 着凉).
  * Kaifangcidian supplies its own simplified forms and is not converted.
  */
-export type TextKind = "yue" | "zho-hk" | "zho-tw";
+export type TextKind = "headword" | "yue" | "zho-hk" | "zho-tw";
 
 const HK_TO_STANDARD = OpenCC.Converter({ from: "hk", to: "t" });
 const TW_TO_STANDARD = OpenCC.Converter({ from: "tw", to: "t" });
@@ -26,8 +28,10 @@ const TW_TO_SIMPLIFIED = OpenCC.Converter({ from: "tw", to: "cn" });
 const NON_BMP_KEEP_SET: ReadonlySet<string> = new Set(NON_BMP_KEEP);
 
 /** Per kind: the OpenCC converter and the characters left as they are. */
+const YUE_KEEP: ReadonlySet<string> = new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]);
 const KINDS: Readonly<Record<TextKind, { readonly convert: (text: string) => string; readonly keep: ReadonlySet<string> }>> = {
-  yue: { convert: HK_TO_SIMPLIFIED, keep: new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]) },
+  headword: { convert: HK_TO_SIMPLIFIED, keep: YUE_KEEP },
+  yue: { convert: HK_TO_SIMPLIFIED, keep: YUE_KEEP },
   "zho-hk": { convert: HK_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
   "zho-tw": { convert: TW_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
 };
@@ -57,15 +61,18 @@ export function headwordKey(word: string): string {
   return isSingleCodePoint(word) ? word : HK_TO_STANDARD(TW_TO_STANDARD(word));
 }
 
-/**
- * Simplified form of a traditional text for display (see TextKind). Characters without a
- * simplified form (嘅, 冇, 喺) come back unchanged, and so do the kind's keep-list characters.
- * The text is converted in runs between kept characters, so a run never sees a kept neighbour.
- * On every text merge converted from the pinned sources (with the words.hk dump) this gave the
- * same output as converting the whole text and then restoring the kept characters.
- */
-export function toSimplified(text: string, kind: TextKind): string {
-  const { convert, keep } = KINDS[kind];
+/** XI_TEXT_PHRASES as one alternation, captured so String.split keeps the matches (CJK only: no escaping). */
+const XI_TEXT_PATTERN = new RegExp(`(${XI_TEXT_PHRASES.join("|")})`, "u");
+const XI_HEADWORD_SET: ReadonlySet<string> = new Set(XI_HEADWORDS);
+
+/** A simplified text, and the 係 phrases (XI_TEXT_PHRASES, XI_HEADWORDS) it converted, in text order. */
+export interface Simplified {
+  readonly text: string;
+  readonly xiPhrases: readonly string[];
+}
+
+/** Converts `text` in runs between characters of `keep`, which stay as they are. */
+function convertAround(text: string, convert: (text: string) => string, keep: ReadonlySet<string>): string {
   let simplified = "";
   let run = "";
   for (const char of text) {
@@ -77,4 +84,31 @@ export function toSimplified(text: string, kind: TextKind): string {
     run = "";
   }
   return simplified + convert(run);
+}
+
+/**
+ * Simplified form of a traditional text for display (see TextKind). Characters without a
+ * simplified form (嘅, 冇, 喺) come back unchanged, and so do the kind's keep-list characters.
+ * The text is converted in runs between kept characters (and 係 phrases), so a run never sees
+ * those neighbours. Before the 係 phrases existed, on every text merge converted from the pinned
+ * sources with the words.hk dump (the 283k headwords, definitions, examples and Wiktionary words),
+ * this gave the same output as converting the whole text and then restoring the kept characters.
+ */
+export function simplify(text: string, kind: TextKind): Simplified {
+  const { convert, keep } = KINDS[kind];
+  if (kind === "headword" && XI_HEADWORD_SET.has(text)) {
+    return { text: convertAround(text, convert, NON_BMP_KEEP_SET), xiPhrases: [text] };
+  }
+  if (kind !== "headword" && kind !== "yue") return { text: convertAround(text, convert, keep), xiPhrases: [] };
+  // split with a capture group: odd indexes are the phrases.
+  const parts = text.split(XI_TEXT_PATTERN);
+  return {
+    text: parts.map((part, i) => convertAround(part, convert, i % 2 === 1 ? NON_BMP_KEEP_SET : keep)).join(""),
+    xiPhrases: parts.filter((_, i) => i % 2 === 1),
+  };
+}
+
+/** simplify's text alone. */
+export function toSimplified(text: string, kind: TextKind): string {
+  return simplify(text, kind).text;
 }

@@ -4,8 +4,8 @@ import type { CharReading, KfcdRow, MandarinEquivalent, MoeEntry, ReadingRank, W
 import { isSingleCodePoint } from "../sources/codePoints";
 import { throwIfProblems, type Problem } from "../sources/problems";
 import { FREQ_OVERRIDES } from "./freqOverrides";
-import { headwordKey, toSimplified } from "./normalize";
-import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
+import { headwordKey, simplify, toSimplified, type TextKind } from "./normalize";
+import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "./simplifiedKeep";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
 /** The optional source a build can run without. */
@@ -232,7 +232,15 @@ interface MoeDropStats {
  * (zho) minus reading cross-references; `sense` counts from 1 per source. Each text keeps its
  * verbatim traditional form plus a simplified copy. Examples follow their words.hk sense.
  */
-function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, drops: MoeDropStats): { definitions: Definition[]; examples: Example[] } {
+/** toSimplified that also tallies the 係 phrases it converted (for the stats). */
+type Simplifier = (text: string, kind: TextKind) => string;
+
+function finishDefinitions(
+  builder: EntryBuilder,
+  moe: MoeEntry | undefined,
+  drops: MoeDropStats,
+  toSimp: Simplifier,
+): { definitions: Definition[]; examples: Example[] } {
   const definitions: Definition[] = [];
   const examples: Example[] = [];
   let sense = 0;
@@ -240,15 +248,15 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
     const pos = dumpEntry.pos.length > 0 ? dumpEntry.pos.join(POS_SEPARATOR) : undefined;
     for (const { yue, examples: senseExamples } of dumpEntry.senses) {
       sense++;
-      definitions.push({ sense, ...(pos !== undefined && { pos }), yue, yueSimp: toSimplified(yue, "yue"), source: WORDSHK_DUMP_SOURCE });
+      definitions.push({ sense, ...(pos !== undefined && { pos }), yue, yueSimp: toSimp(yue, "yue"), source: WORDSHK_DUMP_SOURCE });
       for (const example of senseExamples) {
         examples.push({
           sense,
           yueTrad: example.yue,
-          yueSimp: toSimplified(example.yue, "yue"),
+          yueSimp: toSimp(example.yue, "yue"),
           ...(example.jyutping !== undefined && { jyutping: example.jyutping.join(" ") }),
           ...(example.loanSyllables !== undefined && example.loanSyllables.length > 0 && { loan: example.loanSyllables }),
-          ...(example.zho !== undefined && { zho: example.zho, zhoSimp: toSimplified(example.zho, "zho-hk") }),
+          ...(example.zho !== undefined && { zho: example.zho, zhoSimp: toSimp(example.zho, "zho-hk") }),
           source: WORDSHK_DUMP_SOURCE,
         });
       }
@@ -263,7 +271,7 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
       continue;
     }
     moeSense++;
-    definitions.push({ sense: moeSense, ...(pos !== undefined && { pos }), zho: def, zhoSimp: toSimplified(def, "zho-tw"), source: "moe" });
+    definitions.push({ sense: moeSense, ...(pos !== undefined && { pos }), zho: def, zhoSimp: toSimp(def, "zho-tw"), source: "moe" });
   }
   return { definitions, examples };
 }
@@ -489,6 +497,12 @@ export function merge(inputs: MergeInputs): MergeResult {
   const definitionCounts: Partial<Record<RowSource, number>> = {};
   const exampleCounts: Partial<Record<RowSource, number>> = {};
   const moeDrops: MoeDropStats = { sensesDropped: 0, droppedSample: [] };
+  const xiCounts = new Map([...XI_TEXT_PHRASES, ...XI_HEADWORDS].map((phrase) => [phrase, 0]));
+  const toSimp: Simplifier = (text, kind) => {
+    const { text: simplified, xiPhrases } = simplify(text, kind);
+    for (const phrase of xiPhrases) xiCounts.set(phrase, xiCounts.get(phrase)! + 1);
+    return simplified;
+  };
   let moeShadowed = 0;
   const mandarinCounts: Partial<Record<RowSource, number>> = {};
   const collisions: { key: string; spellings: string[] }[] = [];
@@ -504,7 +518,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       const mandarin = finishMandarin(builder);
       for (const item of mandarin) for (const source of item.sources) count(mandarinCounts, source);
       if (builder.moe.length > 1) moeShadowed += builder.moe.length - 1;
-      const { definitions, examples } = finishDefinitions(builder, chooseMoe(builder, trad), moeDrops);
+      const { definitions, examples } = finishDefinitions(builder, chooseMoe(builder, trad), moeDrops, toSimp);
       for (const d of definitions) count(definitionCounts, d.source);
       for (const e of examples) count(exampleCounts, e.source);
       const { weight, override } = findWeight(builder, trad, weights, keyWeights, overrides);
@@ -512,7 +526,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       return {
         key: builder.key,
         trad,
-        simp: toSimplified(trad, "yue"),
+        simp: toSimp(trad, "headword"),
         kind: isSingleCodePoint(trad) ? "char" : "word",
         freq: weight === undefined ? 0 : Math.log10(1 + weight),
         aliases,
@@ -547,7 +561,11 @@ export function merge(inputs: MergeInputs): MergeResult {
     kaifangcidian: kfcdStats,
     wiktionary: wiktStats,
     moe: { ...moeDrops, shadowedEntries: moeShadowed },
-    simplifiedKeep: { cantonese: CANTONESE_KEEP, nonBmp: NON_BMP_KEEP },
+    simplifiedKeep: {
+      cantonese: CANTONESE_KEEP,
+      nonBmp: NON_BMP_KEEP,
+      xiPhrases: [...xiCounts].map(([word, count]) => ({ word, count })),
+    },
     freq: {
       entriesWithFreq: entries.filter((e) => e.freq > 0).length,
       overridesUsed: overridesUsed.sort((a, b) => byCodeUnits(a.word, b.word)),

@@ -2,7 +2,7 @@
 import OpenCC from "opencc-js";
 import { merge } from "../src/merge/merge";
 import { toSimplified } from "../src/merge/normalize";
-import { CANTONESE_KEEP, NON_BMP_KEEP } from "../src/merge/simplifiedKeep";
+import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "../src/merge/simplifiedKeep";
 import { inputs } from "./mergeInputs";
 
 /** The CJK blocks NON_BMP_KEEP was derived from (see its doc comment). */
@@ -99,11 +99,54 @@ describe("toSimplified keep-list", () => {
 
   it("is listed in the merge stats for the build report", () => {
     const result = merge(inputs());
-    expect(result.stats.simplifiedKeep).toEqual({ cantonese: CANTONESE_KEEP, nonBmp: NON_BMP_KEEP });
+    expect(result.stats.simplifiedKeep).toMatchObject({ cantonese: CANTONESE_KEEP, nonBmp: NON_BMP_KEEP });
   });
 
   it("applies to merged headwords (嗰度 stays 嗰度)", () => {
     const result = merge(inputs({ rimeWords: [{ word: "嗰度", syllables: ["go2", "dou6"] }] }));
     expect(result.entries[0]).toMatchObject({ trad: "嗰度", simp: "嗰度" });
+  });
+});
+
+describe("toSimplified 係 phrases (Mandarin-origin words where 係 still becomes 系)", () => {
+  it("converts 關係 anywhere in Cantonese text (關係 → 关系, 冇關係 → 冇关系)", () => {
+    expect(toSimplified("關係", "yue")).toBe("关系");
+    expect(toSimplified("冇關係", "yue")).toBe("冇关系");
+    expect(toSimplified("佢哋嘅關係係好好", "yue")).toBe("佢哋嘅关系係好好");
+    expect(toSimplified("冇關係", "headword")).toBe("冇关系");
+  });
+
+  it("keeps the copula 係 that happens to precede 數 (佢係數學老師)", () => {
+    expect(toSimplified("佢係數學老師", "yue")).toBe("佢係数学老师");
+    expect(toSimplified("佢係我", "yue")).toBe("佢係我");
+    expect(toSimplified("佢係我", "headword")).toBe("佢係我");
+  });
+
+  it("converts the checked headwords only as whole headwords (基尼係數 → 基尼系数)", () => {
+    expect(toSimplified("基尼係數", "headword")).toBe("基尼系数");
+    expect(toSimplified("係數", "headword")).toBe("系数");
+    expect(toSimplified("介係詞", "headword")).toBe("介系词");
+    // In running text 係數 is not matched.
+    expect(toSimplified("基尼係數", "yue")).toBe("基尼係数");
+  });
+
+  it("lists the phrases with how often merge applied them, next to the keep-list", () => {
+    const result = merge(
+      inputs({
+        rimeWords: [
+          { word: "關係", syllables: ["gwaan1", "hai6"] },
+          { word: "基尼係數", syllables: ["gei1", "nei4", "hai6", "sou3"] },
+          { word: "佢係我", syllables: ["keoi5", "hai6", "ngo5"] },
+        ],
+      }),
+    );
+    expect(result.entries.map((e) => [e.trad, e.simp])).toEqual([
+      ["佢係我", "佢係我"],
+      ["基尼係數", "基尼系数"],
+      ["關係", "关系"],
+    ]);
+    const counts = Object.fromEntries(result.stats.simplifiedKeep.xiPhrases.map(({ word, count }) => [word, count]));
+    expect(counts).toMatchObject({ 關係: 1, 基尼係數: 1, 係數: 0 });
+    expect(result.stats.simplifiedKeep.xiPhrases.map((p) => p.word)).toEqual([...XI_TEXT_PHRASES, ...XI_HEADWORDS]);
   });
 });

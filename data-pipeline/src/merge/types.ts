@@ -191,7 +191,12 @@ export interface MergeStats {
     readonly shadowedEntries: number;
   };
   /** Characters toSimplified leaves unchanged (simplifiedKeep.ts): Cantonese ("yue" text only) and non-BMP (all text). */
-  readonly simplifiedKeep: { readonly cantonese: readonly string[]; readonly nonBmp: readonly string[] };
+  readonly simplifiedKeep: {
+    readonly cantonese: readonly string[];
+    readonly nonBmp: readonly string[];
+    /** Each 係 phrase (XI_TEXT_PHRASES, then XI_HEADWORDS) and how many times it turned 係 into 系. */
+    readonly xiPhrases: readonly WordCount[];
+  };
   readonly freq: {
     readonly entriesWithFreq: number;
     /** Overrides applied: the word, its weight, and the essay weight it replaced when the essay had one. */
