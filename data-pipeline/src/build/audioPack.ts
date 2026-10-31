@@ -2,17 +2,17 @@
 // MP3 at one sample rate) with its leading and trailing silence trimmed, and the encoded files are
 // concatenated into syllables.pack; syllables.json maps each jyutping to its [offset, length] in it.
 // Each slice is a complete MP3 file with its own LAME/Xing header, so it plays on its own. Both
-// outputs are written only after every clip has encoded, each through a temporary file renamed over
-// the old one (writeFileAtomic), so a failed build keeps the previous pack.
+// outputs are written to temporary files and only then renamed over the old ones, so a failed build
+// keeps the previous pack.
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
 import { byCodeUnits } from "../compare";
 import { mapConcurrent } from "../concurrency";
-import { writeFileAtomic } from "../writeFileAtomic";
+import { tempPathFor } from "../writeFileAtomic";
 
 const run = promisify(execFile);
 
@@ -124,6 +124,8 @@ export async function pack(clips: ReadonlyMap<string, string>, outputs: PackOutp
   const maxPackBytes = options.maxPackBytes ?? MAX_PACK_BYTES;
 
   const work = await mkdtemp(join(tmpdir(), "canto-audio-"));
+  const packTemp = tempPathFor(outputs.packPath);
+  const indexTemp = tempPathFor(outputs.indexPath);
   try {
     const encoded = await mapConcurrent(syllables, async (syllable) => {
       const out = join(work, `${syllable}.mp3`);
@@ -139,11 +141,15 @@ export async function pack(clips: ReadonlyMap<string, string>, outputs: PackOutp
     if (offset > maxPackBytes) {
       throw new Error(`audio pack: ${syllables.length} clips encode to ${offset} bytes, over the ${maxPackBytes}-byte limit`);
     }
-    // Each file is replaced atomically, but not the two together: a crash between them leaves a new pack with the old index until the next build.
-    await writeFileAtomic(outputs.packPath, Buffer.concat(encoded));
-    await writeFileAtomic(outputs.indexPath, `${JSON.stringify(index)}\n`);
+    await writeFile(packTemp, Buffer.concat(encoded));
+    await writeFile(indexTemp, `${JSON.stringify(index)}\n`);
+    // The two renames are not atomic together: a crash between them leaves a new pack with the old index until the next build.
+    await rename(packTemp, outputs.packPath);
+    await rename(indexTemp, outputs.indexPath);
     return { syllables, index, packBytes: offset };
   } finally {
     await rm(work, { recursive: true, force: true });
+    await rm(packTemp, { force: true });
+    await rm(indexTemp, { force: true });
   }
 }
