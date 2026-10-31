@@ -43,17 +43,6 @@ const POS_SEPARATOR = "、";
  */
 const IDEOGRAPHIC_DESCRIPTION = /[\u2FF0-\u2FFF]/u;
 
-/**
- * words.hk headwords merge leaves out, list and dump alike. The other one-code-point words.hk
- * headwords outside CJK Unified Ideographs (0 B D K Q R T X d e m の 〇 ⺮ ⻊ ⻍) are real entries
- * for letters, digits, kana, the ideographic zero and radicals used in Cantonese (𲘥 and 𳄮 are
- * Extension J ideographs, past older range checks), as are words containing J (DJ, 打J).
- * - J: its only reading is "zhei1", which is not Jyutping. words.hk marks it as a loan syllable,
- *   which validation skips, so no general rule catches it: X (iks1) and G (zhi1, in GG and IG)
- *   are loans too and stay.
- */
-const EXCLUDED_WORDSHK_HEADWORDS: ReadonlySet<string> = new Set(["J"]);
-
 /** MoE's names for a reading other than the sense's own: 又音 (alternative), 讀音 (literary), 語音 (colloquial). */
 const READING_NOTE = "(?:又音|讀音|語音)";
 
@@ -400,23 +389,10 @@ export function merge(inputs: MergeInputs): MergeResult {
     });
     return builder;
   };
-  // EXCLUDED_WORDSHK_HEADWORDS leave both words.hk inputs here; a dump entry left with no headword goes too.
-  let excludedHeadwordRows = 0;
-  const included = (word: string): boolean => {
-    if (!EXCLUDED_WORDSHK_HEADWORDS.has(word)) return true;
-    excludedHeadwordRows++;
-    return false;
-  };
-  const wordshkList = inputs.wordshkList.filter((row) => included(row.word));
-  const wordshkDump = (inputs.wordshkDump ?? []).flatMap((entry) => {
-    const headwords = entry.headwords.filter((h) => included(h.word));
-    return headwords.length === 0 ? [] : [headwords.length === entry.headwords.length ? entry : { ...entry, headwords }];
-  });
-
   for (const row of inputs.rimeWords) addWordReading(row, "rime");
   // variantForm rows (㨂 for 揀) never become headwords; they fold in as aliases through dump links.
-  for (const row of wordshkList) if (row.variantForm !== true) addWordReading(row, "wordshk-list");
-  for (const dumpEntry of wordshkDump) {
+  for (const row of inputs.wordshkList) if (row.variantForm !== true) addWordReading(row, "wordshk-list");
+  for (const dumpEntry of inputs.wordshkDump ?? []) {
     for (const headword of dumpEntry.headwords) {
       const builder = addWordReading(headword, WORDSHK_DUMP_SOURCE);
       builder.dumpEntries.set(dumpEntry.id, dumpEntry);
@@ -428,7 +404,7 @@ export function merge(inputs: MergeInputs): MergeResult {
   // words.hk variant forms fold in only through public dump links: OpenCC does not fold 異體字 (㨂→揀).
   let aliasesFromLinks = 0;
   const linkedVariants = new Set<string>();
-  for (const dumpEntry of wordshkDump) {
+  for (const dumpEntry of inputs.wordshkDump ?? []) {
     for (const variant of dumpEntry.variants) {
       linkedVariants.add(variant);
       for (const key of new Set(dumpEntry.headwords.map((h) => headwordKey(h.word)))) {
@@ -438,7 +414,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       }
     }
   }
-  const variantRows = wordshkList.filter((row) => row.variantForm === true);
+  const variantRows = inputs.wordshkList.filter((row) => row.variantForm === true);
   const droppedVariantRows = variantRows.filter((row) => !linkedVariants.has(row.word));
   const droppedVariantWords = new Set(droppedVariantRows.map((row) => row.word));
 
@@ -572,7 +548,6 @@ export function merge(inputs: MergeInputs): MergeResult {
     wiktionary: wiktStats,
     moe: { ...moeDrops, shadowedEntries: moeShadowed },
     simplifiedKeep: { cantonese: CANTONESE_KEEP, nonBmp: NON_BMP_KEEP },
-    excludedHeadwordRows,
     freq: {
       entriesWithFreq: entries.filter((e) => e.freq > 0).length,
       overridesUsed: overridesUsed.sort((a, b) => byCodeUnits(a.word, b.word)),

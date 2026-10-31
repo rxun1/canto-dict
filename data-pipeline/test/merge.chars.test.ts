@@ -1,6 +1,7 @@
 // Character entries and their readings. Every row below is copied from the pinned sources.
 import { merge } from "../src/merge/merge";
 import type { CharReading } from "../src/sources/types";
+import { parseWordshkList } from "../src/sources/wordshkList";
 import { inputs } from "./mergeInputs";
 
 const entryFor = (result: ReturnType<typeof merge>, trad: string) => {
@@ -109,30 +110,31 @@ describe("merge: character entries", () => {
 });
 
 describe("merge: words.hk one-code-point headwords outside CJK", () => {
-  // words.hk list rows, copied from the pinned list. Letters, digits and kana are real words.hk
-  // entries (D "a bit", K "thousand", の), but J's only reading, the loan "zhei1", is excluded.
-  const LIST_ROWS = [
-    { word: "D", syllables: ["di1"] },
-    { word: "K", syllables: ["kei1"] },
-    { word: "の", syllables: ["zi1"] },
-    { word: "X", syllables: ["iks1"], loanSyllables: [0] },
-    { word: "J", syllables: ["zhei1"], loanSyllables: [0] },
-    { word: "DJ", syllables: ["di1", "zhei1"], loanSyllables: [1] },
-  ];
+  // Rows copied verbatim from the pinned words.hk list (wordshk-list-617e714.csv), parsed by its parser.
+  // The parser skips readings it cannot use: "zei1" (not an attested syllable) for J, DJ and 打J, and
+  // X's "ik1 si4" (two syllables for one character). The loan readings remain.
+  const LIST_CSV = [
+    "Source,https://words.hk/faiman/analysis/wordslist/",
+    "D,di1",
+    "DJ,di1 !zhei1,di1 zei1",
+    "J,!zhei1,zei1",
+    "K,kei1",
+    "X,ik1 si4,!iks1",
+    "打J,daa2 !zhei1,daa2 zei1",
+    "の,zi1",
+  ].join("\n");
 
-  it("keeps letters, kana and loans such as X, but drops the J entry (and only it, not DJ)", () => {
-    const result = merge(inputs({ wordshkList: LIST_ROWS }));
-    expect(result.entries.map((e) => e.trad)).toEqual(["D", "DJ", "K", "X", "の"]);
-    expect(result.stats.excludedHeadwordRows).toBe(1);
-  });
-
-  it("drops J from the words.hk dump as well", () => {
-    const result = merge(
-      inputs({
-        wordshkDump: [{ id: 1, headwords: [{ word: "J", syllables: ["zhei1"], loanSyllables: [0] }], pos: [], labels: [], senses: [], variants: [] }],
-      }),
-    );
-    expect(result.entries).toEqual([]);
-    expect(result.stats.excludedHeadwordRows).toBe(1);
+  it("keeps letters and kana as entries, J treated like DJ and 打J (loan zhei1)", () => {
+    const { rows } = parseWordshkList(LIST_CSV);
+    const result = merge(inputs({ wordshkList: rows }));
+    expect(Object.fromEntries(result.entries.map((e) => [e.trad, e.readings]))).toEqual({
+      D: [{ jyutping: "di1", source: "wordshk-list" }],
+      DJ: [{ jyutping: "di1 zhei1", source: "wordshk-list", loan: [1] }],
+      J: [{ jyutping: "zhei1", source: "wordshk-list", loan: [0] }],
+      K: [{ jyutping: "kei1", source: "wordshk-list" }],
+      X: [{ jyutping: "iks1", source: "wordshk-list", loan: [0] }],
+      打J: [{ jyutping: "daa2 zhei1", source: "wordshk-list", loan: [1] }],
+      の: [{ jyutping: "zi1", source: "wordshk-list" }],
+    });
   });
 });
