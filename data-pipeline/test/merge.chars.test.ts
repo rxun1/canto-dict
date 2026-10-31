@@ -107,3 +107,32 @@ describe("merge: character entries", () => {
     expect(entryFor(result, "行")).toMatchObject({ key: "行", simp: "行", aliases: [] });
   });
 });
+
+describe("merge: words.hk one-code-point headwords outside CJK", () => {
+  // words.hk list rows, copied from the pinned list. Letters, digits and kana are real words.hk
+  // entries (D "a bit", K "thousand", の), but J's only reading, the loan "zhei1", is excluded.
+  const LIST_ROWS = [
+    { word: "D", syllables: ["di1"] },
+    { word: "K", syllables: ["kei1"] },
+    { word: "の", syllables: ["zi1"] },
+    { word: "X", syllables: ["iks1"], loanSyllables: [0] },
+    { word: "J", syllables: ["zhei1"], loanSyllables: [0] },
+    { word: "DJ", syllables: ["di1", "zhei1"], loanSyllables: [1] },
+  ];
+
+  it("keeps letters, kana and loans such as X, but drops the J entry (and only it, not DJ)", () => {
+    const result = merge(inputs({ wordshkList: LIST_ROWS }));
+    expect(result.entries.map((e) => e.trad)).toEqual(["D", "DJ", "K", "X", "の"]);
+    expect(result.stats.excludedHeadwordRows).toBe(1);
+  });
+
+  it("drops J from the words.hk dump as well", () => {
+    const result = merge(
+      inputs({
+        wordshkDump: [{ id: 1, headwords: [{ word: "J", syllables: ["zhei1"], loanSyllables: [0] }], pos: [], labels: [], senses: [], variants: [] }],
+      }),
+    );
+    expect(result.entries).toEqual([]);
+    expect(result.stats.excludedHeadwordRows).toBe(1);
+  });
+});
