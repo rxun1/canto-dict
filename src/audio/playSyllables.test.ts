@@ -3,7 +3,7 @@
 import { createAudioPlayer } from "expo-audio";
 import * as Speech from "expo-speech";
 import { clipPath } from "./syllablePack";
-import { MAX_CLIP_MS, playSyllables, TTS_LANGUAGE } from "./playSyllables";
+import { MAX_CLIP_MS, playSyllables, speakTts, TTS_LANGUAGE } from "./playSyllables";
 
 // Syllables without a clip (the particles have none, nor does the loanword syllable rep1).
 const mockNoClip = new Set(["la1", "a1", "ga3", "ma3", "rep1"]);
@@ -44,6 +44,11 @@ jest.mock("expo-audio", () => ({
 jest.mock("expo-speech", () => ({
   speak: jest.fn((_: string, options: { onDone?: () => void }) => options.onDone?.()),
   stop: jest.fn(async () => {}),
+  getAvailableVoicesAsync: jest.fn(async () => [
+    { identifier: "com.apple.voice.compact.zh-CN.Tingting", language: "zh-CN" },
+    { identifier: "com.apple.voice.super-compact.zh-HK.Sinji", language: "yue-HK" },
+    { identifier: "com.apple.voice.compact.zh-HK.Aasing", language: "zh-HK" },
+  ]),
 }));
 
 /** Lets pending promises (clipPath, the play loop) run. */
@@ -84,7 +89,10 @@ describe("playSyllables", () => {
     mockPlayers[0].emit({ didJustFinish: true });
     expect(await playing).toEqual({ usedTts: true });
     expect(Speech.speak).toHaveBeenCalledTimes(1);
-    expect(Speech.speak).toHaveBeenCalledWith("啦", expect.objectContaining({ language: TTS_LANGUAGE }));
+    expect(Speech.speak).toHaveBeenCalledWith(
+      "啦",
+      expect.objectContaining({ voice: "com.apple.voice.super-compact.zh-HK.Sinji", language: TTS_LANGUAGE }),
+    );
   });
 
   it("matches syllables to the text's Han characters, skipping punctuation", async () => {
@@ -174,5 +182,30 @@ describe("playSyllables", () => {
     expect(await second).toEqual({ usedTts: true });
     // 啊 was never spoken: the first play stopped after 啦.
     expect((Speech.speak as jest.Mock).mock.calls.map(([text]) => text)).toEqual(["啦", "嘛"]);
+  });
+});
+
+describe("speakTts", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("speaks the whole text with the first yue-HK or zh-HK voice", async () => {
+    await speakTts("唔使客氣");
+    await speakTts("行");
+    expect(Speech.speak).toHaveBeenCalledWith(
+      "唔使客氣",
+      expect.objectContaining({ voice: "com.apple.voice.super-compact.zh-HK.Sinji", language: TTS_LANGUAGE }),
+    );
+    expect(Speech.speak).toHaveBeenCalledTimes(2);
+    // Looked up once per app run (0 calls here when an earlier test already cached it).
+    expect((Speech.getAvailableVoicesAsync as jest.Mock).mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("stops a clip in progress", async () => {
+    mockPlayers.length = 0;
+    const playing = playSyllables(["sik6"], "食");
+    await flush();
+    await speakTts("食");
+    expect(mockPlayers[0].pause).toHaveBeenCalled();
+    expect(await playing).toEqual({ usedTts: false });
   });
 });

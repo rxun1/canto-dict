@@ -2,7 +2,7 @@
 import { existsSync } from "fs";
 import type { ReactNode } from "react";
 import { fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
-import { playSyllables } from "../src/audio/playSyllables";
+import { playSyllables, speakTts } from "../src/audio/playSyllables";
 import type { Db } from "../src/db/types";
 import { FULL_DB_PATH, openDbCopy, openTestDb, type TestDb } from "../src/db/testDb";
 
@@ -13,9 +13,13 @@ jest.mock("../src/db/expoDb", () => ({
   useDb: () => mockDb,
 }));
 
-// Audio is native: the 🔊 buttons call a mock that reports whether TTS was used.
-jest.mock("../src/audio/playSyllables", () => ({ playSyllables: jest.fn(async () => ({ usedTts: false })) }));
+// Audio is native: the 🔊 buttons call a mock that reports whether TTS was used; the TTS button calls a mock too.
+jest.mock("../src/audio/playSyllables", () => ({
+  playSyllables: jest.fn(async () => ({ usedTts: false })),
+  speakTts: jest.fn(async () => {}),
+}));
 const mockPlay = playSyllables as jest.Mock;
+const PLAY = /^播放 /;
 
 // The fixture DB has no 冇 or 學校 (and no MoE definitions at all), so these copy their full-DB rows.
 const MOU5 = 1001;
@@ -98,25 +102,32 @@ describe("entry screen", () => {
   it("plays a reading's syllables with the headword's characters (銀行)", async () => {
     await openEntry(103);
     const row = within(await screen.findByTestId("reading-ngan4 hong4"));
-    await fireEvent.press(row.getByRole("button"));
+    await fireEvent.press(row.getByRole("button", { name: PLAY }));
     expect(mockPlay).toHaveBeenLastCalledWith(["ngan4", "hong4"], "銀行");
-    expect(row.queryByText("TTS")).toBeNull();
+    expect(row.queryByTestId("tts-tag")).toBeNull();
   });
 
   it("tags a reading TTS once a syllable fell back to speech", async () => {
     mockPlay.mockResolvedValueOnce({ usedTts: true });
     await openEntry(100);
     const row = within(await screen.findByTestId("reading-hang4"));
-    await fireEvent.press(row.getByRole("button"));
+    await fireEvent.press(row.getByRole("button", { name: PLAY }));
     expect(mockPlay).toHaveBeenLastCalledWith(["hang4"], "行");
-    expect(await row.findByText("TTS")).toBeTruthy();
+    expect(await row.findByTestId("tts-tag")).toBeTruthy();
   });
 
   it("plays an example sentence's syllables with its characters", async () => {
     await openEntry(43);
     const sense1 = within(await screen.findByTestId("sense-wordshk-dump-1"));
-    await fireEvent.press(sense1.getAllByRole("button")[0]);
+    await fireEvent.press(sense1.getAllByRole("button", { name: PLAY })[0]);
     expect(mockPlay).toHaveBeenLastCalledWith(["m4", "sai2", "haak3", "hei3"], "唔使客氣");
+  });
+
+  it("speaks the headword by TTS once, beside the headword (行)", async () => {
+    await openEntry(100);
+    await fireEvent.press(await screen.findByRole("button", { name: "TTS 播放 行" }));
+    expect(speakTts).toHaveBeenLastCalledWith("行");
+    expect(screen.getAllByRole("button", { name: /^TTS / })).toHaveLength(1);
   });
 
   it("links each character of a word to its own entry", async () => {

@@ -1,10 +1,11 @@
 // Entry screen (spec §5.2): headword, readings with rank tags, the Mandarin line, a word's characters
 // (each linking to its own entry), then definitions by sense with their examples.
-// 🔊 plays a reading or example in real-person syllables; ☆ and history are P2-T10.
+// 🔊 plays a reading or example in real-person syllables; a TTS button after the headword has iOS speak
+// the whole word. ☆ and history are P2-T10.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Fragment, useState } from "react";
 import { PlatformColor, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { playSyllables } from "../../src/audio/playSyllables";
+import { playSyllables, speakTts } from "../../src/audio/playSyllables";
 import type { Definition, Entry, Example, Reading, ReadingRank } from "../../src/db/entries";
 import { useDb } from "../../src/db/expoDb";
 import { YUE_GLOSS_LABEL, type MandarinLine } from "../../src/dictionary/mandarinLine";
@@ -19,6 +20,7 @@ const PLAY_LABEL = "播放";
 /** Shown beside 🔊 once a syllable with no clip was spoken by TTS (spec §7). */
 const TTS_TAG = "TTS";
 const SYLLABLE_SEPARATOR = /\s+/;
+const TTS_BUTTON = "TTS";
 
 const RANK_TAGS: Record<ReadingRank, string> = {
   default: "首选",
@@ -49,6 +51,11 @@ export default function EntryScreen() {
       <View style={styles.headword}>
         <Text style={styles.simp}>{entry.simp}</Text>
         {entry.trad !== entry.simp && <Text style={styles.trad}>{entry.trad}</Text>}
+        <TextButton
+          label={TTS_BUTTON}
+          accessibilityLabel={`${TTS_BUTTON} ${PLAY_LABEL} ${entry.trad}`}
+          onPress={() => speakTts(entry.trad)}
+        />
       </View>
       <View style={styles.readings}>
         {entry.readings.map((reading) => (
@@ -92,8 +99,27 @@ function AudioButton({ jyutping, text }: { jyutping: string; text: string }) {
       >
         <Text style={styles.audioIcon}>🔊</Text>
       </Pressable>
-      {usedTts && <Text style={styles.tag}>{TTS_TAG}</Text>}
+      {usedTts && (
+        <Text style={styles.tag} testID="tts-tag">
+          {TTS_TAG}
+        </Text>
+      )}
     </>
+  );
+}
+
+/** A compact tag-like button (TTS). */
+function TextButton({ label, accessibilityLabel, onPress }: { label: string; accessibilityLabel: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={6}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <Text style={[styles.tag, styles.textButton]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -222,6 +248,7 @@ const styles = StyleSheet.create({
     color: PlatformColor("secondaryLabel"),
     backgroundColor: PlatformColor("tertiarySystemFill"),
   },
+  textButton: { color: PlatformColor("link"), backgroundColor: PlatformColor("secondarySystemFill") },
   audioIcon: { fontSize: 18 },
   mandarin: { fontSize: 17, color: PlatformColor("label") },
   chars: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -238,7 +265,7 @@ const styles = StyleSheet.create({
   pos: { color: PlatformColor("secondaryLabel") },
   example: { marginLeft: PADDING, gap: 2 },
   exampleLine: { flexDirection: "row", alignItems: "center", gap: 8 },
-  exampleText: { fontSize: 16, color: PlatformColor("label") },
+  exampleText: { flexShrink: 1, fontSize: 16, color: PlatformColor("label") },
   exampleJyutping: { fontSize: 14, color: PlatformColor("secondaryLabel") },
   exampleMandarin: { fontSize: 14, color: PlatformColor("secondaryLabel") },
 });

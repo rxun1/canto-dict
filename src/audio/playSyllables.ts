@@ -9,8 +9,8 @@ import { clipPath } from "./syllablePack";
 
 /**
  * Language of the TTS fallback voice.
- * TODO: spec §6.4 picks the first installed yue-HK or zh-HK voice, and §7 shows download steps when
- * there is none; neither is done yet (this asks for zh-HK and takes whatever iOS gives).
+ * Used when no Cantonese voice is found (see cantoneseVoice).
+ * TODO: spec §7 shows download steps when no Cantonese voice is installed; not done yet.
  */
 export const TTS_LANGUAGE = "zh-HK";
 
@@ -28,6 +28,31 @@ let latestPlay = 0;
 let stopSounding: (() => void) | null = null;
 
 let audioMode: Promise<void> | null = null;
+
+/** Takes over playback: stops what is sounding and returns a check for whether this play is still the latest. */
+function startPlay(): () => boolean {
+  const play = ++latestPlay;
+  stopSounding?.();
+  return () => play === latestPlay;
+}
+
+/** Languages iOS reports for its Cantonese voices: recent versions yue-HK, older zh-HK (research §5.1). */
+const CANTONESE_LANGUAGES: readonly string[] = ["yue-HK", "zh-HK"];
+
+let ttsVoice: Promise<string | undefined> | null = null;
+
+/** The first installed Cantonese voice's identifier (looked up once), or undefined when there is none. */
+export function cantoneseVoice(): Promise<string | undefined> {
+  ttsVoice ??= Speech.getAvailableVoicesAsync().then(
+    (voices) => voices.find((v) => CANTONESE_LANGUAGES.includes(v.language))?.identifier,
+    (e) => {
+      ttsVoice = null;
+      console.warn("TTS voices not listed", e);
+      return undefined;
+    },
+  );
+  return ttsVoice;
+}
 
 /** Tapping 🔊 should be heard even with the ring/silent switch on silent. */
 function setUpAudio(): Promise<void> {
@@ -81,8 +106,8 @@ function playClip(uri: string): Promise<void> {
   });
 }
 
-/** Speaks one character; resolves when speech ends, however it ends. */
-function speak(char: string): Promise<void> {
+/** Speaks text (a character, for the fallback); resolves when speech ends, however it ends. */
+function speak(text: string, voice?: string): Promise<void> {
   return new Promise((resolve) => {
     const stop = () => void Speech.stop().catch(() => {});
     stopSounding = stop;
@@ -91,7 +116,7 @@ function speak(char: string): Promise<void> {
       resolve();
     };
     try {
-      Speech.speak(char, { language: TTS_LANGUAGE, onDone: end, onStopped: end, onError: () => end() });
+      Speech.speak(text, { language: TTS_LANGUAGE, voice, onDone: end, onStopped: end, onError: () => end() });
     } catch (e) {
       console.warn("TTS failed", e);
       end();
@@ -115,15 +140,14 @@ async function clipOrNull(syllable: string): Promise<string | null> {
  * counts agree (so a loanword like "rapper" leaves its syllables without a character, and silent).
  */
 export async function playSyllables(syllables: readonly string[], text = ""): Promise<PlayResult> {
-  const play = ++latestPlay;
-  stopSounding?.();
+  const isLatest = startPlay();
   const chars = Array.from(text).filter((c) => HAN.test(c));
   const charFor = (i: number) => (chars.length === syllables.length ? chars[i] : undefined);
   let usedTts = false;
   // Every clip is ready before the first plays, so no slicing happens between syllables.
-  const [uris] = await Promise.all([Promise.all(syllables.map(clipOrNull)), setUpAudio()]);
+  const [uris, voice] = await Promise.all([Promise.all(syllables.map(clipOrNull)), cantoneseVoice(), setUpAudio()]);
   for (const [i, syllable] of syllables.entries()) {
-    if (play !== latestPlay) break;
+    if (!isLatest()) break;
     const uri = uris[i];
     if (uri !== null) {
       try {
@@ -134,9 +158,16 @@ export async function playSyllables(syllables: readonly string[], text = ""): Pr
       }
     }
     const char = charFor(i);
-    if (char === undefined || play !== latestPlay) continue;
+    if (char === undefined || !isLatest()) continue;
     usedTts = true;
-    await speak(char);
+    await speak(char, voice);
   }
   return { usedTts };
+}
+
+/** The entry screen's TTS button: iOS speaks the whole text with the Cantonese voice, falling back to TTS_LANGUAGE. */
+export async function speakTts(text: string): Promise<void> {
+  const isLatest = startPlay();
+  const [voice] = await Promise.all([cantoneseVoice(), setUpAudio()]);
+  if (isLatest()) await speak(text, voice);
 }
