@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { FIXTURE_DB_PATH, writeDb } from "../src/build/writeDb";
 import { merge } from "../src/merge/merge";
 import type { Entry } from "../src/merge/types";
-import { FIXTURE_INPUTS } from "./fixtureInputs";
+import { fixtureInputs } from "../src/fixtureInputs";
+
+const FIXTURE_INPUTS = fixtureInputs();
 
 const TABLES = ["aliases", "definitions", "entries", "examples", "mandarin", "readings", "search_keys"];
 
@@ -270,7 +272,7 @@ describe("writeDb", () => {
     db.close();
   });
 
-  it("matches the committed fixture DB (regenerate: npx tsx scripts/gen-fixture-db.ts)", () => {
+  it("matches the committed fixture DB (regenerate: npm run data:fixture)", () => {
     const fresh = build(merge(FIXTURE_INPUTS).entries);
     const committed = new Database(FIXTURE_DB_PATH, { readonly: true });
     expect(tableNames(committed)).toEqual(TABLES);

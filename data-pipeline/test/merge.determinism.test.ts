@@ -2,7 +2,9 @@
 // Inputs are the repo's real source fixtures, parsed by the real parsers.
 import { merge } from "../src/merge/merge";
 import type { MergeInputs } from "../src/merge/types";
-import { FIXTURE_INPUTS } from "./fixtureInputs";
+import { fixtureInputs } from "../src/fixtureInputs";
+
+const FIXTURE_INPUTS = fixtureInputs();
 
 /** A deterministic Fisher-Yates shuffle (mulberry32 PRNG), so a failure reproduces. */
 function shuffled<T>(rows: readonly T[], seed: number): T[] {
