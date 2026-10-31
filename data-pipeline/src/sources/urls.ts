@@ -143,3 +143,31 @@ export const MOEDICT_RELEASE = "2015_20260625";
 export const MOEDICT_URL = `https://raw.githubusercontent.com/g0v/moedict-data/${MOEDICT_COMMIT}/dict-revised.json.xz`;
 
 export const MOEDICT_CACHE_NAME = `moedict-revised-${shortSha(MOEDICT_COMMIT)}.json.xz`;
+
+/**
+ * Pinned commit of AlienKevin/wordshk_app, whose assets/jyutping_female holds words.hk's female
+ * syllable recordings (3,902 MP3s, one per toned syllable, e.g. aa1.mp3; 9,783,518 bytes in all).
+ * They have no published licence: personal use only, never redistribute (spec §4.1), which is why
+ * the built syllables.pack is git-ignored. Only the 3 clips in fixtures/audio are committed, for tests.
+ *
+ * The repo snapshot is ~1.6 GB (codeload does not even start streaming its tarball within 15 s), so
+ * instead of extracting the folder from a tarball we list it once through the GitHub trees API and
+ * fetch each clip from raw.githubusercontent.com at this commit (~10 MB in all). To bump: look up
+ * the new commit's assets/jyutping_female tree SHA (GET /repos/AlienKevin/wordshk_app/contents/assets?ref=<sha>)
+ * and update both constants; the cache names follow them.
+ */
+export const WORDSHK_AUDIO_COMMIT = "1571375f5daceab45d0393ac5a1a72b6a47067c0";
+
+/** Git tree SHA of assets/jyutping_female at WORDSHK_AUDIO_COMMIT; content-addressed, so it pins the file list and every clip's blob SHA. */
+export const WORDSHK_AUDIO_TREE_SHA = "c604e7eec402fab0a872ff70ae2554bc8c3201db";
+
+export const WORDSHK_AUDIO_TREE_URL = `https://api.github.com/repos/AlienKevin/wordshk_app/git/trees/${WORDSHK_AUDIO_TREE_SHA}`;
+
+export const WORDSHK_AUDIO_TREE_CACHE_NAME = `wordshk-audio-tree-${shortSha(WORDSHK_AUDIO_TREE_SHA)}.json`;
+
+/** Raw URL of one clip (e.g. "aa1.mp3") at the pinned commit. */
+export const wordshkAudioClipUrl = (file: string): string =>
+  `https://raw.githubusercontent.com/AlienKevin/wordshk_app/${WORDSHK_AUDIO_COMMIT}/assets/jyutping_female/${file}`;
+
+/** Cache subdirectory of the downloaded clips, one file per clip under its upstream name. */
+export const WORDSHK_AUDIO_CACHE_DIR = `wordshk-audio-${shortSha(WORDSHK_AUDIO_TREE_SHA)}`;
