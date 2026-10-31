@@ -4,7 +4,6 @@
 import Database from "better-sqlite3";
 import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { toSimplified } from "../merge/normalize";
 import type { Entry } from "../merge/types";
 import { searchKeys } from "./searchKeys";
 
@@ -14,7 +13,7 @@ const SCHEMA = readFileSync(join(import.meta.dirname, "schema.sql"), "utf8");
 export const FIXTURE_DB_PATH = join(import.meta.dirname, "../../../assets/test/canto.fixture.db");
 
 /** A loan column: comma-separated 0-based syllable indexes, NULL when there are none. */
-const loanColumn = (loan: readonly number[] | undefined): string | null => (loan === undefined ? null : loan.join(","));
+const loanColumn = (loan: readonly number[] | undefined): string | null => (loan === undefined || loan.length === 0 ? null : loan.join(","));
 
 function insertAll(db: Database.Database, entries: readonly Entry[]): void {
   const insert = {
@@ -33,7 +32,7 @@ function insertAll(db: Database.Database, entries: readonly Entry[]): void {
   entries.forEach((entry, i) => {
     const id = i + 1;
     insert.entry.run(id, entry.trad, entry.simp, entry.kind, entry.freq);
-    for (const alias of entry.aliases) insert.alias.run(id, alias, toSimplified(alias, "headword"));
+    for (const alias of entry.aliases) insert.alias.run(id, alias.trad, alias.simp);
     // Readings that differ only in tone share keys; each (key, type) is stored once per entry.
     const keysSeen = new Set<string>();
     for (const r of entry.readings) {

@@ -45,7 +45,7 @@ const SIK_FAAN: Entry = {
   simp: "食饭",
   kind: "word",
   freq: 3.9,
-  aliases: ["喫飯"],
+  aliases: [{ trad: "喫飯", simp: "吃饭" }],
   readings: [{ jyutping: "sik6 faan6", source: "rime" }],
   mandarin: [{ trad: "吃飯", simp: "吃饭", sources: ["kaifangcidian", "wiktionary"] }],
   definitions: [
@@ -65,14 +65,14 @@ const SIK_FAAN: Entry = {
   ],
 };
 
-/** words.hk's DSE: a loan syllable (es1) in a reading and in an example, and an alias needing simplification. */
+/** words.hk's DSE: a loan syllable (es1) in a reading and in an example, and an alias. */
 const DSE: Entry = {
   key: "DSE",
   trad: "DSE",
   simp: "DSE",
   kind: "word",
   freq: 0,
-  aliases: ["文憑試"],
+  aliases: [{ trad: "文憑試", simp: "文凭试" }],
   readings: [{ jyutping: "di1 es1 ji1", source: "wordshk-dump", loan: [1] }],
   mandarin: [],
   definitions: [{ sense: 1, yue: "香港中學文憑試", yueSimp: "香港中学文凭试", source: "wordshk-dump" }],
@@ -93,9 +93,12 @@ function build(entries: readonly Entry[] = ENTRIES): Database.Database {
 const tableNames = (db: Database.Database): string[] =>
   (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map((r) => r.name);
 
-/** Every row of every table, in rowid order: the database's content, whatever its bytes. */
+/** The schema and every row of every table, in rowid order: the database's content, whatever its bytes. */
 function dumpTables(db: Database.Database): Record<string, unknown[]> {
-  return Object.fromEntries(tableNames(db).map((t) => [t, db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()]));
+  return {
+    sqlite_master: db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all(),
+    ...Object.fromEntries(tableNames(db).map((t) => [t, db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()])),
+  };
 }
 
 describe("writeDb", () => {
@@ -143,7 +146,7 @@ describe("writeDb", () => {
     db.close();
   });
 
-  it("writes each alias with its simplified headword form", () => {
+  it("writes each alias with its simplified form", () => {
     const db = build();
     expect(db.prepare("SELECT entry_id, trad, simp FROM aliases ORDER BY rowid").all()).toEqual([
       { entry_id: 3, trad: "喫飯", simp: "吃饭" },
@@ -165,6 +168,10 @@ describe("writeDb", () => {
     const multi = build([{ ...DSE, readings: [{ jyutping: "ef1 bi1 aai1", source: "wordshk-dump", loan: [0, 2] }] }]);
     expect(multi.prepare("SELECT loan FROM readings").get()).toEqual({ loan: "0,2" });
     multi.close();
+    // An empty loan list is NULL too.
+    const empty = build([{ ...DSE, readings: [{ jyutping: "di1 e1 si1", source: "wordshk-dump", loan: [] }] }]);
+    expect(empty.prepare("SELECT loan FROM readings").get()).toEqual({ loan: null });
+    empty.close();
     db.close();
   });
 

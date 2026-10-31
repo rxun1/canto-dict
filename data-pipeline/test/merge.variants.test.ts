@@ -23,7 +23,7 @@ const LIST_GAAN = [
 describe("merge: words.hk variant forms", () => {
   it("folds a linked variantForm row into its standard entry as an alias, never a headword (㨂 → 揀)", () => {
     const result = merge(inputs({ wordshkList: LIST_GAAN, wordshkDump: [DUMP_GAAN] }));
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["揀", ["㨂"]]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["揀", [{ trad: "㨂", simp: "㨂" }]]]);
     expect(result.stats.variants).toEqual({
       listRows: 1,
       listWords: 1,
@@ -37,7 +37,7 @@ describe("merge: words.hk variant forms", () => {
 
   it("does not fold 異體字 through OpenCC: without the dump link, 㨂 is dropped and counted", () => {
     const result = merge(inputs({ wordshkList: LIST_GAAN, wordshkDump: undefined }));
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["揀", []]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad)])).toEqual([["揀", []]]);
     expect(result.stats.variants).toMatchObject({ linkedWords: 0, droppedRows: 1, droppedWords: 1, droppedButKeyMatched: 0 });
   });
 
@@ -56,7 +56,7 @@ describe("merge: words.hk variant forms", () => {
 
   it("adds a dump entry's variants as aliases even when the list has no variant row (衞生 → 衛生)", () => {
     const result = merge(inputs({ wordshkDump: [dumpEntry(63209, [["衞生", ["wai6", "sang1"]]], ["衛生"])] }));
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["衞生", ["衛生"]]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad)])).toEqual([["衞生", ["衛生"]]]);
   });
 
   it("does not repeat an alias another source already spells (rime 衛生 + dump variant 衛生)", () => {
@@ -67,7 +67,7 @@ describe("merge: words.hk variant forms", () => {
         wordshkDump: [dumpEntry(63209, [["衞生", ["wai6", "sang1"]]], ["衛生"])],
       }),
     );
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["衞生", ["衛生"]]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad)])).toEqual([["衞生", ["衛生"]]]);
   });
 
   it("gives a variant linked from an entry with two headwords to both entries (爲什麼 → 為什麼, 為甚麼)", () => {
@@ -85,7 +85,7 @@ describe("merge: words.hk variant forms", () => {
         ],
       }),
     );
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad)])).toEqual([
       ["為什麼", ["爲什麼", "爲甚麼"]],
       ["為甚麼", ["爲什麼", "爲甚麼"]],
     ]);

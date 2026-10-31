@@ -83,6 +83,12 @@ export interface Example {
   readonly source: RowSource;
 }
 
+/** One other spelling of an entry (aliases table), with its simplified headword form (這裡 → 这里). */
+export interface Alias {
+  readonly trad: string;
+  readonly simp: string;
+}
+
 export interface Entry {
   /** The normalized lookup key the sources were joined on (headwordKey). Unique; entries sort by it. */
   readonly key: string;
@@ -95,9 +101,10 @@ export interface Entry {
   readonly freq: number;
   /**
    * The other spellings folded into this entry, for search: other sources' spellings of the key
-   * (這裡 for 這裏) and the words.hk variant forms linked to it (㨂 for 揀). Sorted; never `trad`.
+   * (這裡 for 這裏) and the words.hk variant forms linked to it (㨂 for 揀). Sorted by `trad`; never
+   * the entry's `trad`.
    */
-  readonly aliases: readonly string[];
+  readonly aliases: readonly Alias[];
   readonly readings: readonly EntryReading[];
   readonly mandarin: readonly MandarinItem[];
   readonly definitions: readonly Definition[];

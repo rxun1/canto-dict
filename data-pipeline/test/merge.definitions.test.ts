@@ -192,7 +192,7 @@ describe("merge: words.hk definitions and examples", () => {
 describe("merge: MoE definitions", () => {
   it("puts MoE senses in zho verbatim with a simplified copy, attached through the normalized key (這裡 → 這裏)", () => {
     const r = merge(inputs({ rimeWords: [{ word: "這裏", syllables: ["ze2", "leoi5"] }], moe: [MOE_ZE_LEOI] }));
-    expect(r.entries[0]).toMatchObject({ trad: "這裏", aliases: ["這裡"] });
+    expect(r.entries[0]).toMatchObject({ trad: "這裏", aliases: [{ trad: "這裡", simp: "这里" }] });
     expect(r.entries[0].definitions).toEqual([
       { sense: 1, zho: "這個地方。表示比較靠近說話者的地方。", zhoSimp: "这个地方。表示比较靠近说话者的地方。", source: "moe" },
       { sense: 2, zho: "這個段落、程度。", zhoSimp: "这个段落、程度。", source: "moe" },

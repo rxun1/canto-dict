@@ -512,7 +512,10 @@ export function merge(inputs: MergeInputs): MergeResult {
       const trad = chooseTrad(builder);
       const spellings = [...builder.spellings.keys()].sort(byCodeUnits);
       if (spellings.length > 1) collisions.push({ key: builder.key, spellings });
-      const aliases = [...new Set([...spellings, ...builder.variantAliases])].filter((s) => s !== trad).sort(byCodeUnits);
+      const aliases = [...new Set([...spellings, ...builder.variantAliases])]
+        .filter((s) => s !== trad)
+        .sort(byCodeUnits)
+        .map((alias) => ({ trad: alias, simp: toSimp(alias, "headword") }));
       const readings = finishReadings(builder);
       for (const r of readings) count(readingCounts, r.source);
       const mandarin = finishMandarin(builder);

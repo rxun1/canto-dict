@@ -38,7 +38,7 @@ describe("merge: word entries and key normalization", () => {
       trad: "衞生",
       simp: "卫生",
       kind: "word",
-      aliases: ["衛生"],
+      aliases: [{ trad: "衛生", simp: "卫生" }],
       readings: [{ jyutping: "wai6 sang1", source: "rime" }],
     });
     expect(result.stats.keyCollisions).toEqual({ keysWithSeveralSpellings: 1, sample: [{ key: result.entries[0].key, spellings: ["衛生", "衞生"] }] });
@@ -54,7 +54,7 @@ describe("merge: word entries and key normalization", () => {
         ],
       }),
     );
-    expect(result.entries.map((e) => [e.trad, e.aliases])).toEqual([["着急", ["著急"]]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad)])).toEqual([["着急", ["著急"]]]);
   });
 
   it("displays the words.hk spelling when there is one, else rime's", () => {

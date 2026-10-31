@@ -187,7 +187,7 @@ describe("merge: Mandarin equivalents", () => {
         essay: [{ word: "冇", weight: 1759806 }],
       }),
     );
-    expect(result.entries.map((e) => [e.trad, e.aliases, e.mandarin.map((m) => m.simp)])).toEqual([["起牀", ["起床"], ["起床"]]]);
+    expect(result.entries.map((e) => [e.trad, e.aliases.map((a) => a.trad), e.mandarin.map((m) => m.simp)])).toEqual([["起牀", ["起床"], ["起床"]]]);
     expect(result.stats.unmatched).toMatchObject({
       kaifangcidianRows: 1,
       kaifangcidianWords: 1,

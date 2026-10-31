@@ -149,4 +149,17 @@ describe("toSimplified 係 phrases (Mandarin-origin words where 係 still become
     expect(counts).toMatchObject({ 關係: 1, 基尼係數: 1, 係數: 0 });
     expect(result.stats.simplifiedKeep.xiPhrases.map((p) => p.word)).toEqual([...XI_TEXT_PHRASES, ...XI_HEADWORDS]);
   });
+
+  it("simplifies aliases as headwords and counts their 係 phrases too (無關係 → 无关系)", () => {
+    const result = merge(
+      inputs({
+        wordshkDump: [
+          { id: 1, headwords: [{ word: "冇關係", syllables: ["mou5", "gwaan1", "hai6"] }], variants: ["無關係"], pos: [], labels: [], senses: [] },
+        ],
+      }),
+    );
+    expect(result.entries.map((e) => [e.simp, e.aliases])).toEqual([["冇关系", [{ trad: "無關係", simp: "无关系" }]]]);
+    const counts = Object.fromEntries(result.stats.simplifiedKeep.xiPhrases.map(({ word, count }) => [word, count]));
+    expect(counts).toMatchObject({ 關係: 2 });
+  });
 });
