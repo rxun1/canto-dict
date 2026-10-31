@@ -90,9 +90,10 @@ function convertAround(text: string, convert: (text: string) => string, keep: Re
  * Simplified form of a traditional text for display (see TextKind). Characters without a
  * simplified form (嘅, 冇, 喺) come back unchanged, and so do the kind's keep-list characters.
  * The text is converted in runs between kept characters (and 係 phrases), so a run never sees
- * those neighbours. Before the 係 phrases existed, on every text merge converted from the pinned
- * sources with the words.hk dump (the 283k headwords, definitions, examples and Wiktionary words),
- * this gave the same output as converting the whole text and then restoring the kept characters.
+ * those neighbours. That gives the same output as converting the whole text and then restoring
+ * the kept characters on every text merge converts from the pinned sources with the words.hk dump
+ * (all-1793304301.csv.gz): the 283,310 headwords, words.hk definitions, examples and their
+ * Mandarin translations, MoE definitions and Wiktionary Mandarin words (checked 2026-10-30).
  */
 export function simplify(text: string, kind: TextKind): Simplified {
   const { convert, keep } = KINDS[kind];
