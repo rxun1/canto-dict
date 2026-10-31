@@ -10,7 +10,7 @@ import { searchKeys } from "./searchKeys";
 
 const SCHEMA = readFileSync(join(import.meta.dirname, "schema.sql"), "utf8");
 
-/** The small DB built from fixtures/ (scripts/gen-fixture-db.ts), committed for the app's tests. */
+/** The small DB built from fixtures/ (npm run data:fixture), committed for the app's tests. */
 export const FIXTURE_DB_PATH = join(import.meta.dirname, "../../../assets/test/canto.fixture.db");
 
 /** A loan column: comma-separated 0-based syllable indexes, NULL when there are none. */
