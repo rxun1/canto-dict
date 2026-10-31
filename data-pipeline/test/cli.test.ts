@@ -23,6 +23,12 @@ function outputs() {
   };
 }
 
+/** Every file a full build writes. */
+const outputPaths = (out: ReturnType<typeof outputs>): string[] => [out.db, out.pack.packPath, out.pack.indexPath, out.report];
+
+/** The fixture build's shape: canto.db only, no audio or report. */
+const dbOnlyConfig = (dbPath: string): BuildConfig => ({ loadInputs: async () => fixtureInputs(), minimums: NO_MINIMUMS, dbPath });
+
 /** A full build (DB, audio pack, report) from the fixtures into `out`. */
 function fullConfig(out: ReturnType<typeof outputs>, minimums = NO_MINIMUMS): BuildConfig {
   return {
@@ -66,7 +72,7 @@ describe("cli", () => {
   it("picks the fixture config for --fixture and the real one otherwise", async () => {
     silenced();
     const out = outputs();
-    const configFor = vi.fn((_fixture: boolean): BuildConfig => ({ loadInputs: async () => fixtureInputs(), minimums: NO_MINIMUMS, dbPath: out.db }));
+    const configFor = vi.fn((_fixture: boolean): BuildConfig => dbOnlyConfig(out.db));
     expect(await main(["--fixture"], configFor)).toBe(0);
     expect(await main([], configFor)).toBe(0);
     expect(configFor.mock.calls).toEqual([[true], [false]]);
@@ -88,7 +94,7 @@ describe("cli", () => {
   it("leaves canto.db, the audio pack and the report untouched when validate throws", async () => {
     silenced();
     const out = outputs();
-    const paths = [out.db, out.pack.packPath, out.pack.indexPath, out.report];
+    const paths = outputPaths(out);
     for (const path of paths) writeFileSync(path, `previous ${path}`);
     // The fixtures are far below the real minimums, so validate throws.
     await expect(build(fullConfig(out, MIN_SOURCE_ROWS))).rejects.toThrow(/below their minimum row count/);
@@ -99,7 +105,7 @@ describe("cli", () => {
     silenced();
     const out = outputs();
     await expect(build(fullConfig(out, { ...NO_MINIMUMS, audioClips: 4 }))).rejects.toThrow(/audioClips: 3 rows \(minimum 4\)/);
-    for (const path of [out.db, out.pack.packPath, out.pack.indexPath, out.report]) expect(existsSync(path), path).toBe(false);
+    for (const path of outputPaths(out)) expect(existsSync(path), path).toBe(false);
   });
 
   it("writes canto.db, the audio pack and the report", async () => {
@@ -121,8 +127,8 @@ describe("cli", () => {
   it("writes only canto.db when the config has no audio (the fixture build)", async () => {
     silenced();
     const out = outputs();
-    await build({ loadInputs: async () => fixtureInputs(), minimums: NO_MINIMUMS, dbPath: out.db });
+    await build(dbOnlyConfig(out.db));
     expect(existsSync(out.db)).toBe(true);
-    for (const path of [out.pack.packPath, out.pack.indexPath, out.report]) expect(existsSync(path), path).toBe(false);
+    for (const path of outputPaths(out).slice(1)) expect(existsSync(path), path).toBe(false);
   });
 });

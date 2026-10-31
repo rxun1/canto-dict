@@ -1,10 +1,11 @@
 // The build runner (spec §4): download → parse → merge → validate → build. Validation runs before any
-// asset is written, so a failed check keeps the previous canto.db, audio pack and report.
+// asset is written, so a failed check keeps the previous canto.db, audio pack and report. A failure after
+// validate (e.g. pack() over MAX_PACK_BYTES) can leave a new canto.db beside the old pack and report.
 // npm run data:build   → assets/canto.db, assets/syllables.{pack,json}, build-report.html (real sources)
 // npm run data:fixture → assets/test/canto.fixture.db from fixtures/ (no network, no minimums)
 import { statSync } from "node:fs";
 import { join } from "node:path";
-import { BYTES_PER_MB, pack, type PackOutputs } from "./build/audioPack";
+import { formatMb as mb, pack, type PackOutputs } from "./build/audioPack";
 import { REPORT_PATH, writeReport } from "./build/report";
 import { FIXTURE_DB_PATH, writeDb } from "./build/writeDb";
 import { fixtureInputs } from "./fixtureInputs";
@@ -69,8 +70,6 @@ export function defaultConfig(fixture: boolean): BuildConfig {
   };
 }
 
-const mb = (bytes: number): string => `${(bytes / BYTES_PER_MB).toFixed(2)} MB`;
-
 /** Runs every step; throws on the first failure. Nothing is written before validate() passes. */
 export async function build(config: BuildConfig): Promise<BuildSummary> {
   const started = performance.now();
@@ -79,7 +78,11 @@ export async function build(config: BuildConfig): Promise<BuildSummary> {
   step("download + parse sources");
   const sources = await config.loadInputs();
   // Count the clips now: validate needs the count, and pack() writes, so it must wait for validate.
-  const clips = config.audio === undefined ? new Map<string, string>() : (step("download syllable clips"), await config.audio.loadClips());
+  let clips: ReadonlyMap<string, string> = new Map();
+  if (config.audio !== undefined) {
+    step("download syllable clips");
+    clips = await config.audio.loadClips();
+  }
 
   step("merge");
   const { entries, stats } = merge(sources);

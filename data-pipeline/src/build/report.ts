@@ -25,7 +25,7 @@ import {
 import { WORDSHK_DUMP_SOURCE } from "../sources/wordshkDump";
 import type { SourceRows } from "../validate";
 import { writeFileAtomic } from "../writeFileAtomic";
-import { BYTES_PER_MB } from "./audioPack";
+import { formatMb as mb } from "./audioPack";
 
 /** Where cli.ts writes the report (next to package.json). */
 export const REPORT_PATH = join(import.meta.dirname, "../../build-report.html");
@@ -107,7 +107,6 @@ const HTML_ESCAPES: Readonly<Record<string, string>> = { "&": "&amp;", "<": "&lt
 export const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 
 const num = (n: number): string => n.toLocaleString("en-US");
-const mb = (bytes: number): string => `${(bytes / BYTES_PER_MB).toFixed(2)} MB`;
 const ratio = ({ covered, total }: Count): string =>
   `${num(covered)} / ${num(total)} (${total === 0 ? "–" : `${((100 * covered) / total).toFixed(2)}%`})`;
 

@@ -43,6 +43,8 @@ const AUDIO_FILTER = [TRIM_SILENCE, "areverse", TRIM_SILENCE, "areverse"].join("
 /** Decimal megabyte, the unit sizes are reported in. */
 export const BYTES_PER_MB = 1_000_000;
 
+export const formatMb = (bytes: number): string => `${(bytes / BYTES_PER_MB).toFixed(2)} MB`;
+
 /**
  * Largest syllables.pack (10 MB) the build accepts: the app bundles it, and the full words.hk set packs to
  * ~9.7 MB (spec §4.4), so a bigger pack means the clip set or the encoding changed unexpectedly.
