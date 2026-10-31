@@ -8,6 +8,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="dev-checks" options={{ title: "Dev checks" }} />
       </Stack>
     </ThemeProvider>
   );

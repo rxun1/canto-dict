@@ -366,7 +366,7 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
 </tr>
 <tr>
 <td><code>to-jyutping</code> uses JS syntax Hermes may not support</td>
-<td>Verify early in the plan; transpile or vendor if needed</td>
+<td>Verified 2026-10-31 (P2-T2) on the iOS 27.2 simulator under Hermes: <code>to-jyutping</code> 3.1.1 gives 食飯 → sik6 faan6 and <code>opencc-js</code> 1.4.2 (cn → t) gives 学校 → 學校, no transpiling needed. Re-check on the iPhone at the first device run (P2-T12) via Settings → Dev checks.</td>
 </tr>
 <tr>
 <td>words.hk dump requires a manual request form</td>
