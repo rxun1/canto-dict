@@ -49,7 +49,8 @@ describe("lookup screen", () => {
     expect(screen.getByText("haang4")).toBeTruthy();
   });
 
-  it("shows results for every tone of a toneless Jyutping query", async () => {
+  // All-tones matching is covered in src/dictionary/search.test.ts.
+  it("finds 行 (hong4) for the toneless Jyutping query hong", async () => {
     await renderRouter("./app", { initialUrl: "/lookup" });
     await type("hong");
     await finishDebounce();
