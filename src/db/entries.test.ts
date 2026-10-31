@@ -1,4 +1,4 @@
-import { getEntry } from "./entries";
+import { findCharEntries, getEntry } from "./entries";
 import { openTestDb } from "./testDb";
 
 const db = openTestDb();
@@ -65,5 +65,30 @@ describe("getEntry", () => {
 
   it("returns null for an unknown id", async () => {
     expect(await getEntry(db, 999999)).toBeNull();
+  });
+});
+
+describe("findCharEntries", () => {
+  it("finds each character's own entry by its traditional form, then by alias", async () => {
+    const found = await findCharEntries(db, ["行", "揀", "㨂"]);
+    expect(Object.fromEntries(found)).toEqual({
+      行: { id: 100, simp: "行" },
+      揀: { id: 81, simp: "拣" },
+      㨂: { id: 81, simp: "拣" },
+    });
+  });
+
+  it("leaves out characters with no char entry, and never matches a word", async () => {
+    const found = await findCharEntries(db, ["街", "行街"]);
+    expect(found.size).toBe(0);
+  });
+
+  it("finds a character outside the BMP and ignores repeats", async () => {
+    const found = await findCharEntries(db, ["𠝹", "𠝹"]);
+    expect([...found]).toEqual([["𠝹", { id: 111, simp: "𠝹" }]]);
+  });
+
+  it("returns an empty map without querying for no characters", async () => {
+    expect((await findCharEntries(db, [])).size).toBe(0);
   });
 });

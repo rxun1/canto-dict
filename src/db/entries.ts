@@ -104,3 +104,34 @@ export async function getEntry(db: Db, id: number): Promise<Entry | null> {
     examples: examples.map((x) => ({ ...x, loan: loanIndexes(x.loan) })),
   };
 }
+
+/** A character's own entry, for linking a word's characters (spec §5.2). */
+export interface CharEntry {
+  id: number;
+  simp: string;
+}
+
+type CharEntryRow = CharEntry & { char: string };
+
+/**
+ * Each character's char entry: the one whose traditional form it is, else one that folds it in as an
+ * alias (most frequent first). Characters with no char entry are left out. Matching on the
+ * traditional form keeps the simplified-only stray char entries (trad = simp = another entry's simp,
+ * e.g. 饭) from catching traditional text.
+ */
+export async function findCharEntries(db: Db, chars: readonly string[]): Promise<Map<string, CharEntry>> {
+  const unique = [...new Set(chars)];
+  if (unique.length === 0) return new Map();
+  const rows = await db.all<CharEntryRow>(
+    `WITH chars(char) AS (VALUES ${unique.map(() => "(?)").join(", ")}),
+     hits AS (
+       SELECT chars.char, e.id, e.simp,
+         ROW_NUMBER() OVER (PARTITION BY chars.char ORDER BY e.trad = chars.char DESC, e.freq DESC, e.id) AS n
+       FROM chars JOIN entries e ON e.kind = 'char'
+         AND (e.trad = chars.char OR e.id IN (SELECT entry_id FROM aliases WHERE trad = chars.char))
+     )
+     SELECT char, id, simp FROM hits WHERE n = 1`,
+    unique,
+  );
+  return new Map(rows.map(({ char, id, simp }) => [char, { id, simp }]));
+}

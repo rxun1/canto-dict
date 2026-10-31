@@ -31,3 +31,9 @@ export function openSchemaDb(): TestDb & { raw: Database.Database } {
   raw.exec(readFileSync(SCHEMA_PATH, "utf8"));
   return { ...toTestDb(raw), raw };
 }
+
+/** A writable in-memory copy of a DB file (the fixture DB by default), for adding stand-in rows through `raw`. */
+export function openDbCopy(path: string = FIXTURE_DB_PATH): TestDb & { raw: Database.Database } {
+  const raw = new Database(readFileSync(path));
+  return { ...toTestDb(raw), raw };
+}

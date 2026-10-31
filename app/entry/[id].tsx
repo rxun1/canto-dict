@@ -1,8 +1,219 @@
-// Placeholder entry screen so Lookup rows have somewhere to go; P2-T7 builds the real one (spec §5.2).
-import { useLocalSearchParams } from "expo-router";
-import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
+// Entry screen (spec §5.2): headword, readings with rank tags, the Mandarin line, a word's characters
+// (each linking to its own entry), then definitions by sense with their examples.
+// The 🔊 buttons (P2-T8) go where AudioSlot sits; ☆ and history are P2-T10.
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Fragment } from "react";
+import { PlatformColor, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import type { Definition, Entry, Example, Reading, ReadingRank } from "../../src/db/entries";
+import { useDb } from "../../src/db/expoDb";
+import type { MandarinLine } from "../../src/dictionary/mandarinLine";
+import { useEntry, type WordChar } from "../../src/dictionary/useEntry";
+
+const MANDARIN_LABEL = "普通话";
+/** Labels a words.hk Cantonese explanation standing in for Mandarin (spec §5.2). */
+const YUE_LABEL = "粤语释义";
+const MANDARIN_SEPARATOR = "、";
+const MISSING = "找不到这个词条";
+
+const RANK_TAGS: Record<ReadingRank, string> = {
+  default: "首选",
+  common: "常用",
+  rare: "罕用",
+  obsolete: "旧读",
+  variant: "异读",
+};
+
+/** Definition group headings by source; another source shows its own name. */
+const SOURCE_HEADINGS: Record<string, string> = { "wordshk-dump": "粤典 words.hk", moe: "教育部国语辞典" };
 
 export default function EntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  return <PlaceholderScreen label={`词条 Entry ${id}`} />;
+  const state = useEntry(useDb(), Number(id));
+
+  if (state.status === "loading") return <View style={styles.screen} />;
+  if (state.status === "missing") {
+    return (
+      <View style={[styles.screen, styles.centered]}>
+        <Text style={styles.missing}>{MISSING}</Text>
+      </View>
+    );
+  }
+  const { entry, mandarin, chars } = state;
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
+      <View style={styles.headword}>
+        <Text style={styles.simp}>{entry.simp}</Text>
+        {entry.trad !== entry.simp && <Text style={styles.trad}>{entry.trad}</Text>}
+      </View>
+      <View style={styles.readings}>
+        {entry.readings.map((reading) => (
+          <ReadingRow key={reading.jyutping} reading={reading} />
+        ))}
+      </View>
+      {mandarin !== null && <Text style={styles.mandarin}>{mandarinText(mandarin)}</Text>}
+      {chars.length > 0 && <WordChars chars={chars} />}
+      <Definitions entry={entry} />
+    </ScrollView>
+  );
 }
+
+function mandarinText(line: MandarinLine): string {
+  switch (line.source) {
+    case "mandarin":
+      return `${MANDARIN_LABEL}：${line.words.map((w) => w.simp).join(MANDARIN_SEPARATOR)}`;
+    case "zho":
+      return `${MANDARIN_LABEL}：${line.simp}`;
+    case "yue":
+      return `${YUE_LABEL}：${line.simp}`;
+  }
+}
+
+/** Where P2-T8's 🔊 button (real-person syllables for this Jyutping) goes; renders nothing yet. */
+function AudioSlot(_: { jyutping: string }) {
+  return null;
+}
+
+function ReadingRow({ reading }: { reading: Reading }) {
+  return (
+    <View style={styles.reading} testID={`reading-${reading.jyutping}`}>
+      <Text style={styles.readingText}>{reading.jyutping}</Text>
+      {reading.rank !== null && (
+        <Text style={styles.rankTag} testID="rank-tag">
+          {RANK_TAGS[reading.rank]}
+        </Text>
+      )}
+      <AudioSlot jyutping={reading.jyutping} />
+    </View>
+  );
+}
+
+function WordChars({ chars }: { chars: WordChar[] }) {
+  const router = useRouter();
+  return (
+    <View style={styles.chars} testID="chars">
+      {chars.map((c, i) => {
+        const { id } = c;
+        if (id === null) {
+          return (
+            <Text key={i} style={[styles.char, styles.charUnlinked]}>
+              {c.simp}
+            </Text>
+          );
+        }
+        return (
+          <Pressable
+            key={i}
+            accessibilityRole="link"
+            onPress={() => router.push({ pathname: "/entry/[id]", params: { id: String(id) } })}
+            style={({ pressed }) => [styles.charLink, pressed && styles.pressed]}
+          >
+            <Text style={[styles.char, styles.charLinked]}>{c.simp}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Consecutive definitions from one source (the pipeline writes each source's senses together). */
+function groupBySource(definitions: Definition[]): Definition[][] {
+  const groups: Definition[][] = [];
+  for (const d of definitions) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].source === d.source) last.push(d);
+    else groups.push([d]);
+  }
+  return groups;
+}
+
+function Definitions({ entry }: { entry: Entry }) {
+  const groups = groupBySource(entry.definitions);
+  // Examples belong to words.hk senses; any whose sense has no words.hk definition are listed last.
+  const yueSenses = new Set(entry.definitions.filter((d) => d.yue !== null).map((d) => d.sense));
+  const orphans = entry.examples.filter((x) => !yueSenses.has(x.sense));
+  return (
+    <>
+      {groups.map((group) => (
+        <View key={group[0].source} style={styles.section}>
+          <Text style={styles.sectionHeading}>{SOURCE_HEADINGS[group[0].source] ?? group[0].source}</Text>
+          {group.map((d) => (
+            <View key={d.sense} style={styles.sense} testID={`sense-${d.source}-${d.sense}`}>
+              <Text style={styles.definition}>
+                <Text style={styles.senseNumber}>{d.sense}. </Text>
+                {d.pos !== null && (
+                  <Fragment>
+                    <Text style={styles.pos}>{d.pos}</Text>{" "}
+                  </Fragment>
+                )}
+                {d.yueSimp ?? d.yue ?? d.zhoSimp ?? d.zho}
+              </Text>
+              {d.yue !== null && entry.examples.filter((x) => x.sense === d.sense).map((x, i) => <ExampleRow key={i} example={x} />)}
+            </View>
+          ))}
+        </View>
+      ))}
+      {orphans.length > 0 && (
+        <View style={styles.section}>
+          {orphans.map((x, i) => (
+            <ExampleRow key={i} example={x} />
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
+
+function ExampleRow({ example }: { example: Example }) {
+  return (
+    <View style={styles.example}>
+      <View style={styles.exampleLine}>
+        <Text style={styles.exampleText}>{example.yueSimp}</Text>
+        {example.jyutping !== null && <AudioSlot jyutping={example.jyutping} />}
+      </View>
+      {example.jyutping !== null && <Text style={styles.exampleJyutping}>{example.jyutping}</Text>}
+      {example.zhoSimp !== null && <Text style={styles.exampleMandarin}>{example.zhoSimp}</Text>}
+    </View>
+  );
+}
+
+const PADDING = 16;
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
+  centered: { alignItems: "center", justifyContent: "center" },
+  missing: { fontSize: 17, color: PlatformColor("secondaryLabel") },
+  content: { padding: PADDING, gap: 12 },
+  headword: { flexDirection: "row", alignItems: "baseline", gap: 10 },
+  simp: { fontSize: 44, color: PlatformColor("label") },
+  trad: { fontSize: 22, color: PlatformColor("secondaryLabel") },
+  readings: { gap: 6 },
+  reading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  readingText: { fontSize: 20, color: PlatformColor("label") },
+  rankTag: {
+    fontSize: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: "hidden",
+    color: PlatformColor("secondaryLabel"),
+    backgroundColor: PlatformColor("tertiarySystemFill"),
+  },
+  mandarin: { fontSize: 17, color: PlatformColor("label") },
+  chars: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  charLink: { borderRadius: 8, backgroundColor: PlatformColor("secondarySystemFill") },
+  pressed: { opacity: 0.5 },
+  char: { fontSize: 22, paddingHorizontal: 10, paddingVertical: 4 },
+  charLinked: { color: PlatformColor("link") },
+  charUnlinked: { color: PlatformColor("secondaryLabel") },
+  section: { gap: 10, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: PlatformColor("separator") },
+  sectionHeading: { fontSize: 13, color: PlatformColor("secondaryLabel") },
+  sense: { gap: 6 },
+  definition: { fontSize: 17, color: PlatformColor("label") },
+  senseNumber: { color: PlatformColor("secondaryLabel") },
+  pos: { color: PlatformColor("secondaryLabel") },
+  example: { marginLeft: PADDING, gap: 2 },
+  exampleLine: { flexDirection: "row", alignItems: "center", gap: 8 },
+  exampleText: { fontSize: 16, color: PlatformColor("label") },
+  exampleJyutping: { fontSize: 14, color: PlatformColor("secondaryLabel") },
+  exampleMandarin: { fontSize: 14, color: PlatformColor("secondaryLabel") },
+});
