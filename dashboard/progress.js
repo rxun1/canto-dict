@@ -422,7 +422,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/db → pass",
         },
         {
-          id: "P2-T4", title: "Input classifier", status: "todo",
+          id: "P2-T4", title: "Input classifier", status: "done",
           files: ["src/dictionary/classify.ts", "src/dictionary/classify.test.ts"],
           subtasks: [
             "Write failing table-driven tests: '食' → hanzi; 'sik6' → jyutping; 'sik' → jyutping (toneless); 'water' → none (not searchable); '食 sik' → hanzi",
@@ -431,6 +431,8 @@ window.CANTO_PROGRESS = {
             "Implement using splitSyllables from src/jyutping/syllables.ts",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-31 (0dc67a0..HEAD; root 72 tests): classify(input) → {kind:\"hanzi\", text} | {kind:\"jyutping\", syllables, key, toneless} | {kind:\"none\"} | {kind:\"empty\"}; NFKC → trim → truncate to MAX_QUERY_LENGTH (50 code points); separators - – ' ‘ ’; lone tone digit attaches. Decided with the user: an unfinished last syllable (sikf) stays none, so the hint flashes while typing (spec §5.1 records it)",
+            "Next: P2-T5 — search.ts on src/db (Db interface + openTestDb() from src/db/testDb.ts; SQL stays under src/db/, so put the queries in a src/db module and keep ranking/orchestration in src/dictionary/search.ts if that reads cleaner). Input is classify()'s result: none/empty → [] without querying; jyutping → prefix on search_keys.key with key (toneless → toneless keys only; toned or partly toned → all key types); hanzi → exact (trad/simp/aliases, alias hit returns the standard entry once) → prefix → contains. Ranking per spec §5.1 (Jyutping exact compares readings.jyutping with spaces removed, not search_keys.key). Gotchas: hanzi text keeps case (aa制 vs AA制 — decide whether to compare case-insensitively); joined keys cover only a reading's first 3 syllables, so a partly toned query with an untoned 4th+ syllable matches nothing (documented trade-off); the 50 ms DoD is on the full assets/canto.db (open it read-only with better-sqlite3 in a timing test). Deferred from P2-T3 for a UI task: versioned DB name (copied once), blank screen during first-launch copy, readOnly open. Open: particles la1/a1/ga3/ma3 have no clip (audio task); /\\p{Script=Han}/u in classify is unverified under Hermes (check on the sim in P2-T6)",
           ],
           dod: ["Matches spec §5.1 table row for row"],
           test: "npx jest src/dictionary/classify → pass",
