@@ -21,14 +21,15 @@ export type Classification =
 
 const HAN = /\p{Script=Han}/u;
 const WHITESPACE = /\s+/g;
-// Pasted separators: nei5-hou2, nei5'hou2 (also the curly apostrophe).
-const SEPARATORS = /[-'’]/g;
+// Pasted separators: nei5-hou2, nei5'hou2 (also curly quotes and the en dash).
+const SEPARATORS = /[-–'‘’]/g;
 // A tone digit standing alone after a syllable ("sik 6"); it is attached to that syllable.
 const LONE_TONE = new RegExp(` (${TONE_CLASS})(?= |$)`, "g");
 
-/** Classify lookup input per spec §5.1. Never throws; truncates to MAX_QUERY_LENGTH first. */
+/** Classify lookup input per spec §5.1. Never throws; NFKC-normalizes and truncates to MAX_QUERY_LENGTH first. */
 export function classify(input: string): Classification {
-  const trimmed = Array.from(input.trim()).slice(0, MAX_QUERY_LENGTH).join("");
+  // NFKC folds full-width forms (ｓｉｋ６, ＡＡ制) to ASCII.
+  const trimmed = Array.from(input.normalize("NFKC").trim()).slice(0, MAX_QUERY_LENGTH).join("");
   if (trimmed === "") return { kind: "empty" };
   if (HAN.test(trimmed)) return { kind: "hanzi", text: trimmed.replace(WHITESPACE, "") };
 

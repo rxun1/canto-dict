@@ -11,6 +11,7 @@ describe("classify", () => {
       ["食 sik", "食sik"],
       [" 食 飯 ", "食飯"],
       ["AA制", "AA制"],
+      ["ＡＡ制", "AA制"], // full-width folded by NFKC
     ])("%j → hanzi %j", (input, text) => {
       expect(classify(input)).toEqual({ kind: "hanzi", text });
     });
@@ -49,6 +50,10 @@ describe("classify", () => {
       ["sik 6", ["sik6"]],
       ["sik 6 faan 6", ["sik6", "faan6"]],
       ["nei 5-hou 2", ["nei5", "hou2"]],
+      ["nei5‘hou2", ["nei5", "hou2"]],
+      ["nei5’hou2", ["nei5", "hou2"]],
+      ["sik–6", ["sik6"]], // en dash
+      ["ｓｉｋ６", ["sik6"]], // full-width folded by NFKC
     ])("%j → %j", (input, syllables) => {
       expect(classify(input)).toEqual({ kind: "jyutping", syllables, key: syllables.join(""), toneless: false });
     });
