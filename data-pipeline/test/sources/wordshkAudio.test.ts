@@ -5,7 +5,9 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { overrideEnvVar } from "../../src/download";
 import { fetchWordshkClips, gitBlobSha, parseClipTree } from "../../src/sources/wordshkAudio";
+import { WORDSHK_AUDIO_CACHE_DIR } from "../../src/sources/urls";
 
 const FIXTURE_AUDIO_DIR = join(import.meta.dirname, "../../fixtures/audio");
 /** Upstream blob SHA of fixtures/audio/aa1.mp3 (from the pinned tree). */
@@ -93,5 +95,21 @@ describe("fetchWordshkClips", () => {
     await writeFile(path, "edited");
     await expect(fetchWordshkClips(options())).rejects.toThrow(/aa1\.mp3 has blob SHA/);
     expect(existsSync(path)).toBe(false);
+  });
+
+  it("rejects but never deletes a user's override file whose bytes do not match its blob SHA", async () => {
+    files["/tree"] = treeJson([blob("aa1.mp3", AA1_BLOB_SHA)]);
+    const userDir = await mkdtemp(join(tmpdir(), "canto-audio-override-test-"));
+    const override = join(userDir, "aa1.mp3");
+    await writeFile(override, "my own recording");
+    const envVar = overrideEnvVar(join(WORDSHK_AUDIO_CACHE_DIR, "aa1.mp3"));
+    vi.stubEnv(envVar, override);
+    try {
+      await expect(fetchWordshkClips(options())).rejects.toThrow(new RegExp(`aa1\\.mp3 has blob SHA .*from ${envVar}`));
+      expect(await readFile(override, "utf8")).toBe("my own recording");
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(userDir, { recursive: true, force: true });
+    }
   });
 });

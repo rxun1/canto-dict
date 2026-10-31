@@ -158,7 +158,12 @@ export const MOEDICT_CACHE_NAME = `moedict-revised-${shortSha(MOEDICT_COMMIT)}.j
  */
 export const WORDSHK_AUDIO_COMMIT = "1571375f5daceab45d0393ac5a1a72b6a47067c0";
 
-/** Git tree SHA of assets/jyutping_female at WORDSHK_AUDIO_COMMIT; content-addressed, so it pins the file list and every clip's blob SHA. */
+/**
+ * Git tree SHA of assets/jyutping_female at WORDSHK_AUDIO_COMMIT. The listing is requested by this SHA
+ * and parseClipTree checks that the response echoes it, but the entries are not re-hashed against it:
+ * the file list and blob SHAs are trusted as GitHub (or the cached listing) returns them. Each clip is
+ * then checked against its listed blob SHA.
+ */
 export const WORDSHK_AUDIO_TREE_SHA = "c604e7eec402fab0a872ff70ae2554bc8c3201db";
 
 export const WORDSHK_AUDIO_TREE_URL = `https://api.github.com/repos/AlienKevin/wordshk_app/git/trees/${WORDSHK_AUDIO_TREE_SHA}`;

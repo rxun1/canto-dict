@@ -3,6 +3,7 @@
 // side (wiktionaryDialSyn.ts), zlib, the tar reader or the Lua parser.
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { byCodeUnits } from "../compare";
 import { throwIfProblems, type Problem } from "./problems";
 import type { DialSynForm, DialSynPair } from "./types";
 import { WIKTIONARY_DIALSYN_PAGE_PREFIX, WIKTIONARY_DIALSYN_SHA256, WIKTIONARY_DIALSYN_URL } from "./urls";
@@ -32,9 +33,6 @@ const FIRST_PAIR_LINE = 5;
 function pairLine({ mandarin, cantonese }: DialSynPair): string {
   return JSON.stringify({ mandarin, cantonese: cantonese.map(({ form, note }) => (note === undefined ? { form } : { form, note })) });
 }
-
-/** Code-unit order: deterministic, unlike localeCompare. */
-const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Serializes pairs as the extract: a provenance object (with `tarballSha256`, the hash of the

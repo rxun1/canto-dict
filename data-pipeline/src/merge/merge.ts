@@ -1,5 +1,6 @@
 // Merge: a pure function from parsed source rows to Entry objects plus the stats the build report
 // prints. No I/O here; loadMergeInputs (load.ts) gathers the inputs.
+import { byCodeUnits } from "../compare";
 import type { CharReading, KfcdRow, MandarinEquivalent, MoeEntry, ReadingRank, WordReading, WordshkEntry } from "../sources/types";
 import { isSingleCodePoint } from "../sources/codePoints";
 import { throwIfProblems, type Problem } from "../sources/problems";
@@ -54,9 +55,6 @@ const WHOLE_DEFINITION_READING_NOTE = new RegExp(`^(?:\\([一二三四五六七�
 
 /** One sentence ending in "的又音/讀音/語音。": "雙棒兒的雙的語音。" (the reading of 雙 in 雙棒兒). */
 const ONE_SENTENCE_READING_NOTE = new RegExp(`^[^。]*的${READING_NOTE}。$`);
-
-/** Code-unit order: deterministic and locale-independent. */
-const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 const rankIndex = (rank: ReadingRank | undefined): number => (rank === undefined ? RANK_ORDER.length : RANK_ORDER.indexOf(rank));
 

@@ -1,13 +1,14 @@
 // words.hk female syllable recordings from AlienKevin/wordshk_app (spec §4.1: no published licence,
 // personal use only). The folder is listed once through the GitHub trees API at a pinned tree SHA, then
 // every clip is fetched from raw.githubusercontent.com at the pinned commit and checked against the
-// blob SHA-1 the listing gives it, so a cached or downloaded clip can never silently differ from upstream.
+// blob SHA-1 the listing gives it, so a cached or downloaded clip can never silently differ from the listing.
 import { createHash } from "node:crypto";
 import { readFile, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
+import { byCodeUnits } from "../compare";
 import { mapConcurrent } from "../concurrency";
-import { fetchToCache } from "../download";
+import { cachedPath, fetchToCache, overrideEnvVar } from "../download";
 import {
   WORDSHK_AUDIO_CACHE_DIR,
   WORDSHK_AUDIO_TREE_CACHE_NAME,
@@ -64,7 +65,13 @@ export function parseClipTree(json: string, expectedSha: string): ClipListing[] 
     }
     return { syllable, file, blobSha: entry.sha };
   });
-  return clips.sort((a, b) => (a.syllable < b.syllable ? -1 : a.syllable > b.syllable ? 1 : 0));
+  return clips.sort((a, b) => byCodeUnits(a.syllable, b.syllable));
+}
+
+/** Whether `path` is `dir` or lies under it. */
+function isInside(dir: string, path: string): boolean {
+  const rel = relative(dir, path);
+  return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 export interface FetchWordshkClipsOptions {
@@ -77,24 +84,30 @@ export interface FetchWordshkClipsOptions {
 
 /**
  * Downloads (or reuses from the cache) every clip of the pinned folder and returns syllable → absolute
- * path, sorted by syllable. A clip whose bytes do not match its listed blob SHA is deleted and the call
- * throws, so the next run downloads it again.
+ * path, sorted by syllable. A clip whose bytes do not match its listed blob SHA makes the call throw;
+ * a cached clip is deleted first, so the next run downloads it again, but an override file (CANTO_SRC_*)
+ * is left alone.
  */
 export async function fetchWordshkClips(options: FetchWordshkClipsOptions = {}): Promise<Map<string, string>> {
   const treeSha = options.treeSha ?? WORDSHK_AUDIO_TREE_SHA;
   const clipUrl = options.clipUrl ?? wordshkAudioClipUrl;
   const cache = { cacheDir: options.cacheDir };
+  const cacheRoot = options.cacheDir === undefined ? cachedPath("") : resolve(options.cacheDir);
   const treePath = await fetchToCache(options.treeUrl ?? WORDSHK_AUDIO_TREE_URL, WORDSHK_AUDIO_TREE_CACHE_NAME, cache);
   const listing = parseClipTree(await readFile(treePath, "utf8"), treeSha);
 
   const paths = await mapConcurrent(
     listing,
     async ({ file, blobSha }) => {
-      const path = await fetchToCache(clipUrl(file), join(WORDSHK_AUDIO_CACHE_DIR, file), cache);
+      const name = join(WORDSHK_AUDIO_CACHE_DIR, file);
+      const path = await fetchToCache(clipUrl(file), name, cache);
       const actual = gitBlobSha(await readFile(path));
       if (actual !== blobSha) {
+        const mismatch = `${SOURCE_NAME}: ${file} has blob SHA ${actual}, expected ${blobSha}`;
+        // fetchToCache returns the user's own file when its override env var is set; never delete that.
+        if (!isInside(cacheRoot, path)) throw new Error(`${mismatch}; ${path} (from ${overrideEnvVar(name)}) is not the upstream clip`);
         await rm(path, { force: true });
-        throw new Error(`${SOURCE_NAME}: ${file} has blob SHA ${actual}, expected ${blobSha}; deleted ${path}, re-run to download it again`);
+        throw new Error(`${mismatch}; deleted ${path}, re-run to download it again`);
       }
       return path;
     },

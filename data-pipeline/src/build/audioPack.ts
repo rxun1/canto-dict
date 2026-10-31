@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
+import { byCodeUnits } from "../compare";
 import { mapConcurrent } from "../concurrency";
 
 const run = promisify(execFile);
@@ -38,6 +39,15 @@ export const MIN_CLIP_SECONDS = 0.05;
 const TRIM_SILENCE = `silenceremove=start_periods=1:start_threshold=${SILENCE_THRESHOLD_DB}dB:detection=peak`;
 const AUDIO_FILTER = [TRIM_SILENCE, "areverse", TRIM_SILENCE, "areverse"].join(",");
 
+/** Decimal megabyte, the unit sizes are reported in. */
+export const BYTES_PER_MB = 1_000_000;
+
+/**
+ * Largest syllables.pack (10 MB) the build accepts: the app bundles it, and the full words.hk set packs to
+ * ~9.7 MB (spec §4.4), so a bigger pack means the clip set or the encoding changed unexpectedly.
+ */
+export const MAX_PACK_BYTES = 10 * BYTES_PER_MB;
+
 /** jyutping → [byte offset, byte length] of its clip in syllables.pack. */
 export type SyllableIndex = Record<string, [offset: number, length: number]>;
 
@@ -50,6 +60,8 @@ export interface PackOptions {
   /** ffmpeg / ffprobe executables (default: found on PATH). */
   ffmpeg?: string;
   ffprobe?: string;
+  /** Size limit of syllables.pack (default MAX_PACK_BYTES); tests pass a tiny one. */
+  maxPackBytes?: number;
 }
 
 export interface PackResult {
@@ -96,20 +108,19 @@ async function encodeClip(syllable: string, input: string, out: string, ffmpeg: 
   }
 }
 
-const byCodeUnit = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
 /**
  * Re-encodes every clip (jyutping → audio file) and writes syllables.pack (the encoded clips back to
  * back, in sorted jyutping order) and syllables.json (sorted keys, so the output is deterministic).
- * Throws, writing nothing, if a key is not one toned syllable, ffmpeg/ffprobe is missing or a clip
- * fails to encode.
+ * Throws, writing nothing, if a key is not one toned syllable, ffmpeg/ffprobe is missing, a clip
+ * fails to encode or the pack would exceed the size limit.
  */
 export async function pack(clips: ReadonlyMap<string, string>, outputs: PackOutputs, options: PackOptions = {}): Promise<PackResult> {
-  const syllables = [...clips.keys()].sort(byCodeUnit);
+  const syllables = [...clips.keys()].sort(byCodeUnits);
   const bad = syllables.find((s) => !TONED_SYLLABLE.test(s));
   if (bad !== undefined) throw new Error(`audio pack: key "${bad}" is not one toned Jyutping syllable`);
   const ffmpeg = options.ffmpeg ?? "ffmpeg";
   const ffprobe = options.ffprobe ?? "ffprobe";
+  const maxPackBytes = options.maxPackBytes ?? MAX_PACK_BYTES;
 
   const work = await mkdtemp(join(tmpdir(), "canto-audio-"));
   const packTemp = `${outputs.packPath}.tmp`;
@@ -126,6 +137,9 @@ export async function pack(clips: ReadonlyMap<string, string>, outputs: PackOutp
       index[syllable] = [offset, encoded[i].length];
       offset += encoded[i].length;
     });
+    if (offset > maxPackBytes) {
+      throw new Error(`audio pack: ${syllables.length} clips encode to ${offset} bytes, over the ${maxPackBytes}-byte limit`);
+    }
     await writeFile(packTemp, Buffer.concat(encoded));
     await writeFile(indexTemp, `${JSON.stringify(index)}\n`);
     // The two renames are not atomic together: a crash between them leaves a new pack with the old index until the next build.

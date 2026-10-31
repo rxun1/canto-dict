@@ -66,6 +66,19 @@ function edgeSilenceMs(pcm: Float32Array, thresholdDb: number): { lead: number; 
   return { lead: toMs(first), tail: toMs(pcm.length - 1 - last) };
 }
 
+/** Silence appended to a fixture so the trailing trim has real work: the fixtures end only 2-3 ms after their last sound. */
+const PADDED_TAIL_SECONDS = 0.2;
+
+/** A copy of fixture `syllable` in `dir` with PADDED_TAIL_SECONDS of digital silence appended. */
+function withSilentTail(syllable: string, dir: string): string {
+  const out = join(dir, `${syllable}.padded.mp3`);
+  execFileSync("ffmpeg", [
+    ...["-nostdin", "-v", "error", "-y", "-i", join(FIXTURE_AUDIO_DIR, `${syllable}.mp3`)],
+    ...["-af", `apad=pad_dur=${PADDED_TAIL_SECONDS}`, "-c:a", "libmp3lame", out],
+  ]);
+  return out;
+}
+
 describe("pack", () => {
   it("writes syllables.pack and a sorted syllables.json whose [offset, length] pairs tile the pack exactly", async () => {
     const { packPath, indexPath } = outPaths();
@@ -115,6 +128,15 @@ describe("pack", () => {
     }
   });
 
+  it("trims real trailing silence", async () => {
+    const { dir, packPath, indexPath } = outPaths();
+    const padded = withSilentTail("aa1", dir);
+    expect(edgeSilenceMs(decodePcm(padded), SILENCE_THRESHOLD_DB).tail, "padded input tail").toBeGreaterThan(EDGE_SILENCE_TOLERANCE_MS);
+    await pack(new Map([["aa1", padded]]), { packPath, indexPath });
+    const { tail } = edgeSilenceMs(decodePcm(packPath), SILENCE_THRESHOLD_DB);
+    expect(tail).toBeLessThanOrEqual(EDGE_SILENCE_TOLERANCE_MS);
+  });
+
   it("is deterministic: the same clips give byte-identical outputs", async () => {
     const a = outPaths();
     const b = outPaths();
@@ -143,6 +165,16 @@ describe("pack", () => {
     expect(readFileSync(packPath, "utf8")).toBe("old pack");
     expect(readFileSync(indexPath, "utf8")).toBe("{}");
     expect(readdirSync(dir).sort()).toEqual(["syllables.json", "syllables.pack", "zi6.mp3"]);
+  });
+
+  it("keeps the previous outputs and leaves no temp files when the pack exceeds the size limit", async () => {
+    const { dir, packPath, indexPath } = outPaths();
+    writeFileSync(packPath, "old pack");
+    writeFileSync(indexPath, "{}");
+    await expect(pack(fixtureClips(), { packPath, indexPath }, { maxPackBytes: 1 })).rejects.toThrow(/over the 1-byte limit/);
+    expect(readFileSync(packPath, "utf8")).toBe("old pack");
+    expect(readFileSync(indexPath, "utf8")).toBe("{}");
+    expect(readdirSync(dir).sort()).toEqual(["syllables.json", "syllables.pack"]);
   });
 
   it("rejects a key that is not one toned Jyutping syllable", async () => {

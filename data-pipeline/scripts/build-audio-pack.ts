@@ -2,11 +2,10 @@
 // from the pinned words.hk syllable clips, until cli.ts runs the full build (P1-T17).
 // Run: cd data-pipeline && npx tsx scripts/build-audio-pack.ts
 import { join } from "node:path";
-import { pack } from "../src/build/audioPack";
+import { BYTES_PER_MB, pack } from "../src/build/audioPack";
 import { fetchWordshkClips } from "../src/sources/wordshkAudio";
 
 const ASSETS_DIR = join(import.meta.dirname, "../../assets");
-const BYTES_PER_MB = 1_000_000;
 
 const started = performance.now();
 const clips = await fetchWordshkClips();
