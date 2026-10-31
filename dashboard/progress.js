@@ -402,7 +402,7 @@ window.CANTO_PROGRESS = {
         },
         {
           id: "P2-T3", title: "Database module (expo-sqlite + test adapter)", status: "todo",
-          files: ["src/db/types.ts", "src/db/expoDb.ts", "src/db/testDb.ts", "src/db/entries.ts", "src/db/entries.test.ts"],
+          files: ["src/db/types.ts", "src/db/expoDb.tsx", "src/db/testDb.ts", "src/db/entries.ts", "src/db/entries.test.ts"],
           subtasks: [
             "Define the Db interface in types.ts: all<T>(sql, params), first<T>(sql, params)",
             "Implement testDb.ts with better-sqlite3 over assets/test/canto.fixture.db",

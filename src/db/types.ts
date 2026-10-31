@@ -2,7 +2,7 @@
 export type SqlParam = string | number | null;
 
 /**
- * The read-only database the app queries. Async so expo-sqlite's async API fits (expoDb.ts); Jest
+ * The read-only database the app queries. Async so expo-sqlite's async API fits (expoDb.tsx); Jest
  * uses better-sqlite3 over the fixture DB (testDb.ts). Only src/db/ writes SQL against it.
  */
 export interface Db {
