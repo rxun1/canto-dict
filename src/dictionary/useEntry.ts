@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { findCharEntries, getEntry, type Entry } from "../db/entries";
 import type { Db } from "../db/types";
+import { HAN } from "./classify";
 import { mandarinLine, type MandarinLine } from "./mandarinLine";
-
-const HAN = /\p{Script=Han}/u;
 
 /** One character of a word: shown simplified; `id` is its own entry, or null when it has none. */
 export interface WordChar {
@@ -17,6 +16,8 @@ export interface WordChar {
 export type EntryState =
   | { status: "loading" }
   | { status: "missing" }
+  /** The DB query failed (logged with console.warn). */
+  | { status: "error" }
   | { status: "ready"; entry: Entry; mandarin: MandarinLine | null; chars: WordChar[] };
 
 /**
@@ -54,7 +55,7 @@ export function useEntry(db: Db, id: number): EntryState {
       },
       (error: unknown) => {
         console.warn("Loading entry failed", error);
-        if (!stale) setState({ status: "missing" });
+        if (!stale) setState({ status: "error" });
       },
     );
     return () => {

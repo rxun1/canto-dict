@@ -19,7 +19,8 @@ export type Classification =
   /** Blank input: no query and no hint. */
   | { kind: "empty" };
 
-const HAN = /\p{Script=Han}/u;
+/** A Han character (CJK ideograph) anywhere in the text. */
+export const HAN = /\p{Script=Han}/u;
 const WHITESPACE = /\s+/g;
 // Pasted separators: nei5-hou2, nei5'hou2 (also curly quotes and the en dash).
 const SEPARATORS = /[-–'‘’]/g;

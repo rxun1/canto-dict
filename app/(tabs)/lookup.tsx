@@ -4,12 +4,11 @@ import { SymbolView } from "expo-symbols";
 import { memo, useCallback, useState } from "react";
 import { FlatList, PlatformColor, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useDb } from "../../src/db/expoDb";
+import { YUE_GLOSS_LABEL } from "../../src/dictionary/mandarinLine";
 import type { SearchResult } from "../../src/dictionary/search";
 import { useSearch } from "../../src/dictionary/useSearch";
 
 const HINT = "输入汉字或粤拼";
-/** Labels a gloss that is a words.hk Cantonese explanation, not Mandarin (spec §5.2). */
-const YUE_GLOSS_LABEL = "粤语释义";
 
 export default function LookupScreen() {
   const db = useDb();

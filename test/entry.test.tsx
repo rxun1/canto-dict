@@ -112,8 +112,8 @@ describe("entry screen", () => {
   it("lists definitions by sense with their examples, Jyutping and Mandarin", async () => {
     await openEntry(43);
     // Sense number, part of speech, then the explanation.
-    expect(await screen.findByText("1. 副詞 「唔使」嘅书面语")).toBeTruthy();
-    expect(screen.getByText("2. 副詞 「唔用」嘅书面语")).toBeTruthy();
+    expect(await screen.findByText("1. 副词 「唔使」嘅书面语")).toBeTruthy();
+    expect(screen.getByText("2. 副词 「唔用」嘅书面语")).toBeTruthy();
     const sense1 = within(screen.getByTestId("sense-wordshk-dump-1"));
     expect(sense1.getByText("唔使客气")).toBeTruthy();
     expect(sense1.getByText("m4 sai2 haak3 hei3")).toBeTruthy();
@@ -123,6 +123,21 @@ describe("entry screen", () => {
   it("says so when there is no such entry", async () => {
     await openEntry(999999);
     expect(await screen.findByText("找不到这个词条")).toBeTruthy();
+  });
+
+  it("says loading failed, not that the entry is missing, when the DB query fails", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const failing: Db = { all: () => Promise.reject(new Error("disk I/O error")), first: () => Promise.reject(new Error("disk I/O error")) };
+    mockDb = failing;
+    try {
+      await openEntry(100);
+      expect(await screen.findByText("词条加载失败")).toBeTruthy();
+      expect(screen.queryByText("找不到这个词条")).toBeNull();
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      mockDb = db;
+      warn.mockRestore();
+    }
   });
 });
 

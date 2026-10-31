@@ -3,6 +3,9 @@
 // explanation (definitions.yue), which the screen labels 粤语释义. Pure logic.
 import type { Entry } from "../db/entries";
 
+/** Labels a words.hk Cantonese explanation shown where Mandarin would be (spec §5.2). */
+export const YUE_GLOSS_LABEL = "粤语释义";
+
 export interface ScriptText {
   trad: string;
   simp: string;

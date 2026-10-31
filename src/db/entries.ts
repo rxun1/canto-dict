@@ -116,8 +116,9 @@ type CharEntryRow = CharEntry & { char: string };
 /**
  * Each character's char entry: the one whose traditional form it is, else one that folds it in as an
  * alias (most frequent first). Characters with no char entry are left out. Matching on the
- * traditional form keeps the simplified-only stray char entries (trad = simp = another entry's simp,
- * e.g. 饭) from catching traditional text.
+ * traditional form keeps most simplified-only stray char entries (trad = simp = another entry's
+ * simp, e.g. 饭) out, since traditional text rarely contains them; but some word spellings do (17
+ * characters in canto.db, e.g. in 人頭税 and 便秘), and those link to the stray entry.
  */
 export async function findCharEntries(db: Db, chars: readonly string[]): Promise<Map<string, CharEntry>> {
   const unique = [...new Set(chars)];

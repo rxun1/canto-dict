@@ -6,14 +6,14 @@ import { Fragment } from "react";
 import { PlatformColor, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Definition, Entry, Example, Reading, ReadingRank } from "../../src/db/entries";
 import { useDb } from "../../src/db/expoDb";
-import type { MandarinLine } from "../../src/dictionary/mandarinLine";
+import { YUE_GLOSS_LABEL, type MandarinLine } from "../../src/dictionary/mandarinLine";
+import { partOfSpeechSimp } from "../../src/dictionary/partOfSpeech";
 import { useEntry, type WordChar } from "../../src/dictionary/useEntry";
 
 const MANDARIN_LABEL = "普通话";
-/** Labels a words.hk Cantonese explanation standing in for Mandarin (spec §5.2). */
-const YUE_LABEL = "粤语释义";
 const MANDARIN_SEPARATOR = "、";
 const MISSING = "找不到这个词条";
+const LOAD_FAILED = "词条加载失败";
 
 const RANK_TAGS: Record<ReadingRank, string> = {
   default: "首选",
@@ -31,10 +31,10 @@ export default function EntryScreen() {
   const state = useEntry(useDb(), Number(id));
 
   if (state.status === "loading") return <View style={styles.screen} />;
-  if (state.status === "missing") {
+  if (state.status === "missing" || state.status === "error") {
     return (
       <View style={[styles.screen, styles.centered]}>
-        <Text style={styles.missing}>{MISSING}</Text>
+        <Text style={styles.missing}>{state.status === "missing" ? MISSING : LOAD_FAILED}</Text>
       </View>
     );
   }
@@ -64,7 +64,7 @@ function mandarinText(line: MandarinLine): string {
     case "zho":
       return `${MANDARIN_LABEL}：${line.simp}`;
     case "yue":
-      return `${YUE_LABEL}：${line.simp}`;
+      return `${YUE_GLOSS_LABEL}：${line.simp}`;
   }
 }
 
@@ -142,7 +142,7 @@ function Definitions({ entry }: { entry: Entry }) {
                 <Text style={styles.senseNumber}>{d.sense}. </Text>
                 {d.pos !== null && (
                   <Fragment>
-                    <Text style={styles.pos}>{d.pos}</Text>{" "}
+                    <Text style={styles.pos}>{partOfSpeechSimp(d.pos)}</Text>{" "}
                   </Fragment>
                 )}
                 {d.yueSimp ?? d.yue ?? d.zhoSimp ?? d.zho}
