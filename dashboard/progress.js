@@ -538,7 +538,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/userdata → pass",
         },
         {
-          id: "P2-T10", title: "Saved tab + ☆ button + history logging", status: "todo",
+          id: "P2-T10", title: "Saved tab + ☆ button + history logging", status: "done",
           files: ["app/(tabs)/saved.tsx", "app/entry/[id].tsx", "app/(tabs)/saved.test.tsx"],
           subtasks: [
             "Write failing RNTL test: ☆ on an entry toggles it into the Favorites list",
@@ -547,12 +547,15 @@ window.CANTO_PROGRESS = {
             "Implement the Saved tab (Favorites | History segments) and wire ☆ + logging",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-31 (32b26cf; root 181 tests): Saved tab 收藏 | 历史, newest first, 清除, reload on focus, 加载失败 on a user.db read error; ☆/★ in the entry header (useFavorite ignores taps in flight); useLogLookup logs each loaded entry once; getEntrySummaries(db, ids) in src/db/searchQueries.ts skips ids canto.db no longer has; EntryRow shared with Lookup; screen tests use test/helpers/mockUserDb (jest.mock(\"../src/userdata/expoUserDb\", () => require(\"./helpers/mockUserDb\")))",
+            "Open: translation rows don't reopen on Translate yet (TODO Plan 3). Clear has no confirm; reopening an entry adds a duplicate history row (spec silent). Clear during an in-flight focus reload drops that load's new favorites until next focus. An entry screen deeper in the stack doesn't refresh ☆ on focus (no path pushes the same entry twice today). search.test 食 < 50 ms can flake under load (max of 5 runs alongside other Jest workers); not a regression",
+            "Next: P2-T11 — DbGate: when opening canto.db fails, a full-screen error with Retry (retry re-opens and shows the app on success); DoD: never an empty lookup screen when the DB failed. Today src/db/expoDb.tsx DbProvider is expo-sqlite SQLiteProvider (databaseName canto.db, assetSource) rendering nothing until ready; check SQLiteProvider's onError/useSuspense props in node_modules/expo-sqlite, or open it yourself like src/userdata/expoUserDb.tsx (which throws open failures in render — gate it too, so user.db failures get the same screen). Deferred from P2-T3, natural to settle here: canto.db is copied once (assetSource forceOverwrite false) so a rebuilt DB needs a versioned name; a blank screen during the first-launch copy of the 63 MB asset (show a loading state); readOnly open. Tests under src/db/ or test/, never app/; test/{tabLayout,lookup,entry,saved}.test.tsx mock DbProvider/useDb and UserDbProvider — keep them passing",
           ],
           dod: ["Matches spec §5.3"],
           test: "npx jest app/\\(tabs\\)/saved → pass",
         },
         {
-          id: "P2-T11", title: "Database error screen", status: "todo",
+          id: "P2-T11", title: "Database error screen", status: "doing",
           files: ["src/db/DbGate.tsx", "src/db/DbGate.test.tsx"],
           subtasks: [
             "Write failing RNTL test: when opening canto.db throws, a full-screen error with Retry appears",
@@ -828,6 +831,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T17 done, Plan 1 complete (573 tests): npm run data:build runs end to end in 57 s — 138,574 entries (32,288 chars, 106,286 words), canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token-weighted. Reduced build (no words.hk dump yet). Review: no must-fix; duplicated MB formatter and test helpers cleaned up." },
     { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
+    { date: "2026-10-31", text: "P2-T10 done (32b26cf): Saved tab (收藏 | 历史, Clear), ☆ in the entry header, lookups logged to history. Review: no must-fix; added a 加载失败 state instead of a blank list." },
     { date: "2026-10-31", text: "P2-T9 done (a441ad2): favorites + history in a separate user.db created on the device, history capped at 500. Review: no must-fix; fixed a DB handle leak on unmount during open, ordered history by id so a clock change can't drop rows, added CHECKs per kind." },
     { date: "2026-10-31", text: "P2-T1 done (f1a54d4..8888106): Expo SDK 58 app with four placeholder tabs, jest-expo smoke test, iOS 27.2 simulator verified. SDK 58 needs Xcode 26.4+, so Xcode went 26.1.1 → 27.2 (old runtimes and caches cleared). Review: no must-fix; template icon and an unused dependency removed." },
     { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
