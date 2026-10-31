@@ -9,7 +9,7 @@
 //   dod:      definition of done (every item must hold)
 //   test:     how to verify it is done (command + expected result)
 window.CANTO_PROGRESS = {
-  updated: "2026-10-30",
+  updated: "2026-10-31",
   phases: [
     {
       name: "Phase 0 — Discovery & design",
@@ -363,8 +363,8 @@ window.CANTO_PROGRESS = {
       doc: "../docs/superpowers/plans/2026-10-29-plan-2-app-lookup.html",
       tasks: [
         {
-          id: "P2-T1", title: "Expo app scaffold (tabs, TypeScript, Jest)", status: "todo",
-          files: ["package.json", "app.json", "app/(tabs)/_layout.tsx", "app/(tabs)/lookup.tsx", "app/(tabs)/translate.tsx", "app/(tabs)/saved.tsx", "app/(tabs)/settings.tsx", "jest.config.js"],
+          id: "P2-T1", title: "Expo app scaffold (tabs, TypeScript, Jest)", status: "done",
+          files: ["package.json", "app.json", "tsconfig.json", "jest.config.js", "app/_layout.tsx", "app/index.tsx", "app/(tabs)/_layout.tsx", "app/(tabs)/lookup.tsx", "app/(tabs)/translate.tsx", "app/(tabs)/saved.tsx", "app/(tabs)/settings.tsx", "src/components/PlaceholderScreen.tsx", "test/tabLayout.test.tsx"],
           subtasks: [
             "Check the current Expo SDK version and record it in the spec",
             "Run create-expo-app at the repo root (TypeScript, Expo Router) and remove template demo screens",
@@ -373,6 +373,8 @@ window.CANTO_PROGRESS = {
             "Run npm test → passes",
             "Run npx expo run:ios → app opens in the simulator with four tabs",
             "Commit",
+            "Done 2026-10-31 (f1a54d4..8888106; root 18 tests, pipeline 573): Expo SDK 58 (expo 58.0.21, RN 0.88, React 19.3) at the repo root; routes in root app/ (not the template's src/app/); root Stack + (tabs) with plain JS Tabs and SF Symbol icons; / redirects to /lookup; jest-expo ignores data-pipeline and runs src/jyutping tests; src/components/ added to the spec (presentational views only). Needs Xcode 26.4+ — upgraded to Xcode 27.2 (26.1.1 failed in expo-modules-jsi Swift). Verified on iPhone 18 Pro, iOS 27.2 simulator: four tabs render",
+            "Next: P2-T2 — add app/dev-checks.tsx (pushed on the root Stack; never put tests inside app/, Expo Router treats every file there as a route); install to-jyutping and opencc-js as app deps with npx expo install. Gotchas: react-dom must stay pinned to exactly 19.3.0 (expo-router's Radix peers; else ERESOLVE); tsconfig has types [\"jest\"] only (add @types/node + \"node\" when a file needs path/__dirname, e.g. P2-T3 testDb); Xcode 27 has no Simulator.app (DeviceHub instead); a debug build needs Metro running (npx expo start) and expo run:ios's last window-focus step needs Terminal→System Events automation permission (it errored from Claude's shell after install+launch succeeded); simctl openurl shows an \"Open in Canto Dict?\" prompt, use simctl launch. Device run needs an Apple ID signing team. Optional: metro.config.js blocking data-pipeline/(node_modules|.cache) if Metro is slow. Open from P1-T16: particles la1/a1/ga3/ma3 have no clip (decide in the audio task)",
           ],
           dod: [
             "Fresh clone + npm install + npx expo run:ios works",
@@ -803,6 +805,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T17 done, Plan 1 complete (573 tests): npm run data:build runs end to end in 57 s — 138,574 entries (32,288 chars, 106,286 words), canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token-weighted. Reduced build (no words.hk dump yet). Review: no must-fix; duplicated MB formatter and test helpers cleaned up." },
     { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
+    { date: "2026-10-31", text: "P2-T1 done (f1a54d4..8888106): Expo SDK 58 app with four placeholder tabs, jest-expo smoke test, iOS 27.2 simulator verified. SDK 58 needs Xcode 26.4+, so Xcode went 26.1.1 → 27.2 (old runtimes and caches cleared). Review: no must-fix; template icon and an unused dependency removed." },
     { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
   ],
 };
