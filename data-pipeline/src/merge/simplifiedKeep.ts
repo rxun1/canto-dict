@@ -2,10 +2,11 @@
 // (decided 2026-10-30). Merge lists both groups in its stats for the build report.
 
 /**
- * Cantonese characters kept in text toSimplified converts as Script "hk" (displayed headwords and
- * the words.hk dump's definitions and examples, their Mandarin glosses included). Not applied to
- * Script "tw" (MoE definitions, Wiktionary's Mandarin words), where 係 is the Mandarin character
- * of 關係 and simplifies to 系 as usual. Sorted by code point.
+ * Cantonese characters kept in Cantonese text (toSimplified's "yue": displayed headwords and the
+ * words.hk dump's definitions and example sentences). Not applied to Mandarin text ("zho-hk": the
+ * Mandarin translations of words.hk examples; "zho-tw": MoE definitions, Wiktionary's Mandarin
+ * words), where 係 is the Mandarin character of 關係 and simplifies to 系 as usual. Sorted by
+ * code point.
  */
 export const CANTONESE_KEEP: readonly string[] = [
   // hai6 "to be": OpenCC gives 系, which Cantonese readers do not write for the copula. Mandarin

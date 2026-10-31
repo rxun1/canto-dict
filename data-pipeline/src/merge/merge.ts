@@ -194,7 +194,7 @@ function chooseTrad(builder: EntryBuilder): string {
 /**
  * Mandarin items: Kaifangcidian's (rows in content order, items in row order), then Wiktionary's
  * (in code-unit order), de-duplicated on (trad, simp) with their sources merged. Wiktionary gives
- * traditional only (Taiwan forms such as 著涼), so its simplified form comes from OpenCC tw→cn.
+ * traditional only (Taiwan forms such as 著涼), so its simplified form comes from toSimplified "zho-tw".
  */
 function finishMandarin(builder: EntryBuilder): MandarinItem[] {
   const items = new Map<string, { trad: string; simp: string; sources: RowSource[] }>();
@@ -207,7 +207,7 @@ function finishMandarin(builder: EntryBuilder): MandarinItem[] {
   for (const row of [...builder.kfcd].sort((a, b) => byCodeUnits(a.sortKey, b.sortKey))) {
     for (const { trad, simp } of row.mandarin) add(trad, simp, "kaifangcidian");
   }
-  for (const word of [...builder.wiktionary].sort(byCodeUnits)) add(word, toSimplified(word, "tw"), "wiktionary");
+  for (const word of [...builder.wiktionary].sort(byCodeUnits)) add(word, toSimplified(word, "zho-tw"), "wiktionary");
   return [...items.values()];
 }
 
@@ -240,15 +240,15 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
     const pos = dumpEntry.pos.length > 0 ? dumpEntry.pos.join(POS_SEPARATOR) : undefined;
     for (const { yue, examples: senseExamples } of dumpEntry.senses) {
       sense++;
-      definitions.push({ sense, ...(pos !== undefined && { pos }), yue, yueSimp: toSimplified(yue, "hk"), source: WORDSHK_DUMP_SOURCE });
+      definitions.push({ sense, ...(pos !== undefined && { pos }), yue, yueSimp: toSimplified(yue, "yue"), source: WORDSHK_DUMP_SOURCE });
       for (const example of senseExamples) {
         examples.push({
           sense,
           yueTrad: example.yue,
-          yueSimp: toSimplified(example.yue, "hk"),
+          yueSimp: toSimplified(example.yue, "yue"),
           ...(example.jyutping !== undefined && { jyutping: example.jyutping.join(" ") }),
           ...(example.loanSyllables !== undefined && example.loanSyllables.length > 0 && { loan: example.loanSyllables }),
-          ...(example.zho !== undefined && { zho: example.zho, zhoSimp: toSimplified(example.zho, "hk") }),
+          ...(example.zho !== undefined && { zho: example.zho, zhoSimp: toSimplified(example.zho, "zho-hk") }),
           source: WORDSHK_DUMP_SOURCE,
         });
       }
@@ -263,7 +263,7 @@ function finishDefinitions(builder: EntryBuilder, moe: MoeEntry | undefined, dro
       continue;
     }
     moeSense++;
-    definitions.push({ sense: moeSense, ...(pos !== undefined && { pos }), zho: def, zhoSimp: toSimplified(def, "tw"), source: "moe" });
+    definitions.push({ sense: moeSense, ...(pos !== undefined && { pos }), zho: def, zhoSimp: toSimplified(def, "zho-tw"), source: "moe" });
   }
   return { definitions, examples };
 }
@@ -512,7 +512,7 @@ export function merge(inputs: MergeInputs): MergeResult {
       return {
         key: builder.key,
         trad,
-        simp: toSimplified(trad, "hk"),
+        simp: toSimplified(trad, "yue"),
         kind: isSingleCodePoint(trad) ? "char" : "word",
         freq: weight === undefined ? 0 : Math.log10(1 + weight),
         aliases,

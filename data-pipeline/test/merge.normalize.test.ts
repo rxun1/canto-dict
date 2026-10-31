@@ -48,18 +48,19 @@ describe("headwordKey", () => {
 
 describe("toSimplified", () => {
   it("keeps Cantonese characters that have no simplified form unchanged (嘅, 冇, 喺)", () => {
-    for (const text of ["嘅", "冇", "喺", "我哋"]) expect(toSimplified(text, "hk")).toBe(text);
-    expect(toSimplified("冇問題", "hk")).toBe("冇问题");
+    for (const text of ["嘅", "冇", "喺", "我哋"]) expect(toSimplified(text, "yue")).toBe(text);
+    expect(toSimplified("冇問題", "yue")).toBe("冇问题");
   });
 
-  it("converts Hong Kong forms, including HK-only variants such as 衞", () => {
-    expect(toSimplified("學校", "hk")).toBe("学校");
-    expect(toSimplified("衞生", "hk")).toBe("卫生");
-    expect(toSimplified("揀", "hk")).toBe("拣");
+  it("converts Hong Kong forms, including HK-only variants such as 衞, in Cantonese and Mandarin text", () => {
+    expect(toSimplified("學校", "yue")).toBe("学校");
+    expect(toSimplified("衞生", "yue")).toBe("卫生");
+    expect(toSimplified("揀", "yue")).toBe("拣");
+    expect(toSimplified("衞生", "zho-hk")).toBe("卫生");
   });
 
   it("converts Taiwan forms (著急 → 着急, 這裡 → 这里)", () => {
-    expect(toSimplified("著急", "tw")).toBe("着急");
-    expect(toSimplified("這裡", "tw")).toBe("这里");
+    expect(toSimplified("著急", "zho-tw")).toBe("着急");
+    expect(toSimplified("這裡", "zho-tw")).toBe("这里");
   });
 });

@@ -17,26 +17,60 @@ const byCodePoint = (a: string, b: string): number => a.codePointAt(0)! - b.code
 
 describe("toSimplified keep-list", () => {
   it("keeps the Cantonese characters 係, 嗰 and 餸 in Cantonese text (佢係我, 嗰度, 買餸)", () => {
-    expect(toSimplified("佢係我", "hk")).toBe("佢係我");
-    expect(toSimplified("嗰度", "hk")).toBe("嗰度");
-    expect(toSimplified("買餸", "hk")).toBe("买餸");
+    expect(toSimplified("佢係我", "yue")).toBe("佢係我");
+    expect(toSimplified("嗰度", "yue")).toBe("嗰度");
+    expect(toSimplified("買餸", "yue")).toBe("买餸");
     // Only the listed character is kept; its neighbours still convert.
-    expect(toSimplified("佢係學生", "hk")).toBe("佢係学生");
+    expect(toSimplified("佢係學生", "yue")).toBe("佢係学生");
   });
 
-  it("converts 係 as usual in Mandarin (Taiwan-script) text: 關係 → 关系", () => {
-    expect(toSimplified("關係", "tw")).toBe("关系");
+  it("converts 係 as usual in Mandarin text, Taiwan or Hong Kong forms (我們的關係很好 → 我们的关系很好)", () => {
+    expect(toSimplified("關係", "zho-tw")).toBe("关系");
+    expect(toSimplified("我們的關係很好", "zho-hk")).toBe("我们的关系很好");
+  });
+
+  it("gives a words.hk example's Mandarin translation no Cantonese keep (words.hk 96774 教會)", () => {
+    const result = merge(
+      inputs({
+        wordshkDump: [
+          {
+            id: 96774,
+            headwords: [{ word: "教會", syllables: ["gaau3", "wui5"] }],
+            variants: ["敎會"],
+            pos: ["動詞"],
+            labels: ["書面語"],
+            senses: [
+              {
+                yue: "教人學識一啲嘢",
+                examples: [
+                  {
+                    yue: "全靠你教識咗我點樣處理工作上嘅人際關係。",
+                    zho: "全靠您教會了我怎樣處理工作上的人際關係。",
+                    jyutping: ["cyun4", "kaau3", "nei5", "gaau3", "sik1", "zo2", "ngo5", "dim2", "joeng6", "cyu5", "lei5", "gung1", "zok3", "soeng6", "ge3", "jan4", "zai3", "gwaan1", "hai6"],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(result.entries[0].examples[0].zhoSimp).toBe("全靠您教会了我怎样处理工作上的人际关系。");
+  });
+
+  it("keeps non-BMP forms in Hong Kong-form Mandarin text too", () => {
+    expect(toSimplified("鮟鱇魚", "zho-hk")).toBe("鮟鱇鱼");
   });
 
   it("keeps characters whose simplified form is outside the BMP, in both scripts (鮟鱇, not 𩽾𩾌)", () => {
     expect(OpenCC.Converter({ from: "hk", to: "cn" })("鮟鱇")).toBe("𩽾𩾌");
-    expect(toSimplified("鮟鱇魚", "hk")).toBe("鮟鱇鱼");
-    expect(toSimplified("鮟鱇魚", "tw")).toBe("鮟鱇鱼");
+    expect(toSimplified("鮟鱇魚", "yue")).toBe("鮟鱇鱼");
+    expect(toSimplified("鮟鱇魚", "zho-tw")).toBe("鮟鱇鱼");
   });
 
   it("still converts everything else (嘅/冇/喺 have no simplified form anyway)", () => {
-    expect(toSimplified("冇問題嘅", "hk")).toBe("冇问题嘅");
-    expect(toSimplified("喺學校", "hk")).toBe("喺学校");
+    expect(toSimplified("冇問題嘅", "yue")).toBe("冇问题嘅");
+    expect(toSimplified("喺學校", "yue")).toBe("喺学校");
   });
 
   it("is sorted and duplicate-free, CANTONESE_KEEP included", () => {

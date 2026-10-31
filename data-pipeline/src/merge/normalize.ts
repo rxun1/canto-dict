@@ -3,23 +3,33 @@ import { isSingleCodePoint } from "../sources/codePoints";
 import { CANTONESE_KEEP, NON_BMP_KEEP } from "./simplifiedKeep";
 
 /**
- * Which OpenCC traditional → simplified config toSimplified uses (headwordKey ignores it), named
- * after the variant table the text's traditional forms are read with:
- * - "hk": Hong Kong forms, OpenCC hk→cn (衞生 → 卫生; tw→cn would leave 衞). Used for Cantonese
- *   text: the displayed headword (from words.hk, rime, LSHK or Unihan) and the words.hk dump's
- *   definitions, examples and the examples' Mandarin translations.
- * - "tw": Taiwan forms, OpenCC tw→cn, which reads 著 the Taiwan way (著急 → 着急; hk→cn keeps
- *   著急). Used for MoE definitions and Wiktionary's Mandarin words (著涼 → 着凉).
+ * What kind of text toSimplified converts (headwordKey ignores it): its language, which picks the
+ * keep-list (simplifiedKeep.ts), and the variant table its traditional forms are read with, which
+ * picks the OpenCC config.
+ * - "yue": Cantonese in Hong Kong forms, OpenCC hk→cn (衞生 → 卫生; tw→cn would leave 衞), keeping
+ *   CANTONESE_KEEP (係, 嗰, 餸) and NON_BMP_KEEP. Used for the displayed headword (from words.hk,
+ *   rime, LSHK or Unihan) and the words.hk dump's definitions and example sentences.
+ * - "zho-hk": Mandarin in Hong Kong forms, OpenCC hk→cn keeping NON_BMP_KEEP only (關係 → 关系).
+ *   Used for the Mandarin translations of words.hk examples.
+ * - "zho-tw": Mandarin in Taiwan forms, OpenCC tw→cn keeping NON_BMP_KEEP only; tw→cn reads 著 the
+ *   Taiwan way (著急 → 着急; hk→cn keeps 著急). Used for MoE definitions and Wiktionary's Mandarin
+ *   words (著涼 → 着凉).
  * Kaifangcidian supplies its own simplified forms and is not converted.
  */
-export type Script = "hk" | "tw";
+export type TextKind = "yue" | "zho-hk" | "zho-tw";
 
 const HK_TO_STANDARD = OpenCC.Converter({ from: "hk", to: "t" });
 const TW_TO_STANDARD = OpenCC.Converter({ from: "tw", to: "t" });
+const HK_TO_SIMPLIFIED = OpenCC.Converter({ from: "hk", to: "cn" });
+const TW_TO_SIMPLIFIED = OpenCC.Converter({ from: "tw", to: "cn" });
 
-const TO_SIMPLIFIED: Readonly<Record<Script, (text: string) => string>> = {
-  hk: OpenCC.Converter({ from: "hk", to: "cn" }),
-  tw: OpenCC.Converter({ from: "tw", to: "cn" }),
+const NON_BMP_KEEP_SET: ReadonlySet<string> = new Set(NON_BMP_KEEP);
+
+/** Per kind: the OpenCC converter and the characters left as they are. */
+const KINDS: Readonly<Record<TextKind, { readonly convert: (text: string) => string; readonly keep: ReadonlySet<string> }>> = {
+  yue: { convert: HK_TO_SIMPLIFIED, keep: new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]) },
+  "zho-hk": { convert: HK_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
+  "zho-tw": { convert: TW_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
 };
 
 /**
@@ -47,23 +57,15 @@ export function headwordKey(word: string): string {
   return isSingleCodePoint(word) ? word : HK_TO_STANDARD(TW_TO_STANDARD(word));
 }
 
-/** Characters toSimplified leaves as they are, per script (simplifiedKeep.ts). */
-const KEEP: Readonly<Record<Script, ReadonlySet<string>>> = {
-  hk: new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]),
-  tw: new Set(NON_BMP_KEEP),
-};
-
 /**
- * Simplified form of a traditional text for display (OpenCC hk→cn or tw→cn). Characters without a
- * simplified form (嘅, 冇, 喺) come back unchanged, and so do the keep-list's (simplifiedKeep.ts):
- * 係/嗰/餸 in "hk" text, and in both scripts every character OpenCC would turn into a non-BMP one.
- * The text is converted in runs between kept characters, so a run never sees a kept neighbour;
- * on the pinned data this gives the same output as converting the whole text and then restoring
- * the kept characters.
+ * Simplified form of a traditional text for display (see TextKind). Characters without a
+ * simplified form (嘅, 冇, 喺) come back unchanged, and so do the kind's keep-list characters.
+ * The text is converted in runs between kept characters, so a run never sees a kept neighbour.
+ * On every text merge converted from the pinned sources (with the words.hk dump) this gave the
+ * same output as converting the whole text and then restoring the kept characters.
  */
-export function toSimplified(text: string, script: Script): string {
-  const convert = TO_SIMPLIFIED[script];
-  const keep = KEEP[script];
+export function toSimplified(text: string, kind: TextKind): string {
+  const { convert, keep } = KINDS[kind];
   let simplified = "";
   let run = "";
   for (const char of text) {
