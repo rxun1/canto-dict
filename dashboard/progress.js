@@ -9,7 +9,7 @@
 //   dod:      definition of done (every item must hold)
 //   test:     how to verify it is done (command + expected result)
 window.CANTO_PROGRESS = {
-  updated: "2026-10-29",
+  updated: "2026-10-30",
   phases: [
     {
       name: "Phase 0 — Discovery & design",
@@ -229,7 +229,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/sources/moedict.test.ts → pass",
         },
         {
-          id: "P1-T13", title: "Merge sources into one entry model", status: "doing",
+          id: "P1-T13", title: "Merge sources into one entry model", status: "done",
           files: ["data-pipeline/src/merge/types.ts", "data-pipeline/src/merge/merge.ts", "data-pipeline/test/merge.test.ts"],
           subtasks: [
             "Word-frequency source: rime-cantonese essay-cantonese.txt (CC BY 4.0, pinned with the words dict) parsed by src/sources/rimeEssay.ts — done in 8d52a04 + review fixes",
@@ -245,12 +245,10 @@ window.CANTO_PROGRESS = {
             "Write failing test: words.hk variantForm rows fold into their standard entry as aliases using the variant links from PUBLIC words.hk dump entries (P1-T8; covers ~594 of 2,103) — NOT OpenCC, which does not fold 異體字 like 㨂→揀; never separate headwords; unlinked variant rows are dropped and counted in the build report",
             "Write failing test: MoE definitions attach to entries via a variant-folding KEY (MoE uses Taiwan forms 這裡/衛生/麵包/電線/著急; HK sources use 這裏/衞生/麪包/電綫/着急) — fold only the lookup key, keep MoE word/def text verbatim; drop reading-dependent senses (\"(一)之又音。\", 又音/讀音/語音 — use MoeSense.heteronym) so the Mandarin line prefers real definitions",
             "MoE script: per user decision (2026-10-30) MoE definitions get a simplified form via OpenCC t2s like everything else — personal display only, never redistributed (MoE forbids 轉為簡化字 for redistribution)",
-            "STATUS 2026-10-30: merge implemented in 4335a86..24ae1db (487 tests). Spec review ❌ on 2 points — fix next:",
-            "FIX 1: findWeight must fall back to essay weights indexed by headwordKey (max) — 2,592 entries get freq 0 despite an essay weight under another spelling (張牀←張床, 族群←族羣); add a test",
-            "FIX 2: KFCD \"…\" items: keep patterns that carry meaning on their own (又…又…, 就…吧), drop bare fragments (…子, …人); the phrase table (P3-T3) must skip all \"…\" items",
-            "FIX 3 (user decision 2026-10-30): simplified keep-list — one file of Cantonese chars left unchanged by OpenCC t2s (嗰, 餸, 係, plus every char whose simplified form is non-BMP); list it in stats/build report; test 佢係我 → 佢係我, 嗰度 → 嗰度",
-            "Also: skip Wiktionary forms with ideographic description chars (U+2FF0–2FFF, e.g. ⿰血聿); use WORDSHK_DUMP_SOURCE constant at merge.ts:354; fix the normalize.ts Script doc and the 著 phrase-table note; confirm the 19 one-code-point words.hk char entries (0 B D の …) — drop J (zhei1 is not Jyutping)",
-            "Then: one combined review (lean workflow), mark done, and update spec §4.3 before P1-T14: definitions yue_simp/zho_simp, examples zho_simp + loan, mandarin sources (array), an aliases table (with simplified forms) searchable by §5.1 CJK search",
+            "Review fixes done 2026-10-30 (b3bf225..e84e632, 509 tests): freq falls back to the heaviest essay weight under the headword key (93 real misses rescued; the other 2,499 freq-0 entries have an exact essay weight of 0); KFCD \"…\" items with < 2 chars besides the placeholders dropped (7 of 68: …人, …子, 就…, …); Wiktionary ⿰-style described forms skipped; J kept like DJ/打J (only its loan zhei1 survives — zei is not in the attested syllable list)",
+            "Simplified keep-list (src/merge/simplifiedKeep.ts): 係/嗰/餸 in Cantonese text only (TextKind yue/headword), 342 chars whose OpenCC form is non-BMP in all text (鮟鱇魚 → 鮟鱇鱼); Mandarin text (zho-hk, zho-tw) never keeps 係; 係 phrase exceptions: 關係 anywhere in Cantonese text, 係數/基尼係數/介係詞/外文係/… as whole headwords only (佢係數學老師 keeps 係)",
+            "Follow-ups (not done): MoE zho-tw simplified turns zyu3 著 into 着 (原著 → 原着); 二噁英 → 二𫫇英 (phrase-table only, 噁 left alone so 噁心 → 恶心); zei1 for J/DJ/打J needs 'zei' in the attested syllables",
+            "Next, before P1-T14: update spec §4.3 — definitions yue_simp/zho_simp, examples zho_simp + loan, mandarin sources (array), an aliases table (with simplified forms) searchable by §5.1 CJK search",
             "Run tests → fail",
             "Implement merge.ts",
             "Run tests → pass",
@@ -587,6 +585,7 @@ window.CANTO_PROGRESS = {
             "Write curated.ts with ~300 hand-checked Mandarin → Cantonese pairs (的→嘅, 是→係, 没有→冇, 他/她→佢, 在→喺, 看→睇, 什么→乜嘢, 吃→食, …)",
             "Write failing test: reversed Kaifangcidian/Wiktionary pairs are added; curated pairs win on conflict",
             "Write failing test: only Wiktionary Cantonese forms WITHOUT a usage note are used as translations (notes like dated/slang/† mark forms to avoid; symbol notes such as † differ per table, so any note excludes the form)",
+            "Write failing test: Kaifangcidian items containing \"…\" (patterns like 又…又… kept in entries by P1-T13) are never used as phrase-table pairs",
             "Write failing test: output table phrase_map(mandarin_trad, cantonese_trad, source) written into canto.db",
             "Run tests → fail",
             "Implement phraseTable.ts and add it to the pipeline build step",
@@ -783,5 +782,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T13 merge built (8 commits, 138,874 entries: 32,288 chars + 106,586 words). Spec review found 2 gaps (freq lookup ignores the folded key; KFCD \"…\" items) — fixes pending. Reviewer judged the single OpenCC key fold safe (no different words merged; +149 genuine variant joins)." },
     { date: "2026-10-30", text: "Decided: simplified text keeps a short list of Cantonese chars unchanged (嗰, 餸, 係, and any whose OpenCC simplified form is a rare non-BMP char)." },
     { date: "2026-10-30", text: "Process change (token cost): lean workflow — one implementer + one combined review per task, all Opus; small fixes verified directly without re-review; nits batched." },
+    { date: "2026-10-30", text: "P1-T13 done (b3bf225..e84e632, 509 tests). Review fixes: essay freq fallback by headword key, bare KFCD \"…\" fragments dropped, simplified keep-list (係/嗰/餸 + 342 non-BMP forms) with 關係 → 关系 phrase exceptions. Combined review caught J's misdescribed reading and Mandarin translations wrongly keeping 係 — both fixed." },
+    { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
   ],
 };
