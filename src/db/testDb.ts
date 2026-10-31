@@ -12,7 +12,8 @@ const SCHEMA_PATH = join(__dirname, "../../data-pipeline/src/build/schema.sql");
 
 export type TestDb = Db & { close(): void };
 
-function toTestDb(db: Database.Database): TestDb {
+/** Wraps a better-sqlite3 database in the Db interface (also used by src/userdata/testUserDb.ts). */
+export function toTestDb(db: Database.Database): TestDb {
   return {
     all: async <T>(sql: string, params: readonly SqlParam[] = []) => db.prepare(sql).all(...params) as T[],
     first: async <T>(sql: string, params: readonly SqlParam[] = []) => (db.prepare(sql).get(...params) as T | undefined) ?? null,
