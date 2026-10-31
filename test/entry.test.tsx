@@ -2,6 +2,7 @@
 import { existsSync } from "fs";
 import type { ReactNode } from "react";
 import { fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
+import { playSyllables } from "../src/audio/playSyllables";
 import type { Db } from "../src/db/types";
 import { FULL_DB_PATH, openDbCopy, openTestDb, type TestDb } from "../src/db/testDb";
 
@@ -11,6 +12,10 @@ jest.mock("../src/db/expoDb", () => ({
   DbProvider: ({ children }: { children: ReactNode }) => children,
   useDb: () => mockDb,
 }));
+
+// Audio is native: the 🔊 buttons call a mock that reports whether TTS was used.
+jest.mock("../src/audio/playSyllables", () => ({ playSyllables: jest.fn(async () => ({ usedTts: false })) }));
+const mockPlay = playSyllables as jest.Mock;
 
 // The fixture DB has no 冇 or 學校 (and no MoE definitions at all), so these copy their full-DB rows.
 const MOU5 = 1001;
@@ -88,6 +93,30 @@ describe("entry screen", () => {
     await openEntry(103);
     const row = within(await screen.findByTestId("reading-ngan4 hong4"));
     expect(row.queryByTestId("rank-tag")).toBeNull();
+  });
+
+  it("plays a reading's syllables with the headword's characters (銀行)", async () => {
+    await openEntry(103);
+    const row = within(await screen.findByTestId("reading-ngan4 hong4"));
+    await fireEvent.press(row.getByRole("button"));
+    expect(mockPlay).toHaveBeenLastCalledWith(["ngan4", "hong4"], "銀行");
+    expect(row.queryByText("TTS")).toBeNull();
+  });
+
+  it("tags a reading TTS once a syllable fell back to speech", async () => {
+    mockPlay.mockResolvedValueOnce({ usedTts: true });
+    await openEntry(100);
+    const row = within(await screen.findByTestId("reading-hang4"));
+    await fireEvent.press(row.getByRole("button"));
+    expect(mockPlay).toHaveBeenLastCalledWith(["hang4"], "行");
+    expect(await row.findByText("TTS")).toBeTruthy();
+  });
+
+  it("plays an example sentence's syllables with its characters", async () => {
+    await openEntry(43);
+    const sense1 = within(await screen.findByTestId("sense-wordshk-dump-1"));
+    await fireEvent.press(sense1.getAllByRole("button")[0]);
+    expect(mockPlay).toHaveBeenLastCalledWith(["m4", "sai2", "haak3", "hei3"], "唔使客氣");
   });
 
   it("links each character of a word to its own entry", async () => {

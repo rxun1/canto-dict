@@ -11,7 +11,7 @@
       "bundleIdentifier": "com.rxun.cantodict",
       "supportsTablet": false
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-asset"],
+    "plugins": ["expo-router", "expo-sqlite", "expo-asset", "expo-audio"],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

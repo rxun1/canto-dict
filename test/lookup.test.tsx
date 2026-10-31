@@ -11,6 +11,9 @@ jest.mock("../src/db/expoDb", () => {
   return { DbProvider: ({ children }: { children: ReactNode }) => children, useDb: () => db };
 });
 
+// expo-audio is native too, and loads with the entry screen a tapped row opens.
+jest.mock("../src/audio/playSyllables", () => ({ playSyllables: jest.fn() }));
+
 const PLACEHOLDER = "汉字或粤拼";
 
 async function type(text: string) {

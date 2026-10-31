@@ -1,9 +1,10 @@
 // Entry screen (spec §5.2): headword, readings with rank tags, the Mandarin line, a word's characters
 // (each linking to its own entry), then definitions by sense with their examples.
-// The 🔊 buttons (P2-T8) go where AudioSlot sits; ☆ and history are P2-T10.
+// 🔊 plays a reading or example in real-person syllables; ☆ and history are P2-T10.
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { PlatformColor, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { playSyllables } from "../../src/audio/playSyllables";
 import type { Definition, Entry, Example, Reading, ReadingRank } from "../../src/db/entries";
 import { useDb } from "../../src/db/expoDb";
 import { YUE_GLOSS_LABEL, type MandarinLine } from "../../src/dictionary/mandarinLine";
@@ -14,6 +15,10 @@ const MANDARIN_LABEL = "普通话";
 const MANDARIN_SEPARATOR = "、";
 const MISSING = "找不到这个词条";
 const LOAD_FAILED = "词条加载失败";
+const PLAY_LABEL = "播放";
+/** Shown beside 🔊 once a syllable with no clip was spoken by TTS (spec §7). */
+const TTS_TAG = "TTS";
+const SYLLABLE_SEPARATOR = /\s+/;
 
 const RANK_TAGS: Record<ReadingRank, string> = {
   default: "首选",
@@ -47,7 +52,7 @@ export default function EntryScreen() {
       </View>
       <View style={styles.readings}>
         {entry.readings.map((reading) => (
-          <ReadingRow key={reading.jyutping} reading={reading} />
+          <ReadingRow key={reading.jyutping} reading={reading} text={entry.trad} />
         ))}
       </View>
       {mandarin !== null && <Text style={styles.mandarin}>{mandarinText(mandarin)}</Text>}
@@ -68,21 +73,36 @@ function mandarinText(line: MandarinLine): string {
   }
 }
 
-/** Where P2-T8's 🔊 button (real-person syllables for this Jyutping) goes; renders nothing yet. */
-function AudioSlot(_: { jyutping: string }) {
-  return null;
+/** 🔊: plays the Jyutping's syllables; `text` is the characters TTS speaks for a syllable with no clip. */
+function AudioButton({ jyutping, text }: { jyutping: string; text: string }) {
+  const [usedTts, setUsedTts] = useState(false);
+  const play = async () => setUsedTts((await playSyllables(jyutping.split(SYLLABLE_SEPARATOR), text)).usedTts);
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${PLAY_LABEL} ${jyutping}`}
+        hitSlop={8}
+        onPress={play}
+        style={({ pressed }) => pressed && styles.pressed}
+      >
+        <Text style={styles.audioIcon}>🔊</Text>
+      </Pressable>
+      {usedTts && <Text style={styles.tag}>{TTS_TAG}</Text>}
+    </>
+  );
 }
 
-function ReadingRow({ reading }: { reading: Reading }) {
+function ReadingRow({ reading, text }: { reading: Reading; text: string }) {
   return (
     <View style={styles.reading} testID={`reading-${reading.jyutping}`}>
       <Text style={styles.readingText}>{reading.jyutping}</Text>
       {reading.rank !== null && (
-        <Text style={styles.rankTag} testID="rank-tag">
+        <Text style={styles.tag} testID="rank-tag">
           {RANK_TAGS[reading.rank]}
         </Text>
       )}
-      <AudioSlot jyutping={reading.jyutping} />
+      <AudioButton jyutping={reading.jyutping} text={text} />
     </View>
   );
 }
@@ -168,7 +188,7 @@ function ExampleRow({ example }: { example: Example }) {
     <View style={styles.example}>
       <View style={styles.exampleLine}>
         <Text style={styles.exampleText}>{example.yueSimp}</Text>
-        {example.jyutping !== null && <AudioSlot jyutping={example.jyutping} />}
+        {example.jyutping !== null && <AudioButton jyutping={example.jyutping} text={example.yueTrad} />}
       </View>
       {example.jyutping !== null && <Text style={styles.exampleJyutping}>{example.jyutping}</Text>}
       {example.zhoSimp !== null && <Text style={styles.exampleMandarin}>{example.zhoSimp}</Text>}
@@ -189,7 +209,7 @@ const styles = StyleSheet.create({
   readings: { gap: 6 },
   reading: { flexDirection: "row", alignItems: "center", gap: 8 },
   readingText: { fontSize: 20, color: PlatformColor("label") },
-  rankTag: {
+  tag: {
     fontSize: 12,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -198,6 +218,7 @@ const styles = StyleSheet.create({
     color: PlatformColor("secondaryLabel"),
     backgroundColor: PlatformColor("tertiarySystemFill"),
   },
+  audioIcon: { fontSize: 18 },
   mandarin: { fontSize: 17, color: PlatformColor("label") },
   chars: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   charLink: { borderRadius: 8, backgroundColor: PlatformColor("secondarySystemFill") },

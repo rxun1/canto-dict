@@ -1,8 +1,8 @@
 // Learn more https://docs.expo.dev/guides/customizing-metro
 const { getDefaultConfig } = require("expo/metro-config");
+const { EXTRA_ASSET_EXTS } = require("./assetExts");
 
 const config = getDefaultConfig(__dirname);
-// canto.db ships as an asset; SQLiteProvider copies it into the app's documents on first launch.
-config.resolver.assetExts.push("db");
+config.resolver.assetExts.push(...EXTRA_ASSET_EXTS);
 
 module.exports = config;

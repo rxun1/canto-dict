@@ -9,6 +9,7 @@ import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import type { SyllableIndex } from "../../../src/audio/syllableIndex";
 import { TONED_SYLLABLE } from "../../../src/jyutping/pattern";
 import { byCodeUnits } from "../compare";
 import { mapConcurrent } from "../concurrency";
@@ -51,8 +52,7 @@ export const formatMb = (bytes: number): string => `${(bytes / BYTES_PER_MB).toF
  */
 export const MAX_PACK_BYTES = 10 * BYTES_PER_MB;
 
-/** jyutping → [byte offset, byte length] of its clip in syllables.pack. */
-export type SyllableIndex = Record<string, [offset: number, length: number]>;
+export type { SyllableIndex };
 
 export interface PackOutputs {
   packPath: string;
