@@ -9,16 +9,17 @@ describe("searchKeys", () => {
     expect(keysOf("sik6 faan6", "toneless")).toEqual(["sikfaan"]);
   });
 
-  it("gives joined keys for tones typed on only some syllables", () => {
-    // sik6faan (tone on the first syllable only) is left out: a toned query already prefix-matches sik6faan6.
+  it("gives joined keys for tones typed on only some syllables, the last syllable toned", () => {
+    // A form ending toneless (sik6faan) is a prefix of the same form with that tone added, which a toned query prefix-matches.
     expect(keysOf("sik6 faan6", "joined")).toEqual(["sikfaan6"]);
-    expect(keysOf("sik6 faan6 laa3", "joined").sort()).toEqual(["sik6faanlaa", "sik6faanlaa3", "sikfaan6laa", "sikfaan6laa3", "sikfaanlaa3"]);
+    expect(keysOf("sik6 faan6 laa3", "joined").sort()).toEqual(["sik6faanlaa3", "sikfaan6laa3", "sikfaanlaa3"]);
   });
 
-  it("gives no joined keys past MAX_JOINED_SYLLABLES syllables", () => {
+  it("gives joined keys for the first MAX_JOINED_SYLLABLES syllables of a longer reading", () => {
     expect(MAX_JOINED_SYLLABLES).toBe(3);
-    const keys = searchKeys("jat1 go3 jan4 sik6");
-    expect(keys.map((k) => k.type)).toEqual(["toned", "toneless"]);
+    // A 4-syllable word starting sik6 faan6 is still found by sikfaan6 (prefix of sikfaan6laa3).
+    expect(keysOf("sik6 faan6 laa3 maa3", "joined").sort()).toEqual(["sik6faanlaa3", "sikfaan6laa3", "sikfaanlaa3"]);
+    expect(keysOf("sik6 faan6 laa3 maa3", "toned")).toEqual(["sik6faan6laa3maa3"]);
   });
 
   it("gives a single syllable no joined keys", () => {
