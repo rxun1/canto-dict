@@ -60,9 +60,10 @@ export const XI_HEADWORDS: readonly string[] = [
  * U+20000–U+3347F was run through OpenCC (opencc-js 1.4.2), so the list covers characters any
  * source may bring, not just today's data; test/merge.simplifiedKeep.test.ts re-derives it and
  * fails when an OpenCC update changes it. 145 of them are themselves outside the BMP (𠁞 → 𠀾).
- * The scan includes the CJK Compatibility Ideographs (U+F900–U+FAFF), and 7 entries come from
- * there (U+FA6C, U+FACF–U+FAD1, U+FAD5–U+FAD7). They look like unified ideographs but are distinct
- * code points, not duplicates: their canonical (NFC) equivalents (U+242EE, …) are not in the list.
+ * 115 entries are CJK Compatibility Ideographs: 7 from U+F900–U+FAFF (U+FA6C, U+FACF–U+FAD1,
+ * U+FAD5–U+FAD7) and 108 from the supplement U+2F800–U+2FA1F. They look like unified ideographs,
+ * and some look like other entries here (濆, 鋗, 鱀, 𢌱, 𥪧 each appear twice), but they are distinct
+ * code points, not duplicates: don't NFC-normalize or dedupe this list.
  * Sorted by code point.
  */
 export const NON_BMP_KEEP: readonly string[] = [
