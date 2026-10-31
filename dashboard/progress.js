@@ -521,8 +521,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/audio → pass; simulator: tap 🔊 on 食 → hear sik6",
         },
         {
-          id: "P2-T9", title: "User data: favorites + history", status: "todo",
-          files: ["src/userdata/schema.ts", "src/userdata/favorites.ts", "src/userdata/history.ts", "src/userdata/userdata.test.ts"],
+          id: "P2-T9", title: "User data: favorites + history", status: "done",
+          files: ["src/userdata/schema.ts", "src/userdata/types.ts", "src/userdata/favorites.ts", "src/userdata/history.ts", "src/userdata/expoUserDb.tsx", "src/userdata/testUserDb.ts", "src/userdata/userdata.test.ts", "src/userdata/expoUserDb.test.tsx"],
           subtasks: [
             "Write failing tests: toggleFavorite adds then removes; listFavorites newest first",
             "Write failing tests: addHistory keeps at most 500 rows (oldest dropped); clearHistory empties it",
@@ -531,6 +531,8 @@ window.CANTO_PROGRESS = {
             "Implement against a separate user.db (schema per spec §5.3)",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-31 (a441ad2; root 166 tests): UserDb (src/userdata/types.ts) = read-only Db + run. user.db made by openDatabaseAsync on the device, never an asset. favorites: isFavorite, toggleFavorite(db, id, now) → now a favorite?, listFavorites → {entryId, addedAt}[] newest first. history: addHistory(db, {kind:'lookup', entryId} | {kind:'translation', input, output}, now), listHistory (adds id, at; ordered by id DESC so a clock set back can't drop rows), clearHistory; HISTORY_LIMIT 500 enforced by an after-insert trigger; CHECKs require the columns each kind needs. UserDbProvider/useUserDb (own context: SQLiteProvider would shadow canto.db's useSQLiteContext); openTestUserDb() for Jest",
+            "Next: P2-T10 — mount <UserDbProvider> inside <DbProvider> in app/_layout.tsx (not mounted yet). Then test/tabLayout, test/lookup, test/entry (they render the real layout) need jest.mock(\"../src/userdata/expoUserDb\") with a passthrough UserDbProvider and useUserDb → openTestUserDb(); doing it in P2-T9 broke 23 tests. toggleFavorite reads then writes: ignore ☆ taps while one is in flight. listHistory/listFavorites return entry ids only — user.db and canto.db are separate files, so get headwords from canto.db per id via a src/db query (no SQL join). Log a lookup on entry open (watch for a double log from a re-run effect). Translation rows reopen on the Translate tab (Plan 3); list them now, the tap can wait. No error boundary until P2-T11: a user.db open failure throws in render. Tests under test/, never app/; RNTL v14 fireEvent is async; screens that mock the entry screen must mock src/audio/playSyllables",
           ],
           dod: ["Rebuilding canto.db never touches user.db"],
           test: "npx jest src/userdata → pass",
@@ -826,6 +828,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T17 done, Plan 1 complete (573 tests): npm run data:build runs end to end in 57 s — 138,574 entries (32,288 chars, 106,286 words), canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token-weighted. Reduced build (no words.hk dump yet). Review: no must-fix; duplicated MB formatter and test helpers cleaned up." },
     { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
+    { date: "2026-10-31", text: "P2-T9 done (a441ad2): favorites + history in a separate user.db created on the device, history capped at 500. Review: no must-fix; fixed a DB handle leak on unmount during open, ordered history by id so a clock change can't drop rows, added CHECKs per kind." },
     { date: "2026-10-31", text: "P2-T1 done (f1a54d4..8888106): Expo SDK 58 app with four placeholder tabs, jest-expo smoke test, iOS 27.2 simulator verified. SDK 58 needs Xcode 26.4+, so Xcode went 26.1.1 → 27.2 (old runtimes and caches cleared). Review: no must-fix; template icon and an unused dependency removed." },
     { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
   ],
