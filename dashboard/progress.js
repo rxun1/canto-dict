@@ -331,7 +331,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/validate.test.ts → pass",
         },
         {
-          id: "P1-T17", title: "Full real build + fixture DB for app tests", status: "todo",
+          id: "P1-T17", title: "Full real build + fixture DB for app tests", status: "done",
           files: ["data-pipeline/src/cli.ts", "assets/canto.db", "assets/syllables.pack", "assets/syllables.json", "assets/test/canto.fixture.db", "data-pipeline/build-report.html"],
           subtasks: [
             "Wire all steps in cli.ts: download → parse → merge → validate → build (build also writes build-report.html)",
@@ -341,6 +341,9 @@ window.CANTO_PROGRESS = {
             "Open build-report.html and compare counts with the research numbers",
             "Copy headline numbers (entries, DB MB, audio coverage) onto the dashboard log",
             "Commit (code + fixture DB only; generated real assets stay git-ignored)",
+            "Done 2026-10-30 (51ac2c0..8bdc7a9, 573 tests): cli.ts wired (async build(config) with injectable inputs; --fixture = fixtureInputs() + NO_MINIMUMS, DB only, no network; unknown flags / step errors exit 1). scripts/gen-fixture-db.ts and build-audio-pack.ts removed (use npm run data:fixture / data:build). build-report.html git-ignored. Real build 57 s, validation passed first try: 138,574 entries, 32,288 chars + 106,286 words with Jyutping, canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token / 94.87% types. Reduced build: words.hk dump not on disk (request form; CANTO_SRC_WORDSHK_DUMP), so no words.hk definitions/examples yet. Fixture DB unchanged (94 KB, 122 entries)",
+            "Skipped: per-file SHA-256 of downloads (spec §4.1); every loader would have to return its cache path. Only a validate failure is atomic; a later failure (e.g. pack over MAX_PACK_BYTES) can leave a new canto.db beside the old pack",
+            "Next: P2-T1 — Expo app at the repo root, which already holds assets/ (canto.db, syllables.*, test/canto.fixture.db), data-pipeline/ (its own package.json; keep it out of the app's Jest/tsconfig) and a .gitignore with .expo/ ios/ android/. create-expo-app refuses a non-empty dir: scaffold in $CLAUDE_JOB_DIR/tmp and move files in, merging .gitignore. Open from P1-T16: particles la1/a1/ga3/ma3 have no clip (decide the fallback in the audio task)",
           ],
           dod: [
             "npm run data:build succeeds end to end",
@@ -797,6 +800,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "Decided: simplified text keeps a short list of Cantonese chars unchanged (嗰, 餸, 係, and any whose OpenCC simplified form is a rare non-BMP char)." },
     { date: "2026-10-30", text: "Process change (token cost): lean workflow — one implementer + one combined review per task, all Opus; small fixes verified directly without re-review; nits batched." },
     { date: "2026-10-30", text: "P1-T13 done (b3bf225..e84e632, 509 tests). Review fixes: essay freq fallback by headword key, bare KFCD \"…\" fragments dropped, simplified keep-list (係/嗰/餸 + 342 non-BMP forms) with 關係 → 关系 phrase exceptions. Combined review caught J's misdescribed reading and Mandarin translations wrongly keeping 係 — both fixed." },
+    { date: "2026-10-30", text: "P1-T17 done, Plan 1 complete (573 tests): npm run data:build runs end to end in 57 s — 138,574 entries (32,288 chars, 106,286 words), canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token-weighted. Reduced build (no words.hk dump yet). Review: no must-fix; duplicated MB formatter and test helpers cleaned up." },
     { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
     { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
