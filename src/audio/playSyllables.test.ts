@@ -3,7 +3,7 @@
 import { createAudioPlayer } from "expo-audio";
 import * as Speech from "expo-speech";
 import { clipPath } from "./syllablePack";
-import { playSyllables, TTS_LANGUAGE } from "./playSyllables";
+import { MAX_CLIP_MS, playSyllables, TTS_LANGUAGE } from "./playSyllables";
 
 // Syllables without a clip (the particles have none, nor does the loanword syllable rep1).
 const mockNoClip = new Set(["la1", "a1", "ga3", "ma3", "rep1"]);
@@ -14,6 +14,7 @@ jest.mock("./syllablePack", () => ({
 interface MockPlayer {
   uri: string;
   play: jest.Mock;
+  pause: jest.Mock;
   remove: jest.Mock;
   /** Sends a playbackStatusUpdate to the player's listener. */
   emit: (status: { didJustFinish?: boolean; error?: string | null }) => void;
@@ -27,6 +28,7 @@ jest.mock("expo-audio", () => ({
     const player = {
       uri,
       play: jest.fn(),
+      pause: jest.fn(),
       remove: jest.fn(),
       addListener: (_: string, l: (status: object) => void) => {
         listener = l;
@@ -41,6 +43,7 @@ jest.mock("expo-audio", () => ({
 
 jest.mock("expo-speech", () => ({
   speak: jest.fn((_: string, options: { onDone?: () => void }) => options.onDone?.()),
+  stop: jest.fn(async () => {}),
 }));
 
 /** Lets pending promises (clipPath, the play loop) run. */
@@ -54,10 +57,15 @@ describe("playSyllables", () => {
 
   it("plays the clips in order, waiting for each to finish", async () => {
     let finished = false;
-    const playing = playSyllables(["sik6", "faan6"], "食飯").then((r) => ((finished = true), r));
+    const playing = playSyllables(["sik6", "faan6"], "食飯").then((r) => {
+      finished = true;
+      return r;
+    });
     await flush();
     expect(mockPlayers.map((p) => p.uri)).toEqual(["file:///cache/sik6.mp3"]);
     expect(mockPlayers[0].play).toHaveBeenCalled();
+    // Both clips were ready before the first played, so none is sliced between syllables.
+    expect(clipPath).toHaveBeenCalledTimes(2);
 
     mockPlayers[0].emit({ didJustFinish: true });
     await flush();
@@ -106,5 +114,65 @@ describe("playSyllables", () => {
       throw new Error("no voice");
     });
     await expect(playSyllables(["sik6"], "食")).resolves.toEqual({ usedTts: true });
+  });
+
+  it("cleans up the player when play() throws, and falls back to speech", async () => {
+    (createAudioPlayer as jest.Mock).mockImplementationOnce((uri: string) => {
+      const play = jest.fn(() => {
+        throw new Error("no audio session");
+      });
+      const player = { uri, play, pause: jest.fn(), remove: jest.fn(), addListener: () => ({ remove() {} }) };
+      mockPlayers.push(player as unknown as MockPlayer);
+      return player;
+    });
+    expect(await playSyllables(["sik6"], "食")).toEqual({ usedTts: true });
+    expect(mockPlayers[0].remove).toHaveBeenCalled();
+  });
+
+  it("gives up on a clip that never finishes and speaks its character instead", async () => {
+    jest.useFakeTimers({ doNotFake: ["setImmediate"] });
+    try {
+      const playing = playSyllables(["sik6"], "食");
+      await flush();
+      expect(mockPlayers).toHaveLength(1);
+      jest.advanceTimersByTime(MAX_CLIP_MS);
+      expect(await playing).toEqual({ usedTts: true });
+      expect(mockPlayers[0].remove).toHaveBeenCalled();
+      expect(Speech.speak).toHaveBeenCalledWith("食", expect.anything());
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("stops the play in progress when a new one starts", async () => {
+    const first = playSyllables(["sik6", "faan6"], "食飯");
+    await flush();
+    const second = playSyllables(["hou2"], "好");
+    await flush();
+    expect(mockPlayers[0].pause).toHaveBeenCalled();
+    expect(mockPlayers[0].remove).toHaveBeenCalled();
+    expect(await first).toEqual({ usedTts: false });
+
+    mockPlayers[1].emit({ didJustFinish: true });
+    expect(await second).toEqual({ usedTts: false });
+    // The first play never reached faan6, and nothing fell back to speech.
+    expect(mockPlayers.map((p) => p.uri)).toEqual(["file:///cache/sik6.mp3", "file:///cache/hou2.mp3"]);
+    expect(Speech.speak).not.toHaveBeenCalled();
+  });
+
+  it("stops speech in progress when a new play starts", async () => {
+    let endSpeech = () => {};
+    (Speech.speak as jest.Mock).mockImplementationOnce((_: string, options: { onStopped: () => void }) => {
+      endSpeech = options.onStopped;
+    });
+    (Speech.stop as jest.Mock).mockImplementationOnce(async () => endSpeech());
+    const first = playSyllables(["la1", "a1"], "啦啊");
+    await flush();
+    const second = playSyllables(["ma3"], "嘛");
+    expect(Speech.stop).toHaveBeenCalled();
+    expect(await first).toEqual({ usedTts: true });
+    expect(await second).toEqual({ usedTts: true });
+    // 啊 was never spoken: the first play stopped after 啦.
+    expect((Speech.speak as jest.Mock).mock.calls.map(([text]) => text)).toEqual(["啦", "嘛"]);
   });
 });

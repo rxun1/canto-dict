@@ -73,7 +73,11 @@ function mandarinText(line: MandarinLine): string {
   }
 }
 
-/** 🔊: plays the Jyutping's syllables; `text` is the characters TTS speaks for a syllable with no clip. */
+/**
+ * 🔊: plays the Jyutping's syllables; `text` is the characters TTS speaks for a syllable with no clip.
+ * TTS reads the character, not the Jyutping, so a polyphonic one (行 under hong4) may come out in
+ * another of its readings.
+ */
 function AudioButton({ jyutping, text }: { jyutping: string; text: string }) {
   const [usedTts, setUsedTts] = useState(false);
   const play = async () => setUsedTts((await playSyllables(jyutping.split(SYLLABLE_SEPARATOR), text)).usedTts);

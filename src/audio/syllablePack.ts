@@ -11,6 +11,8 @@ const PACK_MODULE = require("../../assets/syllables.pack");
 const CACHE_DIR_NAME = "syllables";
 /** Each slice is a complete MP3 file (audioPack.ts). */
 const CLIP_EXTENSION = "mp3";
+/** A clip is written under this suffix, then renamed: an interrupted write never leaves a truncated clip. */
+const PARTIAL_SUFFIX = ".tmp";
 
 let packFile: Promise<File> | null = null;
 
@@ -18,7 +20,10 @@ let packFile: Promise<File> | null = null;
 function openPack(): Promise<File> {
   packFile ??= Asset.fromModule(PACK_MODULE)
     .downloadAsync()
-    .then((asset) => new File(asset.localUri!))
+    .then((asset) => {
+      if (asset.localUri === null) throw new Error("syllables.pack has no local file");
+      return new File(asset.localUri);
+    })
     .catch((e) => {
       packFile = null; // let a later call try again
       throw e;
@@ -38,7 +43,8 @@ export async function clipPath(syllable: string): Promise<string | null> {
 
   // Synchronous from here on, so two calls for one syllable can't interleave a half-written file.
   const dir = new Directory(Paths.cache, CACHE_DIR_NAME);
-  const clip = new File(dir, `${syllable}-${offset}-${length}.${CLIP_EXTENSION}`);
+  const name = `${syllable}-${offset}-${length}.${CLIP_EXTENSION}`;
+  const clip = new File(dir, name);
   if (clip.exists) return clip.uri;
 
   const handle = pack.open(FileMode.ReadOnly);
@@ -50,6 +56,9 @@ export async function clipPath(syllable: string): Promise<string | null> {
     handle.close();
   }
   dir.create({ intermediates: true, idempotent: true });
-  clip.writeSync(bytes);
+  const partial = new File(dir, name + PARTIAL_SUFFIX);
+  if (partial.exists) partial.delete(); // left by an interrupted write
+  partial.writeSync(bytes);
+  partial.moveSync(clip);
   return clip.uri;
 }
