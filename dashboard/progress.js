@@ -310,7 +310,7 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/audioPack.test.ts → pass",
         },
         {
-          id: "P1-T16", title: "Validation + build report (HTML)", status: "todo",
+          id: "P1-T16", title: "Validation + build report (HTML)", status: "done",
           files: ["data-pipeline/src/validate.ts", "data-pipeline/src/build/report.ts", "data-pipeline/test/validate.test.ts"],
           subtasks: [
             "Write failing test: validate() throws when an entry has an invalid Jyutping (particles and loan syllables allowed)",
@@ -320,6 +320,9 @@ window.CANTO_PROGRESS = {
             "Implement validate.ts and report.ts (writes data-pipeline/build-report.html)",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-30 (b73fc18..review fixes, 566 tests): validate() is pure and throws; MIN_SOURCE_ROWS ≈ 15–25% under real counts (rimeChars 25,000, rimeWords 90,000, essay 230,000, audioClips 3,500, …). Real-data dry run: 0 invalid syllables in 138,574 entries; audio 2,552/2,690 types (94.9%), 99.77% token-weighted; 138 syllables lack a clip. Missing-clip list = syllables in readings minus packed (not all attested syllables). Shared writeFileAtomic/tempPathFor in src/writeFileAtomic.ts",
+            "Open: particles la1/la3/a1/ga3/ma3 have no words.hk clip (la1 is the most frequent missing syllable); decide on an app fallback in Plan 2",
+            "Next: P1-T17 — wire cli.ts as download → parse → merge → validate(sources, entries, audioClips = clip-map size BEFORE pack(), since pack() writes) → writeDb → pack → await writeReport({ ..., minimums }) (async). Fixture build passes NO_MINIMUMS. Decide whether build-report.html is git-ignored (it isn't yet). Optional: per-file SHA-256 of downloads for spec §4.1 (fetchToCache would need to return hashes)",
           ],
           dod: [
             "A failed validation stops the build before any asset is written",
@@ -341,6 +344,7 @@ window.CANTO_PROGRESS = {
           ],
           dod: [
             "npm run data:build succeeds end to end",
+            "When validate throws, canto.db, syllables.pack and build-report.html are untouched (cli test; moved from P1-T16)",
             "canto.db ≤ 120 MB; syllables.pack ≤ 10 MB",
             "≥ 30,000 characters and ≥ 100,000 words with Jyutping; audio token coverage ≥ 99%",
             "assets/test/canto.fixture.db is committed and < 1 MB",
@@ -793,6 +797,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "Decided: simplified text keeps a short list of Cantonese chars unchanged (嗰, 餸, 係, and any whose OpenCC simplified form is a rare non-BMP char)." },
     { date: "2026-10-30", text: "Process change (token cost): lean workflow — one implementer + one combined review per task, all Opus; small fixes verified directly without re-review; nits batched." },
     { date: "2026-10-30", text: "P1-T13 done (b3bf225..e84e632, 509 tests). Review fixes: essay freq fallback by headword key, bare KFCD \"…\" fragments dropped, simplified keep-list (係/嗰/餸 + 342 non-BMP forms) with 關係 → 关系 phrase exceptions. Combined review caught J's misdescribed reading and Mandarin translations wrongly keeping 係 — both fixed." },
+    { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
     { date: "2026-10-30", text: "Decided: J stays like DJ/打J; Mandarin-origin 係 words (關係, 係數 as a headword, …) simplify to 系 even in Cantonese text so simplified search finds 关系." },
   ],
