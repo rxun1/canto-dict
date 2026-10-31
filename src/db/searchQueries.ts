@@ -24,8 +24,9 @@ export interface SearchResult {
   simp: string;
   match: MatchQuality;
   /**
-   * For a Jyutping query, the entry's first reading the query prefix-matches (行 shows hong4 for
-   * "hong"); otherwise, or when none does, its first reading. Null when it has none.
+   * For a Jyutping query, the entry's first reading the query matches exactly (啊 shows a3 for "a",
+   * not its first reading aa3), else the first it prefix-matches (行 shows hong4 for "hong");
+   * otherwise, or when none does, its first reading. Null when it has none.
    */
   jyutping: string | null;
   gloss: Gloss | null;
@@ -47,15 +48,16 @@ const QUALITIES: readonly MatchQuality[] = ["exact", "prefix", "contains"];
 const LIKE_ESCAPE = "\\";
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => LIKE_ESCAPE + c);
 
-// Every ranked CTE yields id, trad, simp, freq, quality (index into QUALITIES), exact_case and
-// reading_pattern (a GLOB over a reading with spaces removed, or NULL); the outer query orders them
-// again because a CTE's order does not carry over.
+// Every ranked CTE yields id, trad, simp, freq, quality (index into QUALITIES), exact_case, and
+// exact_pattern and prefix_pattern (GLOBs over a reading with spaces removed, or NULL) for picking
+// the reading to show; the outer query orders them again because a CTE's order does not carry over.
 const ORDER_BY = "quality, exact_case DESC, freq DESC, length(trad), id";
 
 const RESULT_COLUMNS = `
   id, trad, simp, quality,
   COALESCE(
-    (SELECT jyutping FROM readings WHERE entry_id = ranked.id AND replace(jyutping, ' ', '') GLOB reading_pattern ORDER BY rowid LIMIT 1),
+    (SELECT jyutping FROM readings WHERE entry_id = ranked.id AND replace(jyutping, ' ', '') GLOB exact_pattern ORDER BY rowid LIMIT 1),
+    (SELECT jyutping FROM readings WHERE entry_id = ranked.id AND replace(jyutping, ' ', '') GLOB prefix_pattern ORDER BY rowid LIMIT 1),
     (SELECT jyutping FROM readings WHERE entry_id = ranked.id ORDER BY rowid LIMIT 1)
   ) AS jyutping,
   (SELECT word_trad FROM mandarin WHERE entry_id = ranked.id ORDER BY rowid LIMIT 1) AS mandarinTrad,
@@ -82,6 +84,9 @@ function toGloss(row: ResultRow): Gloss | null {
   return null;
 }
 
+/** A LIMIT value: SQLite treats a negative LIMIT as no limit, so clamp to 0. */
+const sqlLimit = (limit: number) => Math.max(0, Math.floor(limit));
+
 /** Wraps a ranked CTE (ending in LIMIT ?) with the row columns and runs it. */
 async function runRanked(db: Db, ctes: string, params: readonly SqlParam[]): Promise<SearchResult[]> {
   const rows = await db.all<ResultRow>(`WITH ${ctes} SELECT ${RESULT_COLUMNS} FROM ranked ORDER BY ${ORDER_BY}`, params);
@@ -105,6 +110,7 @@ export function searchHanzi(db: Db, text: string, limit: number): Promise<Search
   const ctes = `
     p AS (SELECT ? AS text, ? AS exact, ? AS prefix, ? AS contains),
     alias_hits AS (SELECT a.entry_id FROM aliases a, p WHERE ${matches("a.trad", "p.exact")} OR ${matches("a.simp", "p.exact")}),
+    alias_case_hits AS (SELECT a.entry_id FROM aliases a, p WHERE a.trad = p.text OR a.simp = p.text),
     ranked AS (
       SELECT e.id, e.trad, e.simp, e.freq,
         CASE
@@ -112,14 +118,15 @@ export function searchHanzi(db: Db, text: string, limit: number): Promise<Search
           WHEN ${matches("e.trad", "p.prefix")} OR ${matches("e.simp", "p.prefix")} THEN 1
           ELSE 2
         END AS quality,
-        (e.trad = p.text OR e.simp = p.text) AS exact_case,
-        NULL AS reading_pattern
+        (e.trad = p.text OR e.simp = p.text OR e.id IN alias_case_hits) AS exact_case,
+        NULL AS exact_pattern,
+        NULL AS prefix_pattern
       FROM entries e, p
       WHERE ${matches("e.trad", "p.contains")} OR ${matches("e.simp", "p.contains")} OR e.id IN alias_hits
       ORDER BY ${ORDER_BY}
       LIMIT ?
     )`;
-  return runRanked(db, ctes, [text, like, `${like}%`, `%${like}%`, limit]);
+  return runRanked(db, ctes, [text, like, `${like}%`, `%${like}%`, sqlLimit(limit)]);
 }
 
 /**
@@ -151,10 +158,11 @@ export function searchJyutping(db: Db, query: JyutpingQuery, limit: number): Pro
           SELECT 1 FROM readings r WHERE r.entry_id = e.id AND replace(r.jyutping, ' ', '') GLOB ?
         ) THEN 0 ELSE 1 END AS quality,
         1 AS exact_case,
-        ? AS reading_pattern
+        ? AS exact_pattern,
+        ? AS prefix_pattern
       FROM hits JOIN entries e ON e.id = hits.entry_id
       ORDER BY ${ORDER_BY}
       LIMIT ?
     )`;
-  return runRanked(db, ctes, [`${query.key}%`, exact, prefix, limit]);
+  return runRanked(db, ctes, [`${query.key}%`, exact, exact, prefix, sqlLimit(limit)]);
 }

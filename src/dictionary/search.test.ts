@@ -117,6 +117,7 @@ interface Row {
   simp?: string;
   freq?: number;
   readings?: string[];
+  aliases?: string[];
   mandarin?: [trad: string, simp: string][];
   definitions?: { zho?: [string, string]; yue?: [string, string] }[];
 }
@@ -125,6 +126,7 @@ interface Row {
 function schemaDb(rows: Row[]) {
   const db = openSchemaDb();
   const entry = db.raw.prepare("INSERT INTO entries (id, trad, simp, kind, freq) VALUES (?, ?, ?, ?, ?)");
+  const alias = db.raw.prepare("INSERT INTO aliases (entry_id, trad, simp) VALUES (?, ?, ?)");
   const reading = db.raw.prepare("INSERT INTO readings (entry_id, jyutping, source) VALUES (?, ?, 'test')");
   const key = db.raw.prepare("INSERT INTO search_keys (key, entry_id, type) VALUES (?, ?, ?)");
   const mandarin = db.raw.prepare("INSERT INTO mandarin (entry_id, word_trad, word_simp, sources) VALUES (?, ?, ?, 'test')");
@@ -134,6 +136,7 @@ function schemaDb(rows: Row[]) {
   for (const row of rows) {
     const trad = Array.from(row.trad);
     entry.run(row.id, row.trad, row.simp ?? row.trad, trad.length === 1 ? "char" : "word", row.freq ?? 0);
+    for (const a of row.aliases ?? []) alias.run(row.id, a, a);
     for (const jyutping of row.readings ?? []) {
       reading.run(row.id, jyutping);
       for (const k of searchKeys(jyutping)) key.run(k.key, row.id, k.type);
@@ -175,6 +178,14 @@ describe("ranking", () => {
     const db = schemaDb(Array.from({ length: MAX_RESULTS + 10 }, (_, i) => ({ id: i + 1, trad: `水${i}` })));
     expect(await search(db, "水")).toHaveLength(MAX_RESULTS);
     expect(ids(await search(db, "水", 3))).toEqual([1, 2, 3]);
+    expect(await search(db, "水", -1)).toEqual([]); // a negative SQLite LIMIT would mean no limit
+    expect(await search(db, "seoi", -1)).toEqual([]);
+    db.close();
+  });
+
+  it("shows the reading an exact Jyutping hit matched, before an earlier prefix-matching one", async () => {
+    const db = schemaDb([{ id: 1, trad: "啊", readings: ["aa3", "a3"] }]);
+    expect(await search(db, "a")).toMatchObject([{ id: 1, match: "exact", jyutping: "a3" }]);
     db.close();
   });
 
@@ -188,6 +199,15 @@ describe("ranking", () => {
       [1, "exact"],
     ]);
     expect(ids(await search(db, "aa制"))).toEqual([1, 2]);
+    db.close();
+  });
+
+  it("counts a same-case alias hit as a same-case exact match", async () => {
+    const db = schemaDb([
+      { id: 1, trad: "aa制", freq: 5 },
+      { id: 2, trad: "甲制", freq: 1, aliases: ["AA制"] },
+    ]);
+    expect(ids(await search(db, "AA制"))).toEqual([2, 1]);
     db.close();
   });
 
@@ -262,11 +282,13 @@ const TIMED_RUNS = 5;
   });
 
   it("finds the same entries for 饭 and 飯", async () => {
-    // canto.db also has a char entry 饭 (trad = simp = 饭), which 飯 cannot match; it is the only difference.
-    const simp = ids(await search(db, "饭"));
+    // canto.db also has a simplified-only char entry 饭 (trad = simp = 饭, from lshk/rime), which
+    // 飯 cannot match. Without it, the 饭 results are the start of the 飯 results, in order.
+    const stray = await db.first<{ id: number }>("SELECT id FROM entries WHERE trad = '饭' AND simp = '饭'");
+    const simp = ids(await search(db, "饭")).filter((id) => id !== stray?.id);
     const trad = ids(await search(db, "飯"));
-    expect(simp[0]).toBe(trad[0]);
-    expect(trad.filter((id) => !simp.includes(id)).length).toBeLessThanOrEqual(1);
+    expect(simp.length).toBeGreaterThan(0);
+    expect(simp).toEqual(trad.slice(0, simp.length));
   });
 
   it("matches sik in several tones", async () => {
