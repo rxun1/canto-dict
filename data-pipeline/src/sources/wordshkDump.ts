@@ -11,7 +11,7 @@ import { EntryError, parseEntryContent } from "./wordshkEntryMarkup";
 const SOURCE_NAME = "words.hk full dump";
 
 /** Source name for overrideEnvVar: the dump is supplied by hand via CANTO_SRC_WORDSHK_DUMP. */
-const SOURCE_KEY = "wordshk-dump";
+export const WORDSHK_DUMP_SOURCE = "wordshk-dump";
 
 /** The words.hk form for requesting the dump. It is an HTML page, never a download URL. */
 export const WORDSHK_DUMP_REQUEST_URL = "https://words.hk/faiman/request_data/";
@@ -150,7 +150,7 @@ export function parseWordshkDump(csvText: string): Parsed<WordshkEntry> {
  * variant links. Whether the file exists is checked by loadWordshkDump, which fails if it does not.
  */
 export function wordshkDumpConfigured(): boolean {
-  return Boolean(process.env[overrideEnvVar(SOURCE_KEY)]);
+  return Boolean(process.env[overrideEnvVar(WORDSHK_DUMP_SOURCE)]);
 }
 
 /**
@@ -158,10 +158,10 @@ export function wordshkDumpConfigured(): boolean {
  * sends it). There is no download: the dump is requested by hand. Warns about skipped rows.
  */
 export async function loadWordshkDump(): Promise<WordshkEntry[]> {
-  const path = await overridePath(SOURCE_KEY);
+  const path = await overridePath(WORDSHK_DUMP_SOURCE);
   if (path === undefined) {
     throw new Error(
-      `${SOURCE_NAME}: set ${overrideEnvVar(SOURCE_KEY)} to the path of the all-*.csv.gz file ` +
+      `${SOURCE_NAME}: set ${overrideEnvVar(WORDSHK_DUMP_SOURCE)} to the path of the all-*.csv.gz file ` +
         `requested at ${WORDSHK_DUMP_REQUEST_URL} (it cannot be downloaded automatically)`,
     );
   }

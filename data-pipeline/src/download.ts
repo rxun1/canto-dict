@@ -1,10 +1,11 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { access, mkdir, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
+import { tempPathFor } from "./writeFileAtomic";
 
 /** Default cache dir, resolved relative to this package (not process.cwd()). */
 const DEFAULT_CACHE_DIR = resolve(import.meta.dirname, "..", ".cache");
@@ -90,7 +91,7 @@ export async function fetchToCache(
   }
 
   await mkdir(dirname(target), { recursive: true });
-  const tmp = `${target}.tmp-${randomBytes(6).toString("hex")}`;
+  const tmp = tempPathFor(target);
   console.log(`Downloading ${url} \u2192 ${target}`);
   let status: number | undefined;
   try {

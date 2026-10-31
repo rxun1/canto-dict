@@ -4,8 +4,10 @@
 import { TONED_SYLLABLE } from "../../src/jyutping/pattern";
 import { isValidSyllable } from "../../src/jyutping/syllables";
 import type { Entry, MergeInputs } from "./merge/types";
+import { overrideEnvVar } from "./download";
 import { describeBadSyllable } from "./sources/jyutpingCell";
 import { throwIfProblems, type Problem } from "./sources/problems";
+import { WORDSHK_DUMP_SOURCE } from "./sources/wordshkDump";
 
 /** What validate counts: each parsed source's rows, plus the syllable audio clips. */
 export type CountedSource = keyof MergeInputs | "audioClips";
@@ -54,6 +56,9 @@ export interface ValidateInput {
   readonly audioClips: number;
 }
 
+/** "1 row", "25,000 rows". */
+const rowCount = (n: number): string => `${n.toLocaleString("en-US")} ${n === 1 ? "row" : "rows"}`;
+
 /** Rows per source in `sources`; an omitted optional source (the words.hk dump) is left out. */
 export function sourceRows(sources: MergeInputs): Partial<Record<keyof MergeInputs, number>> {
   const rows: Partial<Record<keyof MergeInputs, number>> = {};
@@ -88,11 +93,11 @@ export function validate(input: ValidateInput, minimums: SourceRows = MIN_SOURCE
   const warnings: string[] = [];
   const counts: Partial<SourceRows> = { ...sourceRows(input.sources), audioClips: input.audioClips };
   if (counts.wordshkDump === undefined) {
-    warnings.push("words.hk dump omitted (CANTO_SRC_WORDSHK_DUMP unset): reduced build with no words.hk definitions or example sentences");
+    warnings.push(`words.hk dump omitted (${overrideEnvVar(WORDSHK_DUMP_SOURCE)} unset): reduced build with no words.hk definitions or example sentences`);
   }
   const short = (Object.keys(minimums) as CountedSource[])
     .filter((name) => counts[name] !== undefined && counts[name] < minimums[name])
-    .map((name) => `  ${name}: ${counts[name]} rows (minimum ${minimums[name].toLocaleString("en-US")})`);
+    .map((name) => `  ${name}: ${rowCount(counts[name] ?? 0)} (minimum ${minimums[name].toLocaleString("en-US")})`);
   if (short.length > 0) throw new Error(`validate: ${short.length} source(s) below their minimum row count:\n${short.join("\n")}`);
 
   const problems: Problem[] = [];

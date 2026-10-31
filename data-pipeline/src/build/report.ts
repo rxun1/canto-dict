@@ -1,10 +1,10 @@
-// The build report, data-pipeline/build-report.html (spec §4.6): entries and rows per source, reading
-// coverage, audio coverage (types and token-weighted, plus the syllables with no clip), DB and pack
+// The build report, data-pipeline/build-report.html (spec §4.6): entry counts, per-source counts (rows
+// each parser kept, and rows written per table), reading coverage, audio coverage (types and token-weighted, plus the syllables with no clip), DB and pack
 // sizes, validation warnings and merge's counts. Docs are HTML, not markdown (plan conventions).
 // Every interpolated value goes through escapeHtml.
-import { renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { byCodeUnits } from "../compare";
+import { overrideEnvVar } from "../download";
 import type { Entry, MergeInputs, MergeStats, RowSource } from "../merge/types";
 import {
   KAIFANGCIDIAN_SHA256,
@@ -22,7 +22,9 @@ import {
   WORDSHK_LIST_SHA256,
   WORDSHK_LIST_URL,
 } from "../sources/urls";
-import { MIN_SOURCE_ROWS } from "../validate";
+import { WORDSHK_DUMP_SOURCE } from "../sources/wordshkDump";
+import type { SourceRows } from "../validate";
+import { writeFileAtomic } from "../writeFileAtomic";
 import { BYTES_PER_MB } from "./audioPack";
 
 /** Where cli.ts writes the report (next to package.json). */
@@ -35,7 +37,7 @@ const SOURCE_ORIGINS: Readonly<Record<keyof MergeInputs, string>> = {
   unihan: UNIHAN_URL,
   rimeWords: RIME_WORDS_URL,
   wordshkList: `${WORDSHK_LIST_URL} (SHA-256 ${WORDSHK_LIST_SHA256})`,
-  wordshkDump: "local file (CANTO_SRC_WORDSHK_DUMP)",
+  wordshkDump: `local file (${overrideEnvVar(WORDSHK_DUMP_SOURCE)})`,
   kaifangcidian: `${KAIFANGCIDIAN_URL} (SHA-256 ${KAIFANGCIDIAN_SHA256})`,
   wiktionary: `data/wiktionary-dialsyn.json, extracted from ${WIKTIONARY_DIALSYN_URL} (SHA-256 ${WIKTIONARY_DIALSYN_SHA256})`,
   moe: MOEDICT_URL,
@@ -49,6 +51,8 @@ const ROW_TABLES = ["readings", "mandarin", "definitions", "examples"] as const;
 export interface ReportInput {
   /** Parsed rows per source (validate's sourceRows); an omitted source is absent. */
   readonly sourceRows: Partial<Record<keyof MergeInputs, number>>;
+  /** The minimums validate() checked the sources against. */
+  readonly minimums: SourceRows;
   readonly entries: readonly Entry[];
   readonly stats: MergeStats;
   /** From the audio pack's PackResult: the packed syllables and the pack's size. */
@@ -127,13 +131,14 @@ const list = (items: readonly string[], empty: string): string =>
 const counted = (items: readonly { readonly word: string; readonly count: number }[]): string =>
   items.length === 0 ? "none" : items.map((w) => `${w.word} (${num(w.count)})`).join(", ");
 
-function sourcesSection({ sourceRows, stats }: ReportInput): string {
+function sourcesSection({ sourceRows, minimums, audio, stats }: ReportInput): string {
   const inputs = (Object.keys(SOURCE_ORIGINS) as (keyof MergeInputs)[]).map((name): Cell[] => [
     code(name),
     sourceRows[name] === undefined ? "omitted" : num(sourceRows[name]),
-    num(MIN_SOURCE_ROWS[name]),
+    num(minimums[name]),
     SOURCE_ORIGINS[name],
   ]);
+  inputs.push([code("audioClips"), num(audio.syllables.length), num(minimums.audioClips), AUDIO_ORIGIN]);
   const rowSources = [...new Set(ROW_TABLES.flatMap((t) => Object.keys(stats.rows[t]) as RowSource[]))].sort(byCodeUnits);
   const rows = rowSources.map((source): Cell[] => [source, ...ROW_TABLES.map((t) => num(stats.rows[t][source] ?? 0))]);
   return [
@@ -145,19 +150,19 @@ function sourcesSection({ sourceRows, stats }: ReportInput): string {
   ].join("\n");
 }
 
-function entriesSection({ entries }: ReportInput): string {
-  const of = (kind: Entry["kind"]): Count => {
-    const ofKind = entries.filter((e) => e.kind === kind);
-    return { covered: ofKind.filter((e) => e.readings.length > 0).length, total: ofKind.length };
-  };
-  const chars = of("char");
-  const words = of("word");
+function entriesSection({ entries, stats }: ReportInput): string {
+  const withReading = (kind: Entry["kind"]): Count => ({
+    covered: entries.filter((e) => e.kind === kind && e.readings.length > 0).length,
+    total: stats.entries[kind],
+  });
+  const chars = withReading("char");
+  const words = withReading("word");
   return [
     "<h2>Entries</h2>",
     keyValues([
-      ["Characters", num(chars.total)],
-      ["Words", num(words.total)],
-      ["Total", num(entries.length)],
+      ["Characters", num(stats.entries.char)],
+      ["Words", num(stats.entries.word)],
+      ["Total", num(stats.entries.char + stats.entries.word)],
     ]),
     "<h3>Reading coverage</h3>",
     "<p>Entries with at least one Jyutping reading.</p>",
@@ -263,13 +268,7 @@ ${mergeSection(input)}
 `;
 }
 
-/** Writes the report to `path` (a temporary file renamed over it, so a failed write keeps the old one). */
-export function writeReport(input: ReportInput, path: string = REPORT_PATH): void {
-  const temp = `${path}.tmp`;
-  try {
-    writeFileSync(temp, report(input));
-    renameSync(temp, path);
-  } finally {
-    rmSync(temp, { force: true });
-  }
+/** Writes the report to `path` atomically, so a failed write keeps the old one. */
+export async function writeReport(input: ReportInput, path: string = REPORT_PATH): Promise<void> {
+  await writeFileAtomic(path, report(input));
 }

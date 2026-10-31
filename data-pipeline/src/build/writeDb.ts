@@ -4,6 +4,7 @@
 import Database from "better-sqlite3";
 import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { tempPathFor } from "../writeFileAtomic";
 import type { Entry } from "../merge/types";
 import { searchKeys } from "./searchKeys";
 
@@ -55,8 +56,7 @@ function insertAll(db: Database.Database, entries: readonly Entry[]): void {
 
 /** Writes `entries` to a new SQLite database at `path` (replacing it), ids 1, 2, … in the order given. */
 export function writeDb(path: string, entries: readonly Entry[]): void {
-  const temp = `${path}.tmp`;
-  rmSync(temp, { force: true });
+  const temp = tempPathFor(path);
   const db = new Database(temp);
   try {
     db.transaction(() => {

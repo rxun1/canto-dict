@@ -1,5 +1,5 @@
 // Build validation (Jyutping of every merged reading, source row counts) and the HTML build report (spec §4.6).
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { report, writeReport, type ReportInput } from "../src/build/report";
@@ -59,7 +59,7 @@ describe("validate", () => {
     expect(MIN_SOURCE_ROWS.rimeChars).toBe(25_000);
     const sources = inputs({ rimeChars: [{ char: "食", jyutping: "sik6", rank: "default" }] });
     expect(() => validate({ sources, entries: [], audioClips: 0 }, { ...NO_MINIMUMS, rimeChars: 2 })).toThrow(
-      /rimeChars: 1 rows? \(minimum 2\)/,
+      /rimeChars: 1 row \(minimum 2\)/,
     );
     expect(() => validate({ sources, entries: [], audioClips: 0 }, { ...NO_MINIMUMS, rimeChars: 1 })).not.toThrow();
   });
@@ -70,7 +70,7 @@ describe("validate", () => {
 
   it("throws when there are fewer audio clips than the minimum", () => {
     expect(() => validate({ sources: inputs(), entries: [], audioClips: 2 }, { ...NO_MINIMUMS, audioClips: 3 })).toThrow(
-      /audioClips: 2 rows? \(minimum 3\)/,
+      /audioClips: 2 rows \(minimum 3\)/,
     );
   });
 
@@ -82,8 +82,7 @@ describe("validate", () => {
     expect(validate({ sources: inputs(), entries: [], audioClips: 0 }, NO_MINIMUMS)).toEqual([]);
   });
 
-  it("does not write anything: it only reads its arguments", () => {
-    // A pure check: P1-T17's cli calls it before writing canto.db, the audio pack or the report.
+  it("does not mutate its inputs", () => {
     const sources = inputs();
     const before = JSON.stringify(sources);
     validate({ sources, entries: [SIK], audioClips: 0 }, NO_MINIMUMS);
@@ -103,9 +102,10 @@ describe("report", () => {
   const { entries, stats } = merge(sources);
   const input = (overrides: Partial<ReportInput> = {}): ReportInput => ({
     sourceRows: sourceRows(sources),
+    minimums: { ...NO_MINIMUMS, rimeChars: 1_234, audioClips: 3_500 },
     entries,
     stats,
-    // faan6, ji1 and la1 have no clip; es1 is a loan syllable and is never looked up.
+    // di1 and sik6 have clips; faan6, ji1 and la1 do not; es1 is a loan syllable and is never looked up.
     audio: { syllables: ["di1", "sik6"], packBytes: 9_677_774 },
     dbBytes: 63_100_000,
     warnings: ["words.hk dump <omitted>"],
@@ -121,6 +121,12 @@ describe("report", () => {
     expect(html).toMatch(/wordshkList<\/code><\/th><td>1<\/td>/);
   });
 
+  it("shows the minimums validate checked, including the audio clips", () => {
+    const html = report(input());
+    expect(html).toMatch(/rimeChars<\/code><\/th><td>2<\/td><td>1,234<\/td>/);
+    expect(html).toMatch(/audioClips<\/code><\/th><td>2<\/td><td>3,500<\/td>/);
+  });
+
   it("gives audio coverage by type and token-weighted, skipping loan syllables", () => {
     const html = report(input());
     // Readings: sik6 (食), la1 (喇), sik6 faan6 (食飯), di1 [es1] ji1 (DSE): 5 types, 6 tokens; di1, sik6 have clips.
@@ -130,10 +136,12 @@ describe("report", () => {
   });
 
   it("lists the syllables with no recording, most frequent first", () => {
-    const html = report(input());
-    const missing = html.slice(html.indexOf('id="missing"'));
-    expect(missing).toMatch(/faan6.*ji1.*la1/s);
-    expect(missing).not.toMatch(/sik6|di1/);
+    // Without sik6's clip, sik6 (in 食 and 食飯) is missing twice, ahead of faan6, ji1 and la1 once each.
+    const html = report(input({ audio: { syllables: ["di1"], packBytes: 0 } }));
+    const start = html.indexOf('id="missing"');
+    const missing = html.slice(start, html.indexOf("<h2>", start));
+    expect(missing).toMatch(/sik6 \(2\).*faan6 \(1\).*ji1 \(1\).*la1 \(1\)/s);
+    expect(missing).not.toMatch(/di1|es1/);
   });
 
   it("gives the DB and audio pack sizes in MB", () => {
@@ -152,9 +160,17 @@ describe("report", () => {
     expect(html).not.toContain("<omitted>");
   });
 
-  it("writes the report to a file", () => {
-    const path = join(mkdtempSync(join(tmpdir(), "canto-report-")), "build-report.html");
-    writeReport(input(), path);
-    expect(readFileSync(path, "utf8")).toBe(report(input()));
+  describe("writeReport", () => {
+    let dir: string;
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), "canto-report-"));
+    });
+    afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+    it("writes the report to a file", async () => {
+      const path = join(dir, "build-report.html");
+      await writeReport(input(), path);
+      expect(readFileSync(path, "utf8")).toBe(report(input()));
+    });
   });
 });
