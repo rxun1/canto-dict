@@ -1,10 +1,10 @@
 // The app's UserDb: expo-sqlite over user.db. Only this file imports expo-sqlite for user data;
 // screens take a UserDb (types.ts) from useUserDb().
 //
-// Not SQLiteProvider: nested inside DbProvider it would shadow canto.db's useSQLiteContext().
+// Its own context, opened like canto.db (useOpenDatabase); DbGate mounts it inside DbProvider.
 import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { toDb } from "../db/expoDb";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { toDb, useOpenDatabase } from "../db/expoDb";
 import type { SqlParam } from "../db/types";
 import { USER_DB_NAME, USER_SCHEMA_SQL } from "./schema";
 import type { UserDb } from "./types";
@@ -21,36 +21,26 @@ export function toUserDb(database: SQLiteDatabase): UserDb {
   };
 }
 
+/** Opens user.db (created on first use) and applies the schema; closes it if that fails. */
+async function openUserDb(): Promise<SQLiteDatabase> {
+  const database = await openDatabaseAsync(USER_DB_NAME);
+  try {
+    await database.execAsync(USER_SCHEMA_SQL);
+  } catch (error) {
+    await database.closeAsync().catch(() => {});
+    throw error;
+  }
+  return database;
+}
+
 /**
- * Opens user.db (created on first use, writable, never an asset) and applies the schema; children
- * render once it is ready. An open failure is thrown during render, to the nearest error boundary.
+ * Opens user.db (writable, never an asset) for its children; shows loading until it is ready. An
+ * open failure is thrown during render, to the nearest error boundary (DbGate).
  */
-export function UserDbProvider({ children }: { children: ReactNode }) {
-  const [db, setDb] = useState<UserDb | null>(null);
-  // Boxed so a falsy rejection value still counts as a failure.
-  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let database: SQLiteDatabase | null = null;
-    (async () => {
-      const opened = await openDatabaseAsync(USER_DB_NAME);
-      // Unmounted (or StrictMode's probe cleanup) while opening: close it here, the cleanup couldn't.
-      if (cancelled) return opened.closeAsync();
-      database = opened;
-      await opened.execAsync(USER_SCHEMA_SQL);
-      if (!cancelled) setDb(toUserDb(opened));
-    })().catch((error: unknown) => {
-      if (!cancelled) setFailure({ error });
-    });
-    return () => {
-      cancelled = true;
-      database?.closeAsync().catch(() => {});
-    };
-  }, []);
-
-  if (failure) throw failure.error;
-  if (!db) return null;
+export function UserDbProvider({ loading, children }: { loading?: ReactNode; children: ReactNode }) {
+  const database = useOpenDatabase(openUserDb);
+  const db = useMemo(() => database && toUserDb(database), [database]);
+  if (!db) return loading;
   return <UserDbContext.Provider value={db}>{children}</UserDbContext.Provider>;
 }
 
