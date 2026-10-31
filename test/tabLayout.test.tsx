@@ -1,5 +1,9 @@
 // Smoke test: the real app/ routes render with the four tabs, opening on Lookup.
+import type { ReactNode } from "react";
 import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
+
+// expo-sqlite is native; these screens don't query the DB yet, so the provider just renders its children.
+jest.mock("../src/db/expoDb", () => ({ DbProvider: ({ children }: { children: ReactNode }) => children }));
 
 describe("tab layout", () => {
   it("opens on Lookup and shows all four tabs", async () => {
