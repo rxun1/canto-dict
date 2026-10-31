@@ -401,7 +401,7 @@ window.CANTO_PROGRESS = {
           test: "Open dev-checks screen → two green \"OK\" results on simulator and device",
         },
         {
-          id: "P2-T3", title: "Database module (expo-sqlite + test adapter)", status: "todo",
+          id: "P2-T3", title: "Database module (expo-sqlite + test adapter)", status: "done",
           files: ["src/db/types.ts", "src/db/expoDb.tsx", "src/db/testDb.ts", "src/db/entries.ts", "src/db/entries.test.ts"],
           subtasks: [
             "Define the Db interface in types.ts: all<T>(sql, params), first<T>(sql, params)",
@@ -412,6 +412,8 @@ window.CANTO_PROGRESS = {
             "Run test → passes",
             "Implement expoDb.ts: SQLiteProvider with assetSource canto.db (copied on first launch)",
             "Commit",
+            "Done 2026-10-31 (f6af842..HEAD; root 26 tests): Db {all, first} (async; SqlParam = string|number|null); getEntry(db, id) → Entry {id, trad, simp, kind, freq, aliases, readings{jyutping, rank, source, loan[]}, mandarin{trad, simp, sources[]}, definitions[], examples[]} or null, child rows ORDER BY rowid. expoDb.tsx (JSX) has DbProvider (wraps the root Stack in app/_layout.tsx), toDb, useDb(); metro.config.js adds assetExts db; app.json plugins gained expo-sqlite + expo-asset. Verified on the iOS 27.2 sim: getEntry(127264) → 食 sik6/ji6/zi6/sik2, 14 defs, matching sqlite3",
+            "Next: P2-T4 — pure logic, no DB: src/dictionary/classify.ts using splitSyllables from src/jyutping/syllables.ts. Spec §5.1 is the table to match row for row. Deferred from P2-T3 review (decide in a later UI task, not P2-T4): canto.db is copied once (forceOverwrite false) so a rebuilt DB needs a versioned name; SQLiteProvider renders nothing while the 63 MB asset copies on first launch (keep the splash up or add a fallback/onError); could open readOnly via a module-level options const (journal_mode is delete, so safe). Screen tests that call useDb() need a provider/mock supplying openTestDb(); test/tabLayout.test.tsx mocks DbProvider today. Gotchas: react-dom pinned to 19.3.0; RNTL v14 fireEvent is async. Open from P1-T16: particles la1/a1/ga3/ma3 have no clip (decide in the audio task)",
           ],
           dod: [
             "All SQL lives under src/db/",
