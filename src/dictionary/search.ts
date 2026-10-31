@@ -4,7 +4,7 @@ import { searchHanzi, searchJyutping, type SearchResult } from "../db/searchQuer
 import type { Db } from "../db/types";
 import { classify, type Classification } from "./classify";
 
-export type { Gloss, MatchQuality, SearchResult } from "../db/searchQueries";
+export type { EntrySummary, Gloss, MatchQuality, SearchResult } from "../db/searchQueries";
 
 /** Spec §5.1: top 50 results. */
 export const MAX_RESULTS = 50;

@@ -12,6 +12,8 @@ jest.mock("../src/db/expoDb", () => ({
   DbProvider: ({ children }: { children: ReactNode }) => children,
   useDb: () => mockDb,
 }));
+// user.db too: an in-memory one.
+jest.mock("../src/userdata/expoUserDb", () => require("./helpers/mockUserDb"));
 
 // Audio is native: the 🔊 buttons call a mock that reports whether TTS was used; the TTS button calls a mock too.
 jest.mock("../src/audio/playSyllables", () => ({

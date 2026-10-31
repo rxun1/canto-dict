@@ -10,6 +10,8 @@ jest.mock("../src/db/expoDb", () => {
   const db = openTestDb();
   return { DbProvider: ({ children }: { children: ReactNode }) => children, useDb: () => db };
 });
+// user.db too: an in-memory one.
+jest.mock("../src/userdata/expoUserDb", () => require("./helpers/mockUserDb"));
 
 // expo-audio is native too, and loads with the entry screen a tapped row opens.
 jest.mock("../src/audio/playSyllables", () => ({ playSyllables: jest.fn() }));

@@ -1,10 +1,10 @@
 // Lookup tab (spec §5.1): a search field over a list of ranked entries; a row opens its entry.
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { memo, useCallback, useState } from "react";
-import { FlatList, PlatformColor, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useState } from "react";
+import { FlatList, PlatformColor, StyleSheet, Text, TextInput, View } from "react-native";
+import { EntryRow, ROW_PADDING, RowSeparator } from "../../src/components/EntryRow";
 import { useDb } from "../../src/db/expoDb";
-import { YUE_GLOSS_LABEL } from "../../src/dictionary/mandarinLine";
 import type { SearchResult } from "../../src/dictionary/search";
 import { useSearch } from "../../src/dictionary/useSearch";
 
@@ -17,7 +17,7 @@ export default function LookupScreen() {
   const { hint, results } = useSearch(db, text);
 
   const openEntry = useCallback((id: number) => router.push({ pathname: "/entry/[id]", params: { id: String(id) } }), [router]);
-  const renderItem = useCallback(({ item }: { item: SearchResult }) => <ResultRow result={item} onPress={openEntry} />, [openEntry]);
+  const renderItem = useCallback(({ item }: { item: SearchResult }) => <EntryRow entry={item} onPress={openEntry} />, [openEntry]);
 
   return (
     <View style={styles.screen}>
@@ -44,7 +44,7 @@ export default function LookupScreen() {
           data={results}
           keyExtractor={keyOf}
           renderItem={renderItem}
-          ItemSeparatorComponent={Separator}
+          ItemSeparatorComponent={RowSeparator}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         />
@@ -54,29 +54,6 @@ export default function LookupScreen() {
 }
 
 const keyOf = (result: SearchResult) => String(result.id);
-
-const Separator = () => <View style={styles.separator} />;
-
-const ResultRow = memo(function ResultRow({ result, onPress }: { result: SearchResult; onPress: (id: number) => void }) {
-  const { id, trad, simp, jyutping, gloss } = result;
-  return (
-    <Pressable onPress={() => onPress(id)} accessibilityRole="button" style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-      <View style={styles.headline}>
-        <Text style={styles.simp}>{simp}</Text>
-        {trad !== simp && <Text style={styles.trad}>{trad}</Text>}
-        {jyutping !== null && <Text style={styles.jyutping}>{jyutping}</Text>}
-      </View>
-      {gloss !== null && (
-        <Text style={styles.gloss} numberOfLines={1}>
-          {gloss.source === "yue" && <Text style={styles.glossLabel}>{YUE_GLOSS_LABEL} </Text>}
-          {gloss.simp}
-        </Text>
-      )}
-    </Pressable>
-  );
-});
-
-const ROW_PADDING = 16;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
@@ -92,13 +69,4 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, paddingVertical: 8, fontSize: 17, color: PlatformColor("label") },
   hint: { marginTop: 32, textAlign: "center", fontSize: 17, color: PlatformColor("secondaryLabel") },
-  row: { paddingHorizontal: ROW_PADDING, paddingVertical: 10, backgroundColor: PlatformColor("systemBackground") },
-  rowPressed: { backgroundColor: PlatformColor("systemGray5") },
-  headline: { flexDirection: "row", alignItems: "baseline", gap: 8 },
-  simp: { fontSize: 22, color: PlatformColor("label") },
-  trad: { fontSize: 15, color: PlatformColor("secondaryLabel") },
-  jyutping: { fontSize: 15, color: PlatformColor("secondaryLabel") },
-  gloss: { marginTop: 2, fontSize: 15, color: PlatformColor("label") },
-  glossLabel: { color: PlatformColor("tertiaryLabel") },
-  separator: { height: StyleSheet.hairlineWidth, marginLeft: ROW_PADDING, backgroundColor: PlatformColor("separator") },
 });

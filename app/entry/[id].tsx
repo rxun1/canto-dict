@@ -1,9 +1,10 @@
 // Entry screen (spec §5.2): headword, readings with rank tags, the Mandarin line, a word's characters
 // (each linking to its own entry), then definitions by sense with their examples.
 // 🔊 plays a reading or example in real-person syllables; a TTS button after the headword has iOS speak
-// the whole word. ☆ and history are P2-T10.
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Fragment, useState } from "react";
+// the whole word. ☆/★ in the header toggles a favorite; opening an entry appends it to history.
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
+import { Fragment, useMemo, useState } from "react";
 import { PlatformColor, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { playSyllables, speakTts } from "../../src/audio/playSyllables";
 import type { Definition, Entry, Example, Reading, ReadingRank } from "../../src/db/entries";
@@ -11,6 +12,9 @@ import { useDb } from "../../src/db/expoDb";
 import { YUE_GLOSS_LABEL, type MandarinLine } from "../../src/dictionary/mandarinLine";
 import { partOfSpeechSimp } from "../../src/dictionary/partOfSpeech";
 import { useEntry, type WordChar } from "../../src/dictionary/useEntry";
+import { useUserDb } from "../../src/userdata/expoUserDb";
+import { useFavorite } from "../../src/userdata/useFavorite";
+import { useLogLookup } from "../../src/userdata/useLogLookup";
 
 const MANDARIN_LABEL = "普通话";
 const MANDARIN_SEPARATOR = "、";
@@ -21,6 +25,8 @@ const PLAY_LABEL = "播放";
 const TTS_TAG = "TTS";
 const SYLLABLE_SEPARATOR = /\s+/;
 const TTS_BUTTON = "TTS";
+const ADD_FAVORITE = "收藏";
+const REMOVE_FAVORITE = "取消收藏";
 
 const RANK_TAGS: Record<ReadingRank, string> = {
   default: "首选",
@@ -36,6 +42,12 @@ const SOURCE_HEADINGS: Record<string, string> = { "wordshk-dump": "粤典 words.
 export default function EntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const state = useEntry(useDb(), Number(id));
+  const userDb = useUserDb();
+  const entryId = state.status === "ready" ? state.entry.id : null;
+  const { favorite, toggle } = useFavorite(userDb, entryId);
+  useLogLookup(userDb, entryId);
+  // Memoized: a new options object on every render would make the header update the screen again.
+  const options = useMemo(() => ({ headerRight: () => <FavoriteButton favorite={favorite} onPress={toggle} /> }), [favorite, toggle]);
 
   if (state.status === "loading") return <View style={styles.screen} />;
   if (state.status === "missing" || state.status === "error") {
@@ -48,6 +60,7 @@ export default function EntryScreen() {
   const { entry, mandarin, chars } = state;
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
+      <Stack.Screen options={options} />
       <View style={styles.headword}>
         <Text style={styles.simp}>{entry.simp}</Text>
         {entry.trad !== entry.simp && <Text style={styles.trad}>{entry.trad}</Text>}
@@ -105,6 +118,27 @@ function AudioButton({ jyutping, text }: { jyutping: string; text: string }) {
         </Text>
       )}
     </>
+  );
+}
+
+/** ☆/★ in the header, like iOS's own bookmark buttons; disabled until the favorite state is known. */
+function FavoriteButton({ favorite, onPress }: { favorite: boolean | null; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={favorite ? REMOVE_FAVORITE : ADD_FAVORITE}
+      accessibilityState={{ disabled: favorite === null }}
+      disabled={favorite === null}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      <SymbolView
+        name={favorite ? "star.fill" : "star"}
+        tintColor={favorite ? PlatformColor("systemYellow") : PlatformColor("link")}
+        size={22}
+      />
+    </Pressable>
   );
 }
 

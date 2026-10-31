@@ -8,6 +8,8 @@ jest.mock("../src/db/expoDb", () => {
   const db = openTestDb();
   return { DbProvider: ({ children }: { children: ReactNode }) => children, useDb: () => db };
 });
+// user.db too: an in-memory one.
+jest.mock("../src/userdata/expoUserDb", () => require("./helpers/mockUserDb"));
 
 describe("tab layout", () => {
   it("opens on Lookup and shows all four tabs", async () => {

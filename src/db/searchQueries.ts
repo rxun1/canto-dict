@@ -18,11 +18,11 @@ export interface Gloss {
   simp: string;
 }
 
-export interface SearchResult {
+/** An entry as a list row shows it (lookup results, Saved). */
+export interface EntrySummary {
   id: number;
   trad: string;
   simp: string;
-  match: MatchQuality;
   /**
    * For a Jyutping query, the entry's first reading the query matches exactly (啊 shows a3 for "a",
    * not its first reading aa3), else the first it prefix-matches (行 shows hong4 for "hong");
@@ -30,6 +30,10 @@ export interface SearchResult {
    */
   jyutping: string | null;
   gloss: Gloss | null;
+}
+
+export interface SearchResult extends EntrySummary {
+  match: MatchQuality;
 }
 
 /** A Jyutping query: classify()'s jyutping result fits. */
@@ -53,8 +57,9 @@ const escapeLike = (text: string) => text.replace(/[\\%_]/g, (c) => LIKE_ESCAPE 
 // the reading to show; the outer query orders them again because a CTE's order does not carry over.
 const ORDER_BY = "quality, exact_case DESC, freq DESC, length(trad), id";
 
-const RESULT_COLUMNS = `
-  id, trad, simp, quality,
+// Over a `ranked` CTE with id, exact_pattern and prefix_pattern.
+const SUMMARY_COLUMNS = `
+  id, trad, simp,
   COALESCE(
     (SELECT jyutping FROM readings WHERE entry_id = ranked.id AND replace(jyutping, ' ', '') GLOB exact_pattern ORDER BY rowid LIMIT 1),
     (SELECT jyutping FROM readings WHERE entry_id = ranked.id AND replace(jyutping, ' ', '') GLOB prefix_pattern ORDER BY rowid LIMIT 1),
@@ -67,8 +72,9 @@ const RESULT_COLUMNS = `
   (SELECT yue FROM definitions WHERE entry_id = ranked.id AND yue IS NOT NULL ORDER BY rowid LIMIT 1) AS yue,
   (SELECT yue_simp FROM definitions WHERE entry_id = ranked.id AND yue IS NOT NULL ORDER BY rowid LIMIT 1) AS yueSimp`;
 
-type ResultRow = Pick<SearchResult, "id" | "trad" | "simp" | "jyutping"> & {
-  quality: number;
+const RESULT_COLUMNS = `quality, ${SUMMARY_COLUMNS}`;
+
+type SummaryRow = Pick<EntrySummary, "id" | "trad" | "simp" | "jyutping"> & {
   mandarinTrad: string | null;
   mandarinSimp: string | null;
   zho: string | null;
@@ -76,8 +82,9 @@ type ResultRow = Pick<SearchResult, "id" | "trad" | "simp" | "jyutping"> & {
   yue: string | null;
   yueSimp: string | null;
 };
+type ResultRow = SummaryRow & { quality: number };
 
-function toGloss(row: ResultRow): Gloss | null {
+function toGloss(row: SummaryRow): Gloss | null {
   if (row.mandarinTrad !== null && row.mandarinSimp !== null) return { source: "mandarin", trad: row.mandarinTrad, simp: row.mandarinSimp };
   if (row.zho !== null && row.zhoSimp !== null) return { source: "zho", trad: row.zho, simp: row.zhoSimp };
   if (row.yue !== null && row.yueSimp !== null) return { source: "yue", trad: row.yue, simp: row.yueSimp };
@@ -90,14 +97,25 @@ const sqlLimit = (limit: number) => Math.max(0, Math.floor(limit));
 /** Wraps a ranked CTE (ending in LIMIT ?) with the row columns and runs it. */
 async function runRanked(db: Db, ctes: string, params: readonly SqlParam[]): Promise<SearchResult[]> {
   const rows = await db.all<ResultRow>(`WITH ${ctes} SELECT ${RESULT_COLUMNS} FROM ranked ORDER BY ${ORDER_BY}`, params);
-  return rows.map((row) => ({
-    id: row.id,
-    trad: row.trad,
-    simp: row.simp,
-    match: QUALITIES[row.quality],
-    jyutping: row.jyutping,
-    gloss: toGloss(row),
-  }));
+  return rows.map((row) => ({ ...toSummary(row), match: QUALITIES[row.quality] }));
+}
+
+const toSummary = (row: SummaryRow): EntrySummary => ({ id: row.id, trad: row.trad, simp: row.simp, jyutping: row.jyutping, gloss: toGloss(row) });
+
+/**
+ * Row summaries (first reading, gloss) by entry id, for lists of ids kept elsewhere (Saved, from
+ * user.db). Ids with no entry, e.g. after a canto.db rebuild, are left out.
+ */
+export async function getEntrySummaries(db: Db, ids: readonly number[]): Promise<Map<number, EntrySummary>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await db.all<SummaryRow>(
+    `WITH ids(id) AS (VALUES ${unique.map(() => "(?)").join(", ")}),
+     ranked AS (SELECT e.id, e.trad, e.simp, NULL AS exact_pattern, NULL AS prefix_pattern FROM entries e JOIN ids ON e.id = ids.id)
+     SELECT ${SUMMARY_COLUMNS} FROM ranked`,
+    unique,
+  );
+  return new Map(rows.map((row) => [row.id, toSummary(row)]));
 }
 
 /**
