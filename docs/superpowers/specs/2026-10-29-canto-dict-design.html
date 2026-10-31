@@ -115,6 +115,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 │   ├── (tabs)/settings.tsx
 │   └── entry/[id].tsx
 ├── src/
+│   ├── components/       Shared presentational views used by screens (no business logic)
 │   ├── db/               Opens/updates canto.db; all dictionary SQL; DB interface for tests
 │   ├── dictionary/       Input classification, search, ranking
 │   ├── jyutping/         Text → Jyutping; syllable parser/normalizer
@@ -129,7 +130,7 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 ├── dashboard/            Progress dashboard (index.html + progress.js)
 └── docs/
 </code></pre>
-<p>Screens hold no business logic. Each <code>src/</code> module exposes a small typed API and is unit-testable without a device.</p>
+<p>Screens hold no business logic. Each <code>src/</code> logic module exposes a small typed API and is unit-testable without a device; <code>src/components/</code> holds only presentational views.</p>
 <h2>4. Data pipeline</h2>
 <p>Run on the Mac with <code>npm run data:build</code>. Steps: download → parse → merge → validate → build (build also writes the report).</p>
 <p><strong>Required vs optional sources.</strong> Every source is either <em>required</em> or <em>optional</em> (column below). A required source that fails to download or validate stops the build. An optional source that is missing is skipped and listed as omitted in the build report. An optional source can still feed a required feature: a build without the words.hk dump is a usable reduced build, but it does not meet the example-sentences requirement, and the report says so. Milestone 1 builds a starter dictionary from a smaller required set (rime characters + words, 開放詞典, syllable audio); milestone 2 makes the full required set mandatory.</p>
