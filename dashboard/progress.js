@@ -384,14 +384,16 @@ window.CANTO_PROGRESS = {
           test: "npm test → pass; npx expo run:ios → simulator shows 4 tabs",
         },
         {
-          id: "P2-T2", title: "Spike: confirm native capabilities on device", status: "todo",
-          files: ["app/dev-checks.tsx"],
+          id: "P2-T2", title: "Spike: confirm native capabilities on device", status: "done",
+          files: ["app/dev-checks.tsx", "src/devChecks/checks.ts", "src/devChecks/checks.test.ts", "app/(tabs)/settings.tsx", "app/_layout.tsx", "test/tabLayout.test.tsx"],
           subtasks: [
             "Add a hidden dev-checks screen with two buttons",
             "Check 1: to-jyutping returns Jyutping for 食飯 on Hermes",
             "Check 2: opencc-js converts 学校 → 學校 on Hermes",
             "Run on the simulator and on your iPhone; record results in the spec's risk table",
             "Commit",
+            "Done 2026-10-31 (3677d4c..HEAD; root 22 tests): to-jyutping 3.1.1 (食飯 → sik6 faan6) and opencc-js 1.4.2 Converter({from:\"cn\",to:\"t\"}) (学校 → 學校) both OK under Hermes on the iOS 27.2 simulator, no transpiling; checks live in src/devChecks/checks.ts (DEV_CHECKS + runDevCheck), screen pushed on the root Stack, reached from a __DEV__ link in Settings or cantodict://dev-checks. iPhone re-check moved to P2-T12 (first device run)",
+            "Next: P2-T3 — Db interface + better-sqlite3 testDb over assets/test/canto.fixture.db + entries.ts + expoDb (SQLiteProvider, assetSource canto.db). Gotchas: install expo-sqlite with npx expo install (native module → rebuild with npx expo run:ios); react-dom must stay pinned to exactly 19.3.0 (else ERESOLVE); tsconfig types is [\"jest\"] only, testDb needs path/__dirname so add @types/node + \"node\"; better-sqlite3 is a devDependency for Jest only; RNTL v14 fireEvent is async (await it); Metro started with CI=1 doesn't watch files (start without it when iterating on the sim); typed routes (.expo/types) regenerate only when Metro starts, so typecheck fails on new routes until then; no tap automation on the sim (no idb), and simctl openurl prompts, so verify screens via a temporary redirect in app/index.tsx and revert. DB schema: see data-pipeline writeDb. Open from P1-T16: particles la1/a1/ga3/ma3 have no clip (decide in the audio task)",
           ],
           dod: [
             "Both checks pass, or each failure has a decided workaround written into the spec",
@@ -549,6 +551,7 @@ window.CANTO_PROGRESS = {
           files: [],
           subtasks: [
             "Connect iPhone, sign with your Apple ID in Xcode, run npx expo run:ios --device",
+            "Debug build: Settings → Dev checks → both checks OK on the device (P2-T2 spike re-check)",
             "QA: search by 字 (simplified and traditional), Jyutping with and without tones",
             "QA: syllable audio on characters and words; airplane mode still works",
             "QA: favorites and history survive an app restart",
