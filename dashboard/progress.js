@@ -459,8 +459,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/dictionary/search → pass",
         },
         {
-          id: "P2-T6", title: "Lookup screen", status: "todo",
-          files: ["app/(tabs)/lookup.tsx", "src/dictionary/useSearch.ts", "app/(tabs)/lookup.test.tsx"],
+          id: "P2-T6", title: "Lookup screen", status: "done",
+          files: ["app/(tabs)/lookup.tsx", "src/dictionary/useSearch.ts", "src/dictionary/useSearch.test.ts", "test/lookup.test.tsx", "app/entry/[id].tsx"],
           subtasks: [
             "Write failing RNTL test: typing '食' shows result rows after debounce (fake timers, 150 ms)",
             "Write failing RNTL test: non-Jyutping Latin input (e.g. 'water') shows the hint 输入汉字或粤拼 instead of results",
@@ -469,9 +469,12 @@ window.CANTO_PROGRESS = {
             "Implement useSearch hook (debounce) and the screen",
             "Run tests → pass; check in simulator",
             "Commit",
+            "Done 2026-10-31 (453c1f7..HEAD; root 113 tests): useSearch(db, text) → {hint, results} (SEARCH_DEBOUNCE_MS 150; blank clears at once; stale results dropped; old results stay while a query is pending); Lookup screen = iOS-style search field + FlatList of memoized rows (simp large, trad when different, jyutping, one-line gloss with 粤语释义 label for yue); tap → /entry/[id] (placeholder route, title 词条, on the root Stack). Simulator (iPhone 18 Pro): sik → tones 1/3/6, 行 → hanzi results (so /\\p{Script=Han}/u works under Hermes), water → hint; no visible lag. Not checked on the sim (no tap automation): navigation, clear button, dark mode",
+            "Open (UI polish, later): a valid query with zero hits shows an empty list (consider ListEmptyComponent 无结果); glosses come from the first mandarin row, which can be a rare sense (息 → 曾孙, 色 → 色子) — revisit in P2-T7's mandarinLine",
+            "Next: P2-T7 — replace the placeholder app/entry/[id].tsx with the entry screen: getEntry(useDb(), Number(id)) from src/db/entries.ts (Entry shape documented there) + src/dictionary/mandarinLine.ts (spec §5.2 fallback: mandarin equivalents → MoE definitions.zho → words.hk yue labelled 粤语释义). Spec §5.2 is the bullet list to match. Fixture DB (assets/test/canto.fixture.db) — check with sqlite3 that 冇, 學校, 行 exist (行 is id 100 with hang4/hong2/hong4/hong6); if one is missing, use a fixture stand-in and say so. Word entries link each character to its own entry: needs a lookup by character (add a src/db query, e.g. findCharEntryId(trad) — beware the simplified-only stray char entries logged under P2-T5). Tests under test/ (never inside app/); mock src/db/expoDb's useDb → openTestDb() as test/lookup.test.tsx does; RNTL v14 fireEvent is async. Audio 🔊 buttons belong to P2-T8 (leave a slot, no player). Simulator check: temporary redirect in app/index.tsx to /entry/<id>, screenshot, revert; Metro without CI=1. Deferred from P2-T3: versioned DB name, blank screen during first-launch copy, readOnly open",
           ],
           dod: ["Typing feels instant in the simulator with the full DB"],
-          test: "npx jest app/\\(tabs\\)/lookup → pass; simulator: type sik → results for all tones",
+          test: "npx jest test/lookup src/dictionary/useSearch → pass; simulator: type sik → results for all tones",
         },
         {
           id: "P2-T7", title: "Entry screen", status: "todo",
