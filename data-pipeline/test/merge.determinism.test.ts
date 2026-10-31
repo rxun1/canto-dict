@@ -1,34 +1,8 @@
 // Determinism (DoD): the same inputs give byte-identical output, whatever the input row order.
 // Inputs are the repo's real source fixtures, parsed by the real parsers.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { merge } from "../src/merge/merge";
 import type { MergeInputs } from "../src/merge/types";
-import { parseKaifangcidian } from "../src/sources/kaifangcidian";
-import { parseLshk } from "../src/sources/lshk";
-import { parseMoedict } from "../src/sources/moedict";
-import { parseRimeChars } from "../src/sources/rimeChars";
-import { parseRimeEssay } from "../src/sources/rimeEssay";
-import { parseRimeWords } from "../src/sources/rimeWords";
-import { parseUnihan } from "../src/sources/unihan";
-import { DIALSYN_EXTRACT_PATH, parseDialSynExtract } from "../src/sources/wiktionaryDialSynExtract";
-import { parseWordshkDump } from "../src/sources/wordshkDump";
-import { parseWordshkList } from "../src/sources/wordshkList";
-
-const fixture = (name: string): string => readFileSync(join(import.meta.dirname, "../fixtures", name), "utf8");
-
-const FIXTURE_INPUTS: MergeInputs = {
-  rimeChars: parseRimeChars(fixture("rime-char.csv")),
-  lshk: parseLshk(fixture("lshk-list.tsv")).rows,
-  unihan: parseUnihan(fixture("unihan-kcantonese.txt")).rows,
-  rimeWords: parseRimeWords(fixture("rime-words.dict.yaml")).rows,
-  wordshkList: parseWordshkList(fixture("wordshk-list.csv")).rows,
-  wordshkDump: parseWordshkDump(fixture("wordshk-all.csv")).rows,
-  kaifangcidian: parseKaifangcidian(fixture("kfcd-cidian-ft.txt"), fixture("kfcd-cidian-jt.txt")).rows,
-  wiktionary: parseDialSynExtract(readFileSync(DIALSYN_EXTRACT_PATH, "utf8")),
-  moe: parseMoedict(fixture("moedict-sample.json")).rows,
-  essay: parseRimeEssay(fixture("rime-essay-cantonese.txt")).rows,
-};
+import { FIXTURE_INPUTS } from "./fixtureInputs";
 
 /** A deterministic Fisher-Yates shuffle (mulberry32 PRNG), so a failure reproduces. */
 function shuffled<T>(rows: readonly T[], seed: number): T[] {
