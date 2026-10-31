@@ -188,13 +188,15 @@ Status: Approved in brainstorming; awaiting written-spec review</p>
 </ul>
 <h3>4.3 <code>canto.db</code> schema</h3>
 <pre><code class="language-sql">entries     (id INTEGER PK, trad TEXT, simp TEXT, kind TEXT CHECK(kind IN (&#39;char&#39;,&#39;word&#39;)), freq REAL)
-readings    (entry_id, jyutping TEXT, rank TEXT, source TEXT, loan TEXT NULL)  -- loan: comma-separated 0-based indexes of loan syllables (e.g. es1 in DSE)
-mandarin    (entry_id, word_simp TEXT, word_trad TEXT, source TEXT)
-definitions (entry_id, sense INTEGER, pos TEXT, yue TEXT, zho TEXT, source TEXT)
-examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT, zho TEXT)
+aliases     (entry_id, trad TEXT, simp TEXT)  -- other spellings folded into the entry: 這裡 for 這裏, words.hk variant 㨂 for 揀
+readings    (entry_id, jyutping TEXT, rank TEXT NULL, source TEXT, loan TEXT NULL)  -- loan: comma-separated 0-based indexes of loan syllables (e.g. es1 in DSE)
+mandarin    (entry_id, word_trad TEXT, word_simp TEXT, sources TEXT)  -- sources: comma-separated, priority order (kaifangcidian,wiktionary)
+definitions (entry_id, sense INTEGER, pos TEXT NULL, yue TEXT NULL, yue_simp TEXT NULL, zho TEXT NULL, zho_simp TEXT NULL, source TEXT)
+examples    (entry_id, sense INTEGER, yue_trad TEXT, yue_simp TEXT, jyutping TEXT NULL, loan TEXT NULL, zho TEXT NULL, zho_simp TEXT NULL, source TEXT)
 search_keys (key TEXT, entry_id, type TEXT CHECK(type IN (&#39;toned&#39;,&#39;toneless&#39;,&#39;joined&#39;)))
--- indexes on entries(trad), entries(simp), search_keys(key)
+-- indexes on entries(trad), entries(simp), aliases(trad), aliases(simp), search_keys(key), and entry_id on every child table
 </code></pre>
+<p>Definitions and examples keep the source&#39;s traditional text verbatim plus a simplified copy (OpenCC t2s with the keep-list) that the app displays. MoE (國語辭典) senses are stored only for headwords that matched a Cantonese entry, and their simplified copy is for personal display only (its licence forbids redistributing it converted).</p>
 <h3>4.4 Audio pack</h3>
 <p>All syllable clips are re-encoded to 32 kbps mono AAC/MP3 and concatenated into <code>syllables.pack</code> (~6 MB). <code>syllables.json</code> maps <code>jyutping → [offset, length]</code>. Syllables with no clip are listed in the build report.</p>
 <h3>4.5 Phrase table</h3>
@@ -215,7 +217,7 @@ search_keys (key TEXT, entry_id, type TEXT CHECK(type IN (&#39;toned&#39;,&#39;t
 <tbody><tr>
 <td>Contains CJK</td>
 <td>Characters</td>
-<td>Exact (<code>trad</code> or <code>simp</code>) → prefix → contains</td>
+<td>Exact (<code>trad</code> or <code>simp</code> of the entry or one of its <code>aliases</code>) → prefix → contains. An alias hit returns the standard entry once.</td>
 </tr>
 <tr>
 <td>Latin with tone digits that splits into valid Jyutping syllables (<code>sik6</code>, <code>sik6 faan6</code>)</td>
