@@ -555,7 +555,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest app/\\(tabs\\)/saved → pass",
         },
         {
-          id: "P2-T11", title: "Database error screen", status: "doing",
+          id: "P2-T11", title: "Database error screen", status: "done",
           files: ["src/db/DbGate.tsx", "src/db/DbGate.test.tsx"],
           subtasks: [
             "Write failing RNTL test: when opening canto.db throws, a full-screen error with Retry appears",
@@ -564,6 +564,9 @@ window.CANTO_PROGRESS = {
             "Implement DbGate wrapping the root layout",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-31 (see git log P2-T11; root 191 tests): DbGate (error boundary in app/_layout.tsx) opens canto.db + user.db; loading 正在准备词典…; 词典数据库打开失败 + 重试 on a DbOpenError, 出错了 + 重试 for screen errors. SQLiteProvider replaced by useOpenDatabase (src/db/expoDb.tsx), shared with UserDbProvider. canto.db is now canto-v${CANTO_DB_VERSION}.db: BUMP CANTO_DB_VERSION whenever assets/canto.db is rebuilt; older copies are deleted after a successful open. A probe query (SELECT 1 FROM entries) catches an unreadable copy and deletes it so Retry re-copies. No read-only open in expo-sqlite. Simulator: opens to Lookup, canto.db replaced by canto-v1.db",
+            "Open: the probe only reads one page, so a copy truncated past it still opens (iOS copy is an APFS clone, so unlikely). Dev builds also keep a 63 MB expo-asset cache copy (Library/Caches/ExponentAsset-*.db); check whether release builds do too when measuring size in P2-T12",
+            "Next: P2-T12 — needs the user's iPhone: connect it, sign with an Apple ID team in Xcode (ios/ project), npx expo run:ios --device (a Release build, --configuration Release, for the size check and to not need Metro). Then the checklist below. Open items to check on device: MP3 priming blank before each syllable (P2-T8); no-Cantonese-voice §7 download steps not done (TODO on TTS_LANGUAGE); search.test 食 < 50 ms can flake under load",
           ],
           dod: ["App never shows an empty lookup screen when the DB failed"],
           test: "npx jest src/db/DbGate → pass",
@@ -831,6 +834,7 @@ window.CANTO_PROGRESS = {
     { date: "2026-10-30", text: "P1-T17 done, Plan 1 complete (573 tests): npm run data:build runs end to end in 57 s — 138,574 entries (32,288 chars, 106,286 words), canto.db 63.09 MB, syllables.pack 9.68 MB, audio 99.77% token-weighted. Reduced build (no words.hk dump yet). Review: no must-fix; duplicated MB formatter and test helpers cleaned up." },
     { date: "2026-10-30", text: "P1-T16 done (566 tests): validate() (Jyutping + per-source row minimums) and build-report.html. Real data: 0 invalid syllables, audio 99.77% token-weighted / 94.9% types, 138 syllables without a clip (incl. particles la1, a1, ga3). Review: an untested sort order and report minimums that ignored the ones applied; both fixed." },
     { date: "2026-10-30", text: "P1-T15 done (4bf884f..acfdc50, 548 tests): 3,902 words.hk clips → syllables.pack 9.68 MB, silence trimmed (worst edge 18 ms). Review caught a tail-trim test that could not fail and a cache cleanup that could delete a user's override file; both fixed. Stayed on MP3; iOS priming checked in P2-T8." },
+    { date: "2026-10-31", text: "P2-T11 done: DbGate loading/error/Retry screen for canto.db and user.db; canto.db now versioned (canto-v1.db) so a rebuilt DB ships in an update; an unreadable copy is deleted so Retry re-copies. Review: no must-fix; fixed screen errors showing the DB message, legacy copy cleanup, handle-close tests." },
     { date: "2026-10-31", text: "P2-T10 done (32b26cf): Saved tab (收藏 | 历史, Clear), ☆ in the entry header, lookups logged to history. Review: no must-fix; added a 加载失败 state instead of a blank list." },
     { date: "2026-10-31", text: "P2-T9 done (a441ad2): favorites + history in a separate user.db created on the device, history capped at 500. Review: no must-fix; fixed a DB handle leak on unmount during open, ordered history by id so a clock change can't drop rows, added CHECKs per kind." },
     { date: "2026-10-31", text: "P2-T1 done (f1a54d4..8888106): Expo SDK 58 app with four placeholder tabs, jest-expo smoke test, iOS 27.2 simulator verified. SDK 58 needs Xcode 26.4+, so Xcode went 26.1.1 → 27.2 (old runtimes and caches cleared). Review: no must-fix; template icon and an unused dependency removed." },
