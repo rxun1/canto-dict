@@ -17,7 +17,7 @@ export default function DevChecksScreen() {
               onPress={() => setResults((prev) => ({ ...prev, [check.label]: runDevCheck(check) }))}
             />
             {result && (
-              <Text style={[styles.result, { color: result.ok ? "green" : "red" }]}>
+              <Text style={[styles.result, { color: PlatformColor(result.ok ? "systemGreen" : "systemRed") }]}>
                 {result.ok ? "OK" : "FAIL"} {result.output}
                 {!result.ok && ` (expected ${check.expected})`}
               </Text>

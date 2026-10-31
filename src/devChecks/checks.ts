@@ -24,7 +24,10 @@ export const DEV_CHECKS: DevCheck[] = [
   },
 ];
 
-export type DevCheckResult = { ok: true; output: string } | { ok: false; output: string };
+export interface DevCheckResult {
+  ok: boolean;
+  output: string;
+}
 
 /** Runs a check, turning a thrown error into a failed result so the screen can show it. */
 export function runDevCheck(check: DevCheck): DevCheckResult {

@@ -1,5 +1,5 @@
 import { Link } from "expo-router";
-import { StyleSheet, View } from "react-native";
+import { PlatformColor, StyleSheet, View } from "react-native";
 import { PlaceholderScreen } from "../../src/components/PlaceholderScreen";
 
 export default function SettingsScreen() {
@@ -17,5 +17,5 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  devLink: { padding: 24, textAlign: "center", color: "#007AFF", fontSize: 17 },
+  devLink: { padding: 24, textAlign: "center", color: PlatformColor("link"), fontSize: 17 },
 });
