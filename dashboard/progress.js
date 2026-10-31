@@ -438,8 +438,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/dictionary/classify → pass",
         },
         {
-          id: "P2-T5", title: "Search + ranking", status: "todo",
-          files: ["src/dictionary/search.ts", "src/dictionary/search.test.ts"],
+          id: "P2-T5", title: "Search + ranking", status: "done",
+          files: ["src/dictionary/search.ts", "src/db/searchQueries.ts", "src/db/testDb.ts", "src/dictionary/search.test.ts"],
           subtasks: [
             "Write failing test: search('食') returns 食 first, then words starting with 食, then words containing it",
             "Write failing test: search('饭') and search('飯') return the same entries",
@@ -449,6 +449,9 @@ window.CANTO_PROGRESS = {
             "Implement search.ts on top of src/db",
             "Run tests → pass",
             "Commit",
+            "Done 2026-10-31 (80d6287..HEAD; root 107 tests): search(db, input | Classification, limit = MAX_RESULTS 50) → SearchResult {id, trad, simp, match: exact|prefix|contains, jyutping (the reading the query matched, else first), gloss {source: mandarin|zho|yue, trad, simp} | null}; SQL in src/db/searchQueries.ts ranks in SQL (quality, same-case exact, freq, length, id), one query per search, no N+1. Hanzi Latin matches case-insensitively (ASCII LIKE), same case ranks first. Full canto.db timings all under 18 ms (食 15, 一 16, m 18, sik 1.6). testDb gained openTestDb(path), FULL_DB_PATH, openSchemaDb() (in-memory DB from the pipeline's schema.sql)",
+            "Open (pipeline, not yet a task): 2,852 simplified-only char entries (trad = simp = another entry's simp, e.g. 饭 128160, 们, 这, 个; readings from lshk/rime, freq 0, no gloss) show as bare rows next to the real entry (search 饭 → 飯/饭 then a gloss-less 饭). Fold them into the traditional entry (alias / merged readings) in data-pipeline/src/merge/merge.ts; some trad = simp chars are real (后, 干, 面 have definitions), so only fold ones without their own definitions",
+            "Next: P2-T6 — app/(tabs)/lookup.tsx + src/dictionary/useSearch.ts (debounce 150 ms per spec §5.1; extract it as a constant) calling search(useDb(), text). Row renders SearchResult (headword simp large / trad when different per spec §5.2 style, jyutping, gloss; label gloss.source yue as 粤语释义). none → hint 输入汉字或粤拼; empty → nothing. Tap → router.push /entry/[id] (route created in P2-T7; a placeholder app/entry/[id].tsx is fine now). Tests: never put tests inside app/ (Expo Router treats every file there as a route) — put the screen test under test/ despite the planned path; mock src/db/expoDb's useDb to return openTestDb() (test/tabLayout.test.tsx mocks DbProvider); fixture has no 食, so use 行 or another fixture char; RNTL v14 fireEvent is async; fake timers for the debounce. Simulator: start Metro without CI=1, npx expo run:ios; check typing sik shows all tones and verify /\\p{Script=Han}/u works under Hermes (type a character). Deferred from P2-T3: versioned DB name, blank screen during first-launch copy, readOnly open. Open: particles la1/a1/ga3/ma3 have no clip (audio task)",
           ],
           dod: [
             "Each query under 50 ms on the full canto.db on your Mac (timed in test output)",
