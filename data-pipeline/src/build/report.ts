@@ -246,6 +246,7 @@ function phrasesSection({ phrases }: ReportInput): string {
       ["Wiktionary forms skipped: … pattern", num(phrases.wiktionaryPatternForms)],
       ["Kaifangcidian items skipped: … pattern", num(phrases.kaifangcidianPatternItems)],
       ["Source pairs skipped: one-character Mandarin key", num(phrases.singleCharacterKeys)],
+      ["Kaifangcidian pairs skipped: one-character Cantonese answer", num(phrases.kaifangcidianSingleCharacterAnswers)],
       ["Keys left out: Mandarin word more frequent than every source candidate", num(phrases.lessFrequentKeys)],
       ["Curated Cantonese with no entry", phrases.curatedWithoutEntry.join(" ") || "none"],
     ]),

@@ -40,8 +40,8 @@ const KFCD_MOUJAU = kfcd("冇有", [["沒有", "没有"]]);
 const KFCD_NIDOU = kfcd("呢度", [["這邊", "这边"], ["這兒", "这儿"], ["這裡", "这里"], ["這面", "这面"], ["這個地方", "这个地方"]]);
 const KFCD_GIMGAAP = kfcd("兼夾", [["而且", "而且"], ["加上", "加上"], ["並且", "并且"], ["再加", "再加"], ["又…又…", "又…又…"]]);
 const KFCD_JATJYU = kfcd("一於", [["堅決", "坚决"], ["一定要", "一定要"], ["怎麼也", "怎么也"], ["說定了", "说定了"], ["就…吧", "就…吧"]]);
-const KFCD_SAAM = kfcd("衫", [["衣服", "衣服"]]);
-const KFCD_SAAMFU = kfcd("衫褲", [["衣服", "衣服"]]);
+const KFCD_NISYU = kfcd("呢處", [["這邊", "这边"], ["這兒", "这儿"], ["這裡", "这里"], ["這面", "这面"], ["這個地方", "这个地方"]]);
+const KFCD_ZUNGJI = kfcd("鍾意", [["喜歡", "喜欢"]]);
 
 const WIKT_MEIYOU: DialSynPair = { mandarin: "沒有", cantonese: [{ form: "冇" }, { form: "冇有" }] };
 const WIKT_ZELI: DialSynPair = { mandarin: "這裡", cantonese: [{ form: "呢度" }, { form: "呢處" }, { form: "依度" }, { form: "依處" }] };
@@ -62,9 +62,9 @@ function table(...args: Parameters<typeof buildPhraseTable>): string[] {
 
 describe("buildPhraseTable", () => {
   it("adds reversed Kaifangcidian and Wiktionary pairs, keyed by Mandarin", () => {
-    expect(table({ kaifangcidian: [KFCD_SAAM], wiktionary: [WIKT_ZHAOLIANG] }, [], NO_CURATED)).toEqual([
+    expect(table({ kaifangcidian: [KFCD_ZUNGJI], wiktionary: [WIKT_ZHAOLIANG] }, [], NO_CURATED)).toEqual([
+      "喜歡 → 鍾意 (kaifangcidian)",
       "着涼 → 冷嚫 (wiktionary)",
-      "衣服 → 衫 (kaifangcidian)",
     ]);
   });
 
@@ -88,7 +88,7 @@ describe("buildPhraseTable", () => {
   it("uses only Wiktionary Cantonese forms without a usage note: any note excludes the form", () => {
     // 的 → 嘅:† (a per-table footnote symbol) gives nothing; 困難 skips 惡:† but keeps 難.
     expect(table({ kaifangcidian: [], wiktionary: [WIKT_DIK, WIKT_KUNNAN] }, [], NO_CURATED)).toEqual(["困難 → 難 (wiktionary)"]);
-    // A noted form listed first does not win: 鍋-like tables fall through to the first form without a note.
+    // A form with a note never wins, even when listed first: the first form without a note does (稀框框 here, 罉 in 鍋's table).
     const firstNoted: DialSynPair = { mandarin: "稀溜溜", cantonese: [{ form: "稀寥寥", note: "↓" }, { form: "稀冧冧", note: "↓" }, { form: "稀框框" }] };
     expect(table({ kaifangcidian: [], wiktionary: [firstNoted] }, [], NO_CURATED)).toEqual(["稀溜溜 → 稀框框 (wiktionary)"]);
     const { stats } = buildPhraseTable({ kaifangcidian: [], wiktionary: [WIKT_DIK, WIKT_KUNNAN, firstNoted] }, [], NO_CURATED);
@@ -116,38 +116,69 @@ describe("buildPhraseTable", () => {
 
   it("takes single-character Mandarin keys from the curated list only", () => {
     // 土 → 泥 would turn 土地 into 泥地; 是 → 係 is curated.
-    const kfcdHai = kfcd("係", [["是", "是"], ["是不是", "是不是"]]);
-    expect(table({ kaifangcidian: [kfcdHai], wiktionary: [WIKT_TU] }, [], [["是", "係"]])).toEqual([
-      "是 → 係 (curated)",
-      "是不是 → 係 (kaifangcidian)",
-    ]);
-    expect(buildPhraseTable({ kaifangcidian: [kfcdHai], wiktionary: [WIKT_TU] }, [], NO_CURATED).stats.singleCharacterKeys).toBe(2);
+    const wiktShi: DialSynPair = { mandarin: "是", cantonese: [{ form: "係" }] };
+    expect(table({ kaifangcidian: [], wiktionary: [WIKT_TU, wiktShi] }, [], [["是", "係"]])).toEqual(["是 → 係 (curated)"]);
+    expect(buildPhraseTable({ kaifangcidian: [], wiktionary: [WIKT_TU, wiktShi] }, [], NO_CURATED).stats.singleCharacterKeys).toBe(2);
   });
 
-  it("picks Wiktionary's first-listed form, then the Cantonese word's frequency, then code point order", () => {
-    // Wiktionary lists 冇 before 冇有 whatever their frequencies.
-    const entries = [entry("冇", 1), entry("冇有", 5), entry("衫", 5.5), entry("衫褲", 2.7)];
-    expect(table({ kaifangcidian: [], wiktionary: [WIKT_MEIYOU] }, entries, NO_CURATED)).toEqual(["沒有 → 冇 (wiktionary)"]);
-    // Kaifangcidian has no order across rows: the more frequent word wins, in any input order.
-    expect(table({ kaifangcidian: [KFCD_SAAMFU, KFCD_SAAM], wiktionary: [] }, entries, NO_CURATED)).toEqual(["衣服 → 衫 (kaifangcidian)"]);
-    expect(table({ kaifangcidian: [KFCD_SAAM, KFCD_SAAMFU], wiktionary: [] }, [entry("衫", 1), entry("衫褲", 2)], NO_CURATED)).toEqual([
-      "衣服 → 衫褲 (kaifangcidian)",
+  it("drops Kaifangcidian's one-character answers to longer Mandarin keys, but not Wiktionary's", () => {
+    // 山 for 海島 and 卡 for 火車車廂 are senses of very general words; 火車卡 says it in full.
+    const shan = kfcd("山", [["島", "岛"], ["海島", "海岛"], ["島嶼", "岛屿"]]);
+    const kaa = kfcd("卡", [["車廂", "车厢"], ["車皮", "车皮"], ["火車車廂", "火车车厢"]]);
+    const fochekaa = kfcd("火車卡", [["車廂", "车厢"], ["車皮", "车皮"], ["火車車廂", "火车车厢"]]);
+    const dongxi: DialSynPair = { mandarin: "東西", cantonese: [{ form: "嘢" }] };
+    const { rows, stats } = buildPhraseTable({ kaifangcidian: [shan, kaa, fochekaa], wiktionary: [dongxi] }, [], NO_CURATED);
+    expect(rows.map((r) => `${r.mandarinTrad} → ${r.cantoneseTrad} (${r.source})`)).toEqual([
+      "東西 → 嘢 (wiktionary)",
+      "火車車廂 → 火車卡 (kaifangcidian)",
+      "車廂 → 火車卡 (kaifangcidian)",
+      "車皮 → 火車卡 (kaifangcidian)",
     ]);
-    // Equal frequency (here none): code point order.
-    expect(table({ kaifangcidian: [KFCD_SAAMFU, KFCD_SAAM], wiktionary: [] }, [], NO_CURATED)).toEqual(["衣服 → 衫 (kaifangcidian)"]);
+    expect(stats.kaifangcidianSingleCharacterAnswers).toBe(5);
+  });
+
+  it("picks the first-listed form (Wiktionary table, Kaifangcidian row), then the Cantonese word's frequency, then code point order", () => {
+    // Wiktionary lists 冇 before 冇有 whatever their frequencies.
+    const entries = [entry("冇", 1), entry("冇有", 5)];
+    expect(table({ kaifangcidian: [], wiktionary: [WIKT_MEIYOU] }, entries, NO_CURATED)).toEqual(["沒有 → 冇 (wiktionary)"]);
+    // Kaifangcidian: the gloss listed earlier in its row wins. 唔夠老友 glosses 不夠朋友 first, 絕情 only after
+    // 無情, so 唔夠老友 wins although 絕情 is more frequent (real freqs: 0 and 2.95).
+    const kfcdZyutcing = kfcd("絕情", [["無情", "无情"], ["不夠朋友", "不够朋友"]]);
+    const kfcdMgaulouyau = kfcd("唔夠老友", [["不夠朋友", "不够朋友"]]);
+    expect(table({ kaifangcidian: [kfcdZyutcing, kfcdMgaulouyau], wiktionary: [] }, [entry("絕情", 2.95)], NO_CURATED)).toContain(
+      "不夠朋友 → 唔夠老友 (kaifangcidian)",
+    );
+    // Same position (both rows gloss 這裡 third): the more frequent word wins, in any input order.
+    const nidou = (...args: Parameters<typeof table>) => table(...args).filter((row) => row.startsWith("這裏 "));
+    expect(nidou({ kaifangcidian: [KFCD_NISYU, KFCD_NIDOU], wiktionary: [] }, [entry("呢度", 4), entry("呢處", 1)], NO_CURATED)).toEqual([
+      "這裏 → 呢度 (kaifangcidian)",
+    ]);
+    expect(nidou({ kaifangcidian: [KFCD_NIDOU, KFCD_NISYU], wiktionary: [] }, [entry("呢度", 1), entry("呢處", 4)], NO_CURATED)).toEqual([
+      "這裏 → 呢處 (kaifangcidian)",
+    ]);
+    // Equal frequency (here none): code point order (度 U+5EA6 before 處 U+8655).
+    expect(nidou({ kaifangcidian: [KFCD_NISYU, KFCD_NIDOU], wiktionary: [] }, [], NO_CURATED)).toEqual(["這裏 → 呢度 (kaifangcidian)"]);
   });
 
   it("uses a source pair only when the Cantonese word is at least as frequent in canto.db as the Mandarin word", () => {
     // Frequencies from the real canto.db: Cantonese keeps 問題 (5.18) rather than Kaifangcidian's 阻滯 (1.95),
-    // but says 嘢 (6.12) for 東西 (3.90). Wiktionary's 打工仔 for 工人 loses the same way; the curated list is exempt.
-    const entries = [entry("問題", 5.18), entry("阻滯", 1.95), entry("東西", 3.9), entry("嘢", 6.12), entry("工人", 4.2), entry("打工仔", 3.6)];
+    // but says 鍾意 (5.53) for 喜歡 (4.25). Wiktionary's 打工仔 for 工人 loses the same way; the curated list is exempt.
+    const entries = [entry("問題", 5.18), entry("阻滯", 1.95), entry("喜歡", 4.25), entry("鍾意", 5.53), entry("工人", 4.2), entry("打工仔", 3.6)];
     const sources = {
-      kaifangcidian: [kfcd("阻滯", [["問題", "问题"]]), kfcd("嘢", [["東西", "东西"]])],
+      kaifangcidian: [kfcd("阻滯", [["問題", "问题"]]), KFCD_ZUNGJI],
       wiktionary: [{ mandarin: "工人", cantonese: [{ form: "打工仔" }, { form: "工人" }] }],
     };
-    expect(table(sources, entries, NO_CURATED)).toEqual(["工人 → 工人 (wiktionary)", "東西 → 嘢 (kaifangcidian)"]);
+    expect(table(sources, entries, NO_CURATED)).toEqual(["喜歡 → 鍾意 (kaifangcidian)", "工人 → 工人 (wiktionary)"]);
     expect(buildPhraseTable(sources, entries, NO_CURATED).stats.lessFrequentKeys).toBe(1);
     expect(table(sources, entries, [["问题", "阻滯"]])).toContain("問題 → 阻滯 (curated)");
+  });
+
+  it("lets a Wiktionary form with no frequency data (freq 0) pass the gate, but not a Kaifangcidian word", () => {
+    // Real freqs: 正在 4.04, 喺度 0 (no essay weight), 響度 4.44. Wiktionary lists 喺度 first.
+    const entries = [entry("正在", 4.04), entry("喺度", 0), entry("響度", 4.44)];
+    const zhengzai: DialSynPair = { mandarin: "正在", cantonese: [{ form: "喺度" }, { form: "喺處" }, { form: "響度" }, { form: "響處" }] };
+    expect(table({ kaifangcidian: [], wiktionary: [zhengzai] }, entries, NO_CURATED)).toEqual(["正在 → 喺度 (wiktionary)"]);
+    expect(table({ kaifangcidian: [kfcd("喺度", [["正在", "正在"]])], wiktionary: [] }, entries, NO_CURATED)).toEqual([]);
   });
 
   it("writes the Cantonese side in canto.db's displayed spelling when the word has an entry", () => {
@@ -158,11 +189,11 @@ describe("buildPhraseTable", () => {
   });
 
   it("keeps identity pairs (they shield words like 圖書館 in longest match) and counts them", () => {
-    const { rows, stats } = buildPhraseTable({ kaifangcidian: [KFCD_SAAM], wiktionary: [WIKT_TUSHUGUAN] }, [], [["目的", "目的"]]);
+    const { rows, stats } = buildPhraseTable({ kaifangcidian: [KFCD_ZUNGJI], wiktionary: [WIKT_TUSHUGUAN] }, [], [["目的", "目的"]]);
     expect(rows).toEqual<PhraseRow[]>([
+      { mandarinTrad: "喜歡", cantoneseTrad: "鍾意", source: "kaifangcidian" },
       { mandarinTrad: "圖書館", cantoneseTrad: "圖書館", source: "wiktionary" },
       { mandarinTrad: "目的", cantoneseTrad: "目的", source: "curated" },
-      { mandarinTrad: "衣服", cantoneseTrad: "衫", source: "kaifangcidian" },
     ]);
     expect(stats.identityRows).toBe(2);
     expect(stats.rows).toEqual({ curated: 1, wiktionary: 1, kaifangcidian: 1 });
@@ -174,7 +205,7 @@ describe("buildPhraseTable", () => {
   });
 
   it("sorts rows by Mandarin key and gives the same rows whatever the input order", () => {
-    const sources = { kaifangcidian: [KFCD_NIDOU, KFCD_GIMGAAP, KFCD_SAAM, KFCD_SAAMFU], wiktionary: [WIKT_MEIYOU, WIKT_ZELI, WIKT_KUNNAN] };
+    const sources = { kaifangcidian: [KFCD_NIDOU, KFCD_GIMGAAP, KFCD_NISYU, KFCD_ZUNGJI], wiktionary: [WIKT_MEIYOU, WIKT_ZELI, WIKT_KUNNAN] };
     const reversed = { kaifangcidian: [...sources.kaifangcidian].reverse(), wiktionary: [...sources.wiktionary].reverse() };
     const forward = buildPhraseTable(sources, [], CURATED_PAIRS).rows;
     expect(buildPhraseTable(reversed, [], [...CURATED_PAIRS].reverse()).rows).toEqual(forward);
