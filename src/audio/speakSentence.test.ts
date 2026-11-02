@@ -34,12 +34,13 @@ const JYUTPING = ["m4", "goi1", null, null, null];
 let Speech: typeof SpeechModule;
 let playSyllables: jest.Mock;
 let TTS_LANGUAGE: string;
+let speakTts: typeof PlaySyllablesModule.speakTts;
 let speakSentence: typeof SpeakSentenceModule.speakSentence;
 
 beforeEach(() => {
   jest.resetModules();
   Speech = require("expo-speech");
-  ({ playSyllables, TTS_LANGUAGE } = require("./playSyllables") as typeof PlaySyllablesModule & {
+  ({ playSyllables, TTS_LANGUAGE, speakTts } = require("./playSyllables") as typeof PlaySyllablesModule & {
     playSyllables: jest.Mock;
   });
   ({ speakSentence } = require("./speakSentence") as typeof SpeakSentenceModule);
@@ -66,18 +67,36 @@ describe("speakSentence", () => {
     noCantoneseVoice();
     await expect(speakSentence(TEXT, JYUTPING, "voice")).resolves.toEqual({ missingVoice: true });
     expect(Speech.speak).not.toHaveBeenCalled();
+    expect(Speech.stop).not.toHaveBeenCalled();
   });
 
-  it("mode 'syllables' plays the displayed Jyutping, nulls dropped, with the text for the TTS fallback", async () => {
+  it("stops a playback in progress when no Cantonese voice is installed", async () => {
+    noCantoneseVoice();
+    // An earlier play (the entry screen's TTS) holds its speech open, so it is still sounding.
+    (Speech.speak as jest.Mock).mockImplementationOnce(() => {});
+    void speakTts(TEXT);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(Speech.speak).toHaveBeenCalledTimes(1);
+    await expect(speakSentence(TEXT, JYUTPING)).resolves.toEqual({ missingVoice: true });
+    expect(Speech.stop).toHaveBeenCalled();
+  });
+
+  it("mode 'syllables' plays the displayed Jyutping, nulls dropped, with their characters for the TTS fallback", async () => {
     playSyllables.mockResolvedValueOnce({ usedTts: true });
     await expect(speakSentence(TEXT, JYUTPING, "syllables")).resolves.toEqual({ missingVoice: false, usedTts: true });
-    expect(playSyllables).toHaveBeenCalledWith(["m4", "goi1"], TEXT);
+    expect(playSyllables).toHaveBeenCalledWith(["m4", "goi1"], "唔该");
     expect(Speech.speak).not.toHaveBeenCalled();
+  });
+
+  it("mode 'syllables' passes only the characters that have a reading", async () => {
+    // 𠀀 (U+20000) has no reading in to-jyutping, so its Jyutping is null.
+    await speakSentence("𠀀唔该", [null, "m4", "goi1"], "syllables");
+    expect(playSyllables).toHaveBeenCalledWith(["m4", "goi1"], "唔该");
   });
 
   it("mode 'syllables' plays even with no Cantonese voice installed", async () => {
     noCantoneseVoice();
     await expect(speakSentence(TEXT, JYUTPING, "syllables")).resolves.toEqual({ missingVoice: false, usedTts: false });
-    expect(playSyllables).toHaveBeenCalledWith(["m4", "goi1"], TEXT);
+    expect(playSyllables).toHaveBeenCalledWith(["m4", "goi1"], "唔该");
   });
 });

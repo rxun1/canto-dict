@@ -10,7 +10,8 @@ import { clipPath } from "./syllablePack";
 /**
  * Language of the TTS fallback voice.
  * Used when no Cantonese voice is found (see cantoneseVoice).
- * TODO: spec §7 shows download steps when no Cantonese voice is installed; not done yet.
+ * TODO: spec §7 shows download steps when no Cantonese voice is installed (speakSentence reports
+ * missingVoice; the Translate screen, P3-T11, shows them).
  */
 export const TTS_LANGUAGE = "zh-HK";
 
@@ -34,6 +35,11 @@ function startPlay(): () => boolean {
   const play = ++latestPlay;
   stopSounding?.();
   return () => play === latestPlay;
+}
+
+/** Stops whatever is playing or speaking, without starting anything. */
+export function stopPlayback(): void {
+  startPlay();
 }
 
 /** Languages iOS reports for its Cantonese voices: recent versions yue-HK, older zh-HK (research §5.1). */

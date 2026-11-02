@@ -1,6 +1,6 @@
 // Reads a translation aloud (spec §6.4). The default is the iOS Cantonese voice speaking the whole text;
 // the toggle plays real-person syllables in sequence from the displayed Jyutping.
-import { cantoneseVoice, playSyllables, speakTts, type PlayResult } from "./playSyllables";
+import { cantoneseVoice, playSyllables, speakTts, stopPlayback, type PlayResult } from "./playSyllables";
 
 export type SpeakMode = "voice" | "syllables";
 
@@ -23,10 +23,18 @@ export async function speakSentence(
 ): Promise<SpeakResult> {
   if (mode === "syllables") {
     const syllables = jyutping.filter((s): s is string => s !== null);
-    return { missingVoice: false, ...(await playSyllables(syllables, text)) };
+    // Only the characters with a reading, so a Han character without one (rare CJK extensions) can't break
+    // playSyllables' one-to-one character match and silence the whole TTS fallback.
+    const read = Array.from(text)
+      .filter((_, i) => jyutping[i] != null)
+      .join("");
+    return { missingVoice: false, ...(await playSyllables(syllables, read)) };
   }
-  // A non-Cantonese voice reading Han text would be Mandarin, so nothing is spoken.
-  if ((await cantoneseVoice()) === undefined) return { missingVoice: true };
+  // A non-Cantonese voice reading Han text would be Mandarin, so nothing is spoken (and nothing keeps playing).
+  if ((await cantoneseVoice()) === undefined) {
+    stopPlayback();
+    return { missingVoice: true };
+  }
   await speakTts(text);
   return { missingVoice: false, usedTts: false };
 }
