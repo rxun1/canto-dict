@@ -42,7 +42,7 @@ const POS_SEPARATOR = "、";
  * An ideographic description character (U+2FF0–U+2FFF): Wiktionary spells a character Unicode
  * lacks as its description (⿰血聿, the Mandarin word it pairs with 淋巴), which is no word to show.
  */
-const IDEOGRAPHIC_DESCRIPTION = /[\u2FF0-\u2FFF]/u;
+export const IDEOGRAPHIC_DESCRIPTION = /[\u2FF0-\u2FFF]/u;
 
 /** MoE's names for a reading other than the sense's own: 又音 (alternative), 讀音 (literary), 語音 (colloquial). */
 const READING_NOTE = "(?:又音|讀音|語音)";
@@ -75,7 +75,7 @@ export function cleanKfcdItem(item: string): string {
 }
 
 /** Kaifangcidian's placeholder for the words a Mandarin pattern leaves open (又…又…). */
-const KFCD_PLACEHOLDER = "…";
+export const KFCD_PLACEHOLDER = "…";
 
 /** A "…" item needs this many characters besides the placeholders to mean something on its own. */
 const KFCD_PATTERN_MIN_WORD_LENGTH = 2;

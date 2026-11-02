@@ -1,6 +1,6 @@
 // The build report, data-pipeline/build-report.html (spec §4.6): entry counts, per-source counts (rows
 // each parser kept, and rows written per table), reading coverage, audio coverage (types and token-weighted, plus the syllables with no clip), DB and pack
-// sizes, validation warnings and merge's counts. Docs are HTML, not markdown (plan conventions).
+// sizes, validation warnings, merge's counts and the phrase table's. Docs are HTML, not markdown (plan conventions).
 // Every interpolated value goes through escapeHtml.
 import { join } from "node:path";
 import { byCodeUnits } from "../compare";
@@ -26,6 +26,7 @@ import { WORDSHK_DUMP_SOURCE } from "../sources/wordshkDump";
 import type { SourceRows } from "../validate";
 import { writeFileAtomic } from "../writeFileAtomic";
 import { formatMb as mb } from "./audioPack";
+import { PHRASE_SOURCES, type PhraseTableStats } from "./phraseTable";
 
 /** Where cli.ts writes the report (next to package.json). */
 export const REPORT_PATH = join(import.meta.dirname, "../../build-report.html");
@@ -55,6 +56,8 @@ export interface ReportInput {
   readonly minimums: SourceRows;
   readonly entries: readonly Entry[];
   readonly stats: MergeStats;
+  /** buildPhraseTable's counts. */
+  readonly phrases: PhraseTableStats;
   /** From the audio pack's PackResult: the packed syllables and the pack's size. */
   readonly audio: { readonly syllables: readonly string[]; readonly packBytes: number };
   /** Size of the written canto.db. */
@@ -230,6 +233,25 @@ function mergeSection({ stats }: ReportInput): string {
   ].join("\n");
 }
 
+function phrasesSection({ phrases }: ReportInput): string {
+  const total = PHRASE_SOURCES.reduce((sum, source) => sum + phrases.rows[source], 0);
+  return [
+    "<h2>Phrase table</h2>",
+    "<p>phrase_map rows (one Cantonese replacement per Mandarin key) by the source that won the key, curated first.</p>",
+    keyValues([
+      ...PHRASE_SOURCES.map((source): [Cell, Cell] => [`Rows: ${source}`, num(phrases.rows[source])]),
+      ["Rows", num(total)],
+      ["Identity rows (Cantonese = Mandarin)", num(phrases.identityRows)],
+      ["Wiktionary forms skipped: usage note", num(phrases.wiktionaryNotedForms)],
+      ["Wiktionary forms skipped: … pattern", num(phrases.wiktionaryPatternForms)],
+      ["Kaifangcidian items skipped: … pattern", num(phrases.kaifangcidianPatternItems)],
+      ["Source pairs skipped: one-character Mandarin key", num(phrases.singleCharacterKeys)],
+      ["Keys left out: Mandarin word more frequent than every source candidate", num(phrases.lessFrequentKeys)],
+      ["Curated Cantonese with no entry", phrases.curatedWithoutEntry.join(" ") || "none"],
+    ]),
+  ].join("\n");
+}
+
 const STYLE = `body { font: 15px/1.5 system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
 table { border-collapse: collapse; margin: 0.5rem 0 1rem; }
 th, td { border: 1px solid #ccc; padding: 0.25rem 0.6rem; text-align: left; vertical-align: top; }
@@ -262,6 +284,7 @@ ${entriesSection(input)}
 ${audioSection(input)}
 ${sourcesSection(input)}
 ${mergeSection(input)}
+${phrasesSection(input)}
 </body>
 </html>
 `;

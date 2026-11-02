@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { buildPhraseTable, type PhraseRow } from "../src/build/phraseTable";
 import { FIXTURE_DB_PATH, writeDb } from "../src/build/writeDb";
 import { merge } from "../src/merge/merge";
 import type { Entry } from "../src/merge/types";
@@ -10,7 +11,7 @@ import { fixtureInputs } from "../src/fixtureInputs";
 
 const FIXTURE_INPUTS = fixtureInputs();
 
-const TABLES = ["aliases", "definitions", "entries", "examples", "mandarin", "readings", "search_keys"];
+const TABLES = ["aliases", "definitions", "entries", "examples", "mandarin", "phrase_map", "readings", "search_keys"];
 
 const SIK: Entry = {
   key: "食",
@@ -85,26 +86,29 @@ const ENTRIES: readonly Entry[] = [SIK, FAAN, SIK_FAAN, DSE];
 
 const tempPath = (name = "canto.db"): string => join(mkdtempSync(join(tmpdir(), "canto-db-")), name);
 
-/** Writes `entries` and opens the result read-only (closed by the caller). */
-function build(entries: readonly Entry[] = ENTRIES): Database.Database {
+/** Writes `entries` (and `phrases`) and opens the result read-only (closed by the caller). */
+function build(entries: readonly Entry[] = ENTRIES, phrases: readonly PhraseRow[] = []): Database.Database {
   const path = tempPath();
-  writeDb(path, entries);
+  writeDb(path, entries, phrases);
   return new Database(path, { readonly: true });
 }
 
 const tableNames = (db: Database.Database): string[] =>
   (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as { name: string }[]).map((r) => r.name);
 
-/** The schema and every row of every table, in rowid order: the database's content, whatever its bytes. */
+/** phrase_map is WITHOUT ROWID: its rows are stored, and dumped, in key order. */
+const dumpOrder = (table: string): string => (table === "phrase_map" ? "mandarin_trad" : "rowid");
+
+/** The schema and every row of every table, in rowid (or key) order: the database's content, whatever its bytes. */
 function dumpTables(db: Database.Database): Record<string, unknown[]> {
   return {
     sqlite_master: db.prepare("SELECT type, name, sql FROM sqlite_master ORDER BY name").all(),
-    ...Object.fromEntries(tableNames(db).map((t) => [t, db.prepare(`SELECT * FROM ${t} ORDER BY rowid`).all()])),
+    ...Object.fromEntries(tableNames(db).map((t) => [t, db.prepare(`SELECT * FROM ${t} ORDER BY ${dumpOrder(t)}`).all()])),
   };
 }
 
 describe("writeDb", () => {
-  it("creates the seven tables of spec §4.3 and their indexes", () => {
+  it("creates the seven tables of spec §4.3, phrase_map (§4.5) and their indexes", () => {
     const db = build();
     expect(tableNames(db)).toEqual(TABLES);
     const indexed = db
@@ -273,7 +277,8 @@ describe("writeDb", () => {
   });
 
   it("matches the committed fixture DB (regenerate: npm run data:fixture)", () => {
-    const fresh = build(merge(FIXTURE_INPUTS).entries);
+    const { entries } = merge(FIXTURE_INPUTS);
+    const fresh = build(entries, buildPhraseTable(FIXTURE_INPUTS, entries).rows);
     const committed = new Database(FIXTURE_DB_PATH, { readonly: true });
     expect(tableNames(committed)).toEqual(TABLES);
     expect(dumpTables(committed)).toEqual(dumpTables(fresh));

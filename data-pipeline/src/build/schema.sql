@@ -64,6 +64,15 @@ CREATE TABLE search_keys (
   type     TEXT NOT NULL CHECK (type IN ('toned', 'toneless', 'joined'))
 );
 
+-- The offline translator's phrase table (spec §4.5; data-pipeline/src/build/phraseTable.ts): one
+-- Cantonese replacement per Mandarin key, keyed as the app's OpenCC cn→t spells it. The primary key
+-- is the lookup index; WITHOUT ROWID stores the rows in it.
+CREATE TABLE phrase_map (
+  mandarin_trad  TEXT PRIMARY KEY,
+  cantonese_trad TEXT NOT NULL,
+  source         TEXT NOT NULL CHECK (source IN ('curated', 'wiktionary', 'kaifangcidian'))
+) WITHOUT ROWID;
+
 CREATE INDEX entries_trad ON entries (trad);
 CREATE INDEX entries_simp ON entries (simp);
 CREATE INDEX aliases_trad ON aliases (trad);

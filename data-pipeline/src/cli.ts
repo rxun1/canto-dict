@@ -1,11 +1,12 @@
 // The build runner (spec §4): download → parse → merge → validate → build. Validation runs before any
 // asset is written, so a failed check keeps the previous canto.db, audio pack and report. A failure after
 // validate (e.g. pack() over MAX_PACK_BYTES) can leave a new canto.db beside the old pack and report.
-// npm run data:build   → assets/canto.db, assets/syllables.{pack,json}, build-report.html (real sources)
+// npm run data:build   → assets/canto.db (with the phrase table), assets/syllables.{pack,json}, build-report.html (real sources)
 // npm run data:fixture → assets/test/canto.fixture.db from fixtures/ (no network, no minimums)
 import { statSync } from "node:fs";
 import { join } from "node:path";
 import { formatMb as mb, pack, type PackOutputs } from "./build/audioPack";
+import { buildPhraseTable } from "./build/phraseTable";
 import { REPORT_PATH, writeReport } from "./build/report";
 import { FIXTURE_DB_PATH, writeDb } from "./build/writeDb";
 import { fixtureInputs } from "./fixtureInputs";
@@ -91,8 +92,11 @@ export async function build(config: BuildConfig): Promise<BuildSummary> {
   const warnings = validate({ sources, entries, audioClips: clips.size }, config.minimums);
   for (const warning of warnings) console.warn(`warning: ${warning}`);
 
+  step("phrase table");
+  const phrases = buildPhraseTable(sources, entries);
+
   step(`build: ${config.dbPath}`);
-  writeDb(config.dbPath, entries);
+  writeDb(config.dbPath, entries, phrases.rows);
   const dbBytes = statSync(config.dbPath).size;
   let packBytes = 0;
   if (config.audio !== undefined) {
@@ -101,7 +105,7 @@ export async function build(config: BuildConfig): Promise<BuildSummary> {
     const audio = await pack(clips, outputs);
     packBytes = audio.packBytes;
     step(`build: ${reportPath}`);
-    await writeReport({ sourceRows: sourceRows(sources), minimums: config.minimums, entries, stats, audio, dbBytes, warnings }, reportPath);
+    await writeReport({ sourceRows: sourceRows(sources), minimums: config.minimums, entries, stats, phrases: phrases.stats, audio, dbBytes, warnings }, reportPath);
   }
   step(`done: ${entries.length.toLocaleString("en-US")} entries, canto.db ${mb(dbBytes)}` + (config.audio ? `, syllables.pack ${mb(packBytes)}` : ""));
   return { entries: entries.length, dbBytes, packBytes };

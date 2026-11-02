@@ -6,6 +6,7 @@ import { existsSync, readFileSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tempPathFor } from "../writeFileAtomic";
 import type { Entry } from "../merge/types";
+import type { PhraseRow } from "./phraseTable";
 import { searchKeys } from "./searchKeys";
 
 const SCHEMA = readFileSync(join(import.meta.dirname, "schema.sql"), "utf8");
@@ -54,14 +55,23 @@ function insertAll(db: Database.Database, entries: readonly Entry[]): void {
   });
 }
 
-/** Writes `entries` to a new SQLite database at `path` (replacing it), ids 1, 2, … in the order given. */
-export function writeDb(path: string, entries: readonly Entry[]): void {
+function insertPhrases(db: Database.Database, phrases: readonly PhraseRow[]): void {
+  const insert = db.prepare("INSERT INTO phrase_map (mandarin_trad, cantonese_trad, source) VALUES (?, ?, ?)");
+  for (const p of phrases) insert.run(p.mandarinTrad, p.cantoneseTrad, p.source);
+}
+
+/**
+ * Writes `entries` to a new SQLite database at `path` (replacing it), ids 1, 2, … in the order given,
+ * and `phrases` to phrase_map.
+ */
+export function writeDb(path: string, entries: readonly Entry[], phrases: readonly PhraseRow[] = []): void {
   const temp = tempPathFor(path);
   const db = new Database(temp);
   try {
     db.transaction(() => {
       db.exec(SCHEMA);
       insertAll(db, entries);
+      insertPhrases(db, phrases);
     })();
     db.exec("VACUUM");
     db.close();

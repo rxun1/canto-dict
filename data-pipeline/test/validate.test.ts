@@ -2,6 +2,7 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { buildPhraseTable } from "../src/build/phraseTable";
 import { report, writeReport, type ReportInput } from "../src/build/report";
 import { merge } from "../src/merge/merge";
 import type { Entry } from "../src/merge/types";
@@ -105,6 +106,7 @@ describe("report", () => {
     minimums: { ...NO_MINIMUMS, rimeChars: 1_234, audioClips: 3_500 },
     entries,
     stats,
+    phrases: buildPhraseTable(sources, entries, [["没有", "冇"], ["目的", "目的"], ["在家", "喺屋企"]]).stats,
     // di1 and sik6 have clips; faan6, ji1 and la1 do not; es1 is a loan syllable and is never looked up.
     audio: { syllables: ["di1", "sik6"], packBytes: 9_677_774 },
     dbBytes: 63_100_000,
@@ -148,6 +150,14 @@ describe("report", () => {
     const html = report(input());
     expect(html).toContain("63.10 MB");
     expect(html).toContain("9.68 MB");
+  });
+
+  it("counts phrase table rows per source and identity rows, and lists curated words with no entry", () => {
+    const html = report(input());
+    expect(html).toContain("Rows: curated</th><td>3</td>");
+    expect(html).toContain("Rows: wiktionary</th><td>0</td>");
+    expect(html).toContain("Identity rows (Cantonese = Mandarin)</th><td>1</td>");
+    expect(html).toContain("Curated Cantonese with no entry</th><td>冇 目的 喺屋企</td>");
   });
 
   it("names the pinned audio source", () => {

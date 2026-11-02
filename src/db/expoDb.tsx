@@ -11,7 +11,7 @@ import type { Db, SqlParam } from "./types";
  * Bump whenever assets/canto.db is rebuilt. The asset is copied only when no file of this name
  * exists, so a new name is what makes an app update replace the old copy.
  */
-export const CANTO_DB_VERSION = 1;
+export const CANTO_DB_VERSION = 2;
 const cantoDbName = (version: number) => `canto-v${version}.db`;
 export const CANTO_DB_NAME = cantoDbName(CANTO_DB_VERSION);
 /** Copies left by earlier versions (63 MB each), deleted after a successful open. */
