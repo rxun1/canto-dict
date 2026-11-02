@@ -684,8 +684,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/offline/rules → pass",
         },
         {
-          id: "P3-T6", title: "Translation eval harness (chrF)", status: "todo",
-          files: ["scripts/eval-translate.ts", "scripts/chrf.ts", "scripts/chrf.test.ts", "eval/test-set.tsv"],
+          id: "P3-T6", title: "Translation eval harness (chrF)", status: "done",
+          files: ["scripts/eval-translate.ts", "scripts/chrf.ts", "scripts/chrf.test.ts", "eval/test-set.tsv", "scripts/build-eval-set.ts", "eval/README.md"],
           subtasks: [
             "Build eval/test-set.tsv: 200 pairs sampled from HKAllen (CC BY 4.0) + raptorkwok-base (CC0), with source credits",
             "Write failing test: chrf('abc','abc') = 100; chrf('abc','xyz') = 0",
@@ -693,6 +693,8 @@ window.CANTO_PROGRESS = {
             "Add npm run eval:translate printing chrF of the offline engine",
             "Record the baseline score on the dashboard",
             "Commit",
+            "Done 2026-11-01 (ca445cf; root 238 tests): BASELINE chrF 68.3 (npm run eval:translate, ~0.5 s). For scale: no translation (toTrad only) 60.4, phrase table without rules 68.0; HKAllen 71.5 vs raptorkwok-base 59.5 (noisier, looser paraphrases). chrF = sacreBLEU 2.x default (scripts/chrf.ts). Both sides compared after toSimp (folds 説/說, keeps 係). Test set: npm run eval:build-set, seeded and reproducible (same md5 on rebuild), 100 HKAllen train + 100 raptorkwok-base test; credits eval/README.md. tsx is now a root devDependency; scripts/ is typechecked by the root tsconfig and its tests run in root Jest. Eval needs assets/canto.db (git-ignored)",
+            "Next: P3-T7 — src/settings/presets.ts (data only) + settings.ts. Spec §6.3: Gemini default base https://generativelanguage.googleapis.com/v1beta/openai/ model gemini-3.8-flash, on HTTP 429 retry once with gemini-3.5-flash-lite (put the fallback model in the preset data); Z.ai base https://api.z.ai/api/paas/v4/ model glm-4.7-flash; Custom = user-entered base URL, model, key. Key via expo-secure-store (not installed yet: npx expo install expo-secure-store → native module, rebuild with npx expo run:ios; react-dom stays pinned to 19.3.0), never logged. Non-secret settings (active provider, Custom baseURL/model) need storage too and no AsyncStorage is installed: decide between a settings table in user.db (src/userdata, writable, schema in src/userdata/schema.ts; tests via src/userdata/testUserDb.ts) and secure-store for everything; prefer not adding another native module. Tests mock expo-secure-store; tests under src/ or test/, never app/",
           ],
           dod: ["Eval runs in under 10 s and prints one score"],
           test: "npm run eval:translate → prints 'chrF: NN.N'",
