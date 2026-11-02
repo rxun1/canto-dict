@@ -38,6 +38,8 @@ const NO_KEY = "未保存密钥";
 const SAVED = "已保存";
 const SAVE_FAILED = "保存失败";
 const LICENSES = "数据来源与授权";
+const LOAD_FAILED = "读取设置失败";
+const RETRY = "重试";
 
 const CUSTOM_FIELD_ERRORS: Readonly<Record<keyof CustomProvider, string>> = {
   baseURL: "服务地址须以 http:// 或 https:// 开头",
@@ -70,20 +72,32 @@ export default function SettingsScreen() {
   const [keyStatus, setKeyStatus] = useState<Status | null>(null);
   const [connection, setConnection] = useState<ConnectionResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Bumped by 重试 to load the settings again.
+  const [loadAttempt, setLoadAttempt] = useState(0);
   // Bumped on every provider switch, so replies about an earlier provider are dropped.
   const generation = useRef(0);
-
-  const loadKeyStatus = useCallback((providerId: string) => {
+  /** A check that is true until the provider is switched. */
+  const stillCurrent = useCallback(() => {
     const current = generation.current;
-    getApiKey(providerId).then(
-      (key) => {
-        if (generation.current === current) setKeySaved(key !== null);
-      },
-      () => console.warn("Reading the API key status failed"),
-    );
+    return () => generation.current === current;
   }, []);
 
+  const loadKeyStatus = useCallback(
+    (providerId: string) => {
+      const isCurrent = stillCurrent();
+      getApiKey(providerId).then(
+        (key) => {
+          if (isCurrent()) setKeySaved(key !== null);
+        },
+        () => console.warn("Reading the API key status failed"),
+      );
+    },
+    [stillCurrent],
+  );
+
   useEffect(() => {
+    setLoadFailed(false);
     Promise.all([getActiveProvider(userDb), getCustomProvider(userDb)]).then(
       ([active, custom]) => {
         setCustomDraft(custom ?? EMPTY_CUSTOM);
@@ -91,9 +105,12 @@ export default function SettingsScreen() {
         setSelectedId(active.id);
         loadKeyStatus(active.id);
       },
-      (e: unknown) => console.warn("Loading settings failed", e),
+      (e: unknown) => {
+        console.warn("Loading settings failed", e);
+        setLoadFailed(true);
+      },
     );
-  }, [userDb, loadKeyStatus]);
+  }, [userDb, loadKeyStatus, loadAttempt]);
 
   const select = useCallback(
     (id: string) => {
@@ -115,17 +132,20 @@ export default function SettingsScreen() {
   );
 
   const saveCustom = useCallback(async () => {
+    const isCurrent = stillCurrent();
     try {
       const custom = normalizeCustomProvider(customDraft);
       await saveCustomProvider(userDb, custom);
-      await setActiveProvider(userDb, CUSTOM_PROVIDER.id);
       setCustomDraft(custom);
       setCustomSaved(true);
-      setCustomStatus({ ok: true, message: SAVED });
+      // Switched to another provider meanwhile: Custom is saved but stays inactive.
+      if (!isCurrent()) return;
+      await setActiveProvider(userDb, CUSTOM_PROVIDER.id);
+      if (isCurrent()) setCustomStatus({ ok: true, message: SAVED });
     } catch (e) {
-      setCustomStatus({ ok: false, message: customErrorMessage(e) });
+      if (isCurrent()) setCustomStatus({ ok: false, message: customErrorMessage(e) });
     }
-  }, [userDb, customDraft]);
+  }, [userDb, customDraft, stillCurrent]);
 
   const saveKey = useCallback(async () => {
     if (selectedId === null) return;
@@ -133,34 +153,38 @@ export default function SettingsScreen() {
       setKeyStatus({ ok: false, message: CONNECTION_MESSAGES.noKey });
       return;
     }
+    const isCurrent = stillCurrent();
     try {
       await setApiKey(selectedId, keyDraft);
+      if (!isCurrent()) return;
       setKeyDraft("");
       setKeySaved(true);
       setKeyStatus(null);
     } catch {
-      setKeyStatus({ ok: false, message: SAVE_FAILED });
+      if (isCurrent()) setKeyStatus({ ok: false, message: SAVE_FAILED });
     }
-  }, [selectedId, keyDraft]);
+  }, [selectedId, keyDraft, stillCurrent]);
 
   const clearKey = useCallback(async () => {
     if (selectedId === null) return;
+    const isCurrent = stillCurrent();
     try {
       await clearApiKey(selectedId);
+      if (!isCurrent()) return;
       setKeyDraft("");
       setKeySaved(false);
       setKeyStatus(null);
     } catch {
-      setKeyStatus({ ok: false, message: SAVE_FAILED });
+      if (isCurrent()) setKeyStatus({ ok: false, message: SAVE_FAILED });
     }
-  }, [selectedId]);
+  }, [selectedId, stillCurrent]);
 
   // Tests what is on screen: Custom's fields as typed, and a typed key before the saved one (nothing is saved).
   const test = useCallback(async () => {
     if (selectedId === null) return;
-    const current = generation.current;
+    const isCurrent = stillCurrent();
     const report = (result: ConnectionResult) => {
-      if (generation.current !== current) return;
+      if (!isCurrent()) return;
       setConnection(result);
       setTesting(false);
     };
@@ -187,7 +211,7 @@ export default function SettingsScreen() {
     }
     if (apiKey === null) return report({ ok: false, message: CONNECTION_MESSAGES.noKey });
     report(await testConnection({ ...provider, apiKey }));
-  }, [selectedId, customDraft, keyDraft]);
+  }, [selectedId, customDraft, keyDraft, stillCurrent]);
 
   const isCustom = selectedId === CUSTOM_PROVIDER.id;
   const preset = PRESETS.find((p) => p.id === selectedId);
@@ -195,6 +219,12 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      {loadFailed && (
+        <View style={styles.section}>
+          <Text style={[styles.detail, styles.error]}>{LOAD_FAILED}</Text>
+          <Button label={RETRY} onPress={() => setLoadAttempt((n) => n + 1)} />
+        </View>
+      )}
       {selectedId !== null && (
         <>
           <View style={styles.section}>
@@ -286,14 +316,15 @@ function Field({
   );
 }
 
-function Button({ label, onPress, disabled = false, destructive = false }: { label: string; onPress: () => void; disabled?: boolean; destructive?: boolean }) {
+function Button({ label, onPress, disabled = false, destructive = false }: { label: string; onPress: () => unknown; disabled?: boolean; destructive?: boolean }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      onPress={onPress}
+      // Doesn't return the handler's promise: RNTL's press waits for it, which hangs a test on a reply it holds back.
+      onPress={() => void onPress()}
       style={({ pressed }) => [styles.button, destructive && styles.destructive, (pressed || disabled) && styles.pressed]}
     >
       <Text style={styles.buttonText}>{label}</Text>

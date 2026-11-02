@@ -2,6 +2,7 @@
 // editable), save/clear a masked API key per provider, and test the connection. expo-secure-store is an
 // in-memory map and translateOnline is mocked; their own tests cover them.
 import type { ReactNode } from "react";
+import * as SecureStore from "expo-secure-store";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { CUSTOM_PROVIDER, PRESETS } from "../src/settings/presets";
 import { getActiveProvider, getApiKey, getCustomProvider } from "../src/settings/settings";
@@ -34,6 +35,15 @@ jest.mock("../src/translate/online/client", () => ({
 }));
 
 const translateOnlineMock = jest.mocked(translateOnline);
+const getItemMock = jest.mocked(SecureStore.getItemAsync);
+const setItemMock = jest.mocked(SecureStore.setItemAsync);
+
+/** A promise the test settles. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
 const [GEMINI, ZAI] = PRESETS;
 const KEY = "sk-very-secret-123";
 
@@ -53,6 +63,7 @@ beforeEach(() => {
   mockStore.clear();
   translateOnlineMock.mockReset();
 });
+afterEach(() => jest.restoreAllMocks());
 
 const flush = () => act(async () => {});
 
@@ -266,5 +277,80 @@ describe("settings screen: links", () => {
   it("keeps the Dev checks link in development builds", async () => {
     await openSettings();
     expect(screen.getByText("Dev checks")).toBeTruthy();
+  });
+});
+
+describe("settings screen: replies after a provider switch", () => {
+  it("drops a connection result for the provider switched away from", async () => {
+    const reply = deferred<string>();
+    translateOnlineMock.mockReturnValue(reply.promise);
+    await openSettings();
+    await saveKey(KEY);
+    await press(TEST);
+    await press(ZAI.label, "tab");
+    await act(async () => reply.resolve("你好"));
+    expect(screen.queryByText(CONNECTION_MESSAGES.ok)).toBeNull();
+  });
+
+  it("drops a key status read for the provider switched away from", async () => {
+    mockStore.set("apiKey.gemini", KEY);
+    await openSettings();
+    expect(screen.getByText(KEY_SAVED)).toBeTruthy();
+    const zaiStatus = deferred<string | null>();
+    getItemMock.mockReturnValueOnce(zaiStatus.promise);
+    await press(ZAI.label, "tab");
+    await press(GEMINI.label, "tab");
+    expect(screen.getByText(KEY_SAVED)).toBeTruthy();
+    await act(async () => zaiStatus.resolve(null));
+    expect(screen.getByText(KEY_SAVED)).toBeTruthy();
+  });
+
+  it("doesn't show a key saved for the provider switched away from as saved", async () => {
+    await openSettings();
+    const write = deferred<void>();
+    setItemMock.mockImplementationOnce(async (key, value) => {
+      await write.promise;
+      mockStore.set(key, value);
+    });
+    await saveKey(KEY);
+    await press(ZAI.label, "tab");
+    await act(async () => write.resolve());
+    expect(await getApiKey(GEMINI.id)).toBe(KEY);
+    expect(screen.getByText(NO_KEY)).toBeTruthy();
+    expect(screen.queryByText(KEY_SAVED)).toBeNull();
+  });
+
+  it("saves Custom but leaves the newly picked provider active when switched during the save", async () => {
+    await openSettings();
+    await press(CUSTOM_PROVIDER.label, "tab");
+    await fireEvent.changeText(field(BASE_URL), "https://llm.example.com/");
+    await fireEvent.changeText(field(MODEL), "m");
+    const write = deferred<void>();
+    const run = userDb.run.bind(userDb);
+    jest.spyOn(userDb, "run").mockImplementationOnce(async (...args) => {
+      await write.promise;
+      return run(...args);
+    });
+    await press(SAVE_CUSTOM);
+    await press(ZAI.label, "tab");
+    await act(async () => write.resolve());
+    expect(await getCustomProvider(userDb)).toEqual({ baseURL: "https://llm.example.com/", model: "m" });
+    expect((await getActiveProvider(userDb)).id).toBe(ZAI.id);
+    expect(screen.queryByText("已保存")).toBeNull();
+  });
+});
+
+describe("settings screen: load failure", () => {
+  it("shows an error with 重试, which loads the settings again", async () => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    await userDb.run("INSERT INTO settings (key, value) VALUES ('provider', 'zai')");
+    jest.spyOn(userDb, "first").mockRejectedValueOnce(new Error("disk I/O error"));
+    await openSettings();
+    expect(screen.getByText("读取设置失败")).toBeTruthy();
+    expect(screen.queryByLabelText(BASE_URL)).toBeNull();
+
+    await press("重试");
+    expect(screen.queryByText("读取设置失败")).toBeNull();
+    expect(field(BASE_URL).props.value).toBe(ZAI.baseURL);
   });
 });
