@@ -652,8 +652,8 @@ window.CANTO_PROGRESS = {
           test: "cd data-pipeline && npx vitest run test/phraseTable.test.ts → pass",
         },
         {
-          id: "P3-T4", title: "Offline substitution engine", status: "todo",
-          files: ["src/translate/offline/substitute.ts", "src/translate/offline/substitute.test.ts"],
+          id: "P3-T4", title: "Offline substitution engine", status: "done",
+          files: ["src/translate/offline/substitute.ts", "src/translate/offline/substitute.test.ts", "src/db/phraseMap.ts"],
           subtasks: [
             "Write failing golden tests: '他没有钱' → '佢冇錢'; '我在家看电视' → '我喺屋企睇電視'",
             "Write failing test: longest match wins (什麼時候 before 什麼)",
@@ -661,6 +661,8 @@ window.CANTO_PROGRESS = {
             "Implement longest-match replacement over phrase_map (loaded once into a Map)",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (0edd3db; root 214 tests): substitute(table, text) pure longest match over code points up to table.maxKeyLength (computed from the data: 16 on the real DB); phraseTable(db) loads phrase_map once per Db (WeakMap; a failed load is forgotten so the next call retries) via src/db/phraseMap.ts. Real DB: 18,972 rows load in 12 ms (better-sqlite3; expect more on device, once). Input must be toTrad'd first",
+            "Next: P3-T5 — src/translate/offline/rules.ts, pure functions in a fixed order. Spec order is phrase table → reorder rules, so rules see substitute()'s CANTONESE output, not Mandarin (or run some before substitute, if a rule needs Mandarin context: decide and document). What substitute already gives on the real DB (toTrad turns 吃 into 喫): 给我 → 畀我 ✓, 吃了 → 食咗 ✓ (KFCD 喫了), 你去不去 → 你去唔去 ✓ (不→唔), 你先走 → 你走先 (KFCD 先走; golden wants 你行先: adjust the golden or add a rule, say which), 我比你高 → 我比你高 (needs the 比 rule: A比B高 → A高過B), 在吃饭 → 喺食飯 (needs 喺+verb → verb緊, but 喺+place must stay: 喺屋企). Clock times: 下午一点 → 下晝一啲 (Wiktionary 一點→一啲) — a number-aware rule (digit/數字 + 一啲 → 一點) fits here. DoD: each rule ≥ 2 positive + 1 negative test. Test goldens against the fixture DB via phraseTable(openTestDb()) + toTrad, like src/translate/offline/substitute.test.ts; check the needed phrase_map keys exist in the fixture (it has all curated pairs)",
           ],
           dod: ["Pure function: same input → same output; no DB access per character"],
           test: "npx jest src/translate/offline/substitute → pass",
