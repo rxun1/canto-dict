@@ -58,6 +58,14 @@ async function run(text: string) {
 }
 
 const openTranslate = () => renderRouter("./app", { initialUrl: "/translate" });
+// Tab buttons are labelled "<title>, tab, <n> of 4".
+const SAVED_TAB = "收藏, tab, 3 of 4";
+
+async function openSavedHistory() {
+  const router = await renderRouter("./app", { initialUrl: "/saved" });
+  await fireEvent.press(await screen.findByRole("tab", { name: "历史" }));
+  return router;
+}
 
 describe("translate screen", () => {
   it("shows the Cantonese with Jyutping under each character and the 离线 tag", async () => {
@@ -128,6 +136,19 @@ describe("translate screen", () => {
     expect(screen.queryByText("syut3")).toBeNull();
   });
 
+  it("ignores a failure from an earlier translate once a newer one has started", async () => {
+    let fail: (e: Error) => void = () => {};
+    translateMock.mockImplementationOnce(() => new Promise<Translation>((_resolve, reject) => (fail = reject)));
+    await openTranslate();
+    await run("冰箱");
+    delivers(OFFLINE);
+    await run("冰箱！");
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    await act(async () => fail(new Error("disk I/O error")));
+    expect(screen.queryByText("翻译失败")).toBeNull();
+    expect(screen.getByText("syut3")).toBeTruthy();
+  });
+
   it("asks for text when the input is empty, and to shorten it when too long", async () => {
     translateMock.mockRejectedValueOnce(new TranslationInputError("empty"));
     await openTranslate();
@@ -174,6 +195,38 @@ describe("read-aloud", () => {
     expect(screen.getByText("TTS")).toBeTruthy();
   });
 
+  it("clears the shown status when the mode is switched", async () => {
+    delivers(OFFLINE);
+    speakMock.mockResolvedValueOnce({ missingVoice: true });
+    await openTranslate();
+    await run("冰箱");
+    await fireEvent.press(screen.getByRole("button", { name: "朗读" }));
+    expect(screen.getByText(/朗读内容/)).toBeTruthy();
+    await fireEvent.press(screen.getByRole("tab", { name: "音节" }));
+    expect(screen.queryByText(/朗读内容/)).toBeNull();
+
+    speakMock.mockResolvedValueOnce({ missingVoice: false, usedTts: true });
+    await fireEvent.press(screen.getByRole("button", { name: "朗读" }));
+    expect(screen.getByText("TTS")).toBeTruthy();
+    await fireEvent.press(screen.getByRole("tab", { name: "语音" }));
+    expect(screen.queryByText("TTS")).toBeNull();
+    // Back to 音节: the earlier TTS tag doesn't come back either.
+    await fireEvent.press(screen.getByRole("tab", { name: "音节" }));
+    expect(screen.queryByText("TTS")).toBeNull();
+  });
+
+  it("ignores a voice reply that arrives after switching to syllables", async () => {
+    delivers(OFFLINE);
+    let reply: (r: { missingVoice: true }) => void = () => {};
+    speakMock.mockImplementationOnce(() => new Promise((resolve) => (reply = resolve)));
+    await openTranslate();
+    await run("冰箱");
+    await fireEvent.press(screen.getByRole("button", { name: "朗读" }));
+    await fireEvent.press(screen.getByRole("tab", { name: "音节" }));
+    await act(async () => reply({ missingVoice: true }));
+    expect(screen.queryByText(/朗读内容/)).toBeNull();
+  });
+
   it("shows the download steps when no Cantonese voice is installed", async () => {
     delivers(OFFLINE);
     speakMock.mockResolvedValue({ missingVoice: true });
@@ -212,5 +265,39 @@ describe("history", () => {
     expect(screen.getByText("AI")).toBeTruthy();
     expect(translateMock).not.toHaveBeenCalled();
     expect(await listHistory(userDb)).toHaveLength(1);
+  });
+
+  it("reopens the same row again after the input was edited", async () => {
+    await addHistory(userDb, { kind: "translation", input: "冰箱", output: toHistoryOutput(ONLINE) });
+    await openSavedHistory();
+    await fireEvent.press(within(await screen.findByTestId("history-1")).getByText("部雪柜"));
+    expect(await screen.findByText("bou6")).toBeTruthy();
+    await fireEvent.changeText(screen.getByPlaceholderText(PLACEHOLDER), "别的");
+
+    await fireEvent.press(screen.getByRole("button", { name: SAVED_TAB }));
+    await fireEvent.press(within(await screen.findByTestId("history-1")).getByText("部雪柜"));
+    await flush();
+    expect(screen.getByPlaceholderText(PLACEHOLDER).props.value).toBe("冰箱");
+  });
+
+  it("keeps a reopened translation when a translate started before it delivers late", async () => {
+    await addHistory(userDb, { kind: "translation", input: "冰箱", output: toHistoryOutput(ONLINE) });
+    let pending: { onUpdate: OnUpdate; finish: (r: Translation) => void } | undefined;
+    translateMock.mockImplementation((_text, onUpdate) => new Promise<Translation>((resolve) => (pending = { onUpdate, finish: resolve })));
+    await openTranslate();
+    await run("你好");
+    await fireEvent.press(screen.getByRole("button", { name: SAVED_TAB }));
+    await fireEvent.press(await screen.findByRole("tab", { name: "历史" }));
+    await fireEvent.press(within(await screen.findByTestId("history-1")).getByText("部雪柜"));
+    expect(await screen.findByText("bou6")).toBeTruthy();
+
+    const late: Translation = { cantonese: "你好", jyutping: ["nei5", "hou2"], source: "offline" };
+    await act(async () => {
+      pending!.onUpdate(late);
+      pending!.finish(late);
+    });
+    expect(screen.getByText("bou6")).toBeTruthy();
+    expect(screen.queryByText("nei5")).toBeNull();
+    expect(screen.getByPlaceholderText(PLACEHOLDER).props.value).toBe("冰箱");
   });
 });

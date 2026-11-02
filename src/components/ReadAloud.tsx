@@ -19,13 +19,19 @@ export const MISSING_VOICE_STEPS = "未安装粤语语音。请前往 设置 →
 
 export function ReadAloud({ result }: { result: Translation }) {
   const [mode, setMode] = useState<SpeakMode>("voice");
-  // Tied to the result it was spoken for, so a new result (or a late reply for an old one) shows no stale status.
-  const [spoken, setSpoken] = useState<{ result: Translation; outcome: SpeakResult } | null>(null);
-  const outcome = spoken?.result === result ? spoken.outcome : null;
+  // Tied to the result and mode it was spoken with, so a new result, a mode switch (download steps are for
+  // the voice, the TTS tag for syllables) or a late reply for either shows no stale status.
+  const [spoken, setSpoken] = useState<{ result: Translation; mode: SpeakMode; outcome: SpeakResult } | null>(null);
+  const outcome = spoken?.result === result && spoken.mode === mode ? spoken.outcome : null;
+
+  const selectMode = (next: SpeakMode) => {
+    setMode(next);
+    setSpoken(null);
+  };
 
   const speak = () => {
     speakSentence(result.cantonese, result.jyutping, mode).then(
-      (next) => setSpoken({ result, outcome: next }),
+      (next) => setSpoken({ result, mode, outcome: next }),
       (e: unknown) => console.warn("Reading aloud failed", e),
     );
   };
@@ -42,7 +48,7 @@ export function ReadAloud({ result }: { result: Translation }) {
         >
           <Text style={styles.icon}>🔊</Text>
         </Pressable>
-        <SegmentedControl segments={MODES} selected={mode} onSelect={setMode} />
+        <SegmentedControl segments={MODES} selected={mode} onSelect={selectMode} />
         {outcome?.missingVoice === false && outcome.usedTts && <Text style={styles.tag}>{TTS_TAG}</Text>}
       </View>
       {outcome?.missingVoice && <Text style={styles.steps}>{MISSING_VOICE_STEPS}</Text>}
