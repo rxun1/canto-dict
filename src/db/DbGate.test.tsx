@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Text } from "react-native";
 import { USER_DB_NAME } from "../userdata/schema";
 import { useUserDb } from "../userdata/expoUserDb";
-import { DbGate, LOADING, OPEN_FAILED as ERROR_TEXT, RETRY, SOMETHING_FAILED } from "./DbGate";
+import { DbGate, LOADING, OPEN_FAILED as ERROR_TEXT, RETRY, SOMETHING_FAILED, SPLASH_MAX_MS } from "./DbGate";
 import { CANTO_DB_NAME, LEGACY_CANTO_DB_NAMES, useDb } from "./expoDb";
 
 // expo-sqlite is native: each open is a stub that answers any query with one row. A name in
@@ -37,6 +38,11 @@ jest.mock("expo-sqlite", () => ({
   },
 }));
 
+jest.mock("expo-splash-screen", () => ({ preventAutoHideAsync: jest.fn(async () => true), hide: jest.fn() }));
+const hideSplash = SplashScreen.hide as jest.Mock;
+/** Whether DbGate held the launch screen at import (read before any test clears the mocks). */
+const heldAtImport = (SplashScreen.preventAutoHideAsync as jest.Mock).mock.calls.length > 0;
+
 /** Stands in for the app: queries both databases. */
 function App() {
   const db = useDb();
@@ -55,6 +61,7 @@ beforeEach(() => {
   mockFailing.clear();
   mockCorrupt.clear();
   mockOpenGate = Promise.resolve();
+  hideSplash.mockClear();
   // React reports errors an error boundary catches to console.error; DbGate logs them with warn.
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -75,6 +82,41 @@ it("shows a loading screen while canto.db is opening", async () => {
   expect(screen.getByText(LOADING)).toBeTruthy();
   release();
   expect(await screen.findByText("app ready")).toBeTruthy();
+});
+
+describe("launch screen", () => {
+  it("is held from import until both databases are open, then lifted", async () => {
+    expect(heldAtImport).toBe(true);
+    let release = () => {};
+    mockOpenGate = new Promise((resolve) => (release = resolve));
+    await render(<DbGate><App /></DbGate>);
+    expect(hideSplash).not.toHaveBeenCalled();
+    release();
+    await screen.findByText("app ready");
+    expect(hideSplash).toHaveBeenCalled();
+  });
+
+  it("is lifted to show the loading screen when opening takes longer than SPLASH_MAX_MS", async () => {
+    jest.useFakeTimers();
+    try {
+      mockOpenGate = new Promise(() => {});
+      await render(<DbGate><App /></DbGate>);
+      await act(() => jest.advanceTimersByTime(SPLASH_MAX_MS - 1));
+      expect(hideSplash).not.toHaveBeenCalled();
+      await act(() => jest.advanceTimersByTime(1));
+      expect(hideSplash).toHaveBeenCalled();
+      expect(screen.getByText(LOADING)).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("is lifted when opening fails, so the error screen shows", async () => {
+    mockFailing.add(CANTO_DB_NAME);
+    await render(<DbGate><App /></DbGate>);
+    await screen.findByText(ERROR_TEXT);
+    expect(hideSplash).toHaveBeenCalled();
+  });
 });
 
 it("shows a full-screen error with Retry when canto.db fails to open; Retry opens it again", async () => {

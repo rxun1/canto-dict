@@ -12,7 +12,7 @@
       "supportsTablet": false,
       "appleTeamId": "Q7F8RN35TR"
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-asset", "expo-audio", "expo-secure-store"],
+    "plugins": ["expo-router", "expo-sqlite", "expo-asset", "expo-audio", "expo-secure-store", "expo-splash-screen"],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
