@@ -116,6 +116,8 @@ describe("Custom provider", () => {
   it("rejects an empty model or a base URL that isn't http(s)", async () => {
     await expect(saveCustomProvider(db, { baseURL: "https://example.com/", model: "  " })).rejects.toThrow(/model/i);
     await expect(saveCustomProvider(db, { baseURL: "example.com", model: "m" })).rejects.toThrow(/base URL/i);
+    await expect(saveCustomProvider(db, { baseURL: "example.com", model: "m" })).rejects.toMatchObject({ field: "baseURL" });
+    await expect(saveCustomProvider(db, { baseURL: "https://example.com/", model: "" })).rejects.toMatchObject({ field: "model" });
     expect(await getCustomProvider(db)).toBeNull();
   });
 

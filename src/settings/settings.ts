@@ -43,13 +43,33 @@ export async function getCustomProvider(db: UserDb): Promise<CustomProvider | nu
   return baseURL !== null && model !== null ? { baseURL, model } : null;
 }
 
-/** Saves Custom's base URL (http or https; a trailing "/" is added, as the presets have) and model, both trimmed. */
-export async function saveCustomProvider(db: UserDb, custom: CustomProvider): Promise<void> {
+/** Thrown for a Custom base URL that isn't http(s) or an empty model; `field` names which. */
+export class CustomProviderError extends Error {
+  constructor(
+    readonly field: keyof CustomProvider,
+    message: string,
+  ) {
+    super(message);
+    this.name = "CustomProviderError";
+  }
+}
+
+/**
+ * Custom's base URL and model as they are stored: both trimmed, the base URL (http or https) ending in "/"
+ * as the presets' do. Throws a CustomProviderError for an invalid one.
+ */
+export function normalizeCustomProvider(custom: CustomProvider): CustomProvider {
   const baseURL = custom.baseURL.trim();
   const model = custom.model.trim();
-  if (!/^https?:\/\/\S+$/.test(baseURL)) throw new Error("Custom base URL must start with http:// or https://");
-  if (model === "") throw new Error("Custom model is required");
-  await setSetting(db, CUSTOM_BASE_URL_KEY, baseURL.endsWith("/") ? baseURL : `${baseURL}/`);
+  if (!/^https?:\/\/\S+$/.test(baseURL)) throw new CustomProviderError("baseURL", "Custom base URL must start with http:// or https://");
+  if (model === "") throw new CustomProviderError("model", "Custom model is required");
+  return { baseURL: baseURL.endsWith("/") ? baseURL : `${baseURL}/`, model };
+}
+
+/** Saves Custom's base URL and model, normalized (normalizeCustomProvider). */
+export async function saveCustomProvider(db: UserDb, custom: CustomProvider): Promise<void> {
+  const { baseURL, model } = normalizeCustomProvider(custom);
+  await setSetting(db, CUSTOM_BASE_URL_KEY, baseURL);
   await setSetting(db, CUSTOM_MODEL_KEY, model);
 }
 
