@@ -86,7 +86,7 @@ async function request(provider: OnlineProvider, model: string, text: string): P
     const response = await fetch(`${provider.baseURL}chat/completions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages: buildMessages(text) }),
+      body: JSON.stringify({ model, messages: buildMessages(text), reasoning_effort: provider.reasoningEffort }),
       signal: controller.signal,
     });
     status = response.status;

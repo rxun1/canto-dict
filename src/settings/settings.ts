@@ -2,7 +2,7 @@
 // API keys go only in expo-secure-store (the iOS Keychain), one per provider, and are never logged.
 import * as SecureStore from "expo-secure-store";
 import type { UserDb } from "../userdata/types";
-import { CUSTOM_PROVIDER, DEFAULT_PROVIDER_ID, PRESETS, PROVIDERS } from "./presets";
+import { CUSTOM_PROVIDER, DEFAULT_PROVIDER_ID, PRESETS, PROVIDERS, type ReasoningEffort } from "./presets";
 
 /** What the online client needs to call a provider. */
 export interface ResolvedProvider {
@@ -10,6 +10,7 @@ export interface ResolvedProvider {
   baseURL: string;
   model: string;
   fallbackModel?: string;
+  reasoningEffort?: ReasoningEffort;
 }
 
 /** Custom's user-entered settings. */

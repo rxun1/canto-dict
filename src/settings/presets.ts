@@ -10,7 +10,12 @@ export interface ProviderPreset {
   model: string;
   /** Retried once with this model on HTTP 429. */
   fallbackModel?: string;
+  /** Sent as reasoning_effort, for models that think before replying; omitted when unset. */
+  reasoningEffort?: ReasoningEffort;
 }
+
+/** The OpenAI-compatible reasoning_effort values. */
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high";
 
 /** The built-in providers, in display order. */
 export const PRESETS: readonly ProviderPreset[] = [
@@ -20,6 +25,8 @@ export const PRESETS: readonly ProviderPreset[] = [
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
     model: "gemini-3.8-flash",
     fallbackModel: "gemini-3.5-flash-lite",
+    // Gemini 3 always thinks; left unbounded it can run past REQUEST_TIMEOUT_MS (suspected cause of 连接超时 on the device).
+    reasoningEffort: "low",
   },
   {
     id: "zai",

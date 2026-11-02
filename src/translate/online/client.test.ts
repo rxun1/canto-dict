@@ -21,6 +21,7 @@ const GEMINI: OnlineProvider = {
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
   model: "gemini-3.8-flash",
   fallbackModel: "gemini-3.5-flash-lite",
+  reasoningEffort: "low",
   apiKey: KEY,
 };
 const ZAI: OnlineProvider = { baseURL: "https://api.z.ai/api/paas/v4/", model: "glm-4.7-flash", apiKey: KEY };
@@ -78,6 +79,14 @@ describe("translateOnline", () => {
     expect(init.headers).toMatchObject({ Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" });
     expect(init.signal).toBeDefined();
     expect(requestBody()).toMatchObject({ model: "gemini-3.8-flash", messages: buildMessages("他没有钱") });
+  });
+
+  it("sends the provider's reasoning_effort, and none when it has none", async () => {
+    fetchMock.mockResolvedValue(completion('{"cantonese": "佢冇錢。"}'));
+    await translateOnline(GEMINI, "他没有钱");
+    await translateOnline(ZAI, "他没有钱");
+    expect(requestBody(0).reasoning_effort).toBe("low");
+    expect(requestBody(1)).not.toHaveProperty("reasoning_effort");
   });
 
   it("200 with JSON content → the Cantonese text, trimmed", async () => {

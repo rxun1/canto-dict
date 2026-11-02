@@ -208,7 +208,7 @@ describe("settings screen: test connection", () => {
     await saveKey(KEY);
     await press(TEST);
     expect(translateOnlineMock).toHaveBeenCalledWith(
-      { baseURL: GEMINI.baseURL, model: GEMINI.model, fallbackModel: GEMINI.fallbackModel, apiKey: KEY },
+      { baseURL: GEMINI.baseURL, model: GEMINI.model, fallbackModel: GEMINI.fallbackModel, reasoningEffort: GEMINI.reasoningEffort, apiKey: KEY },
       expect.any(String),
     );
     expect(screen.getByText(CONNECTION_MESSAGES.ok)).toBeTruthy();

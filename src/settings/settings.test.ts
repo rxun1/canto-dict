@@ -46,6 +46,7 @@ describe("presets", () => {
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
       model: "gemini-3.8-flash",
       fallbackModel: "gemini-3.5-flash-lite",
+      reasoningEffort: "low",
     });
   });
 
@@ -72,6 +73,7 @@ describe("active provider", () => {
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
       model: "gemini-3.8-flash",
       fallbackModel: "gemini-3.5-flash-lite",
+      reasoningEffort: "low",
     });
   });
 
