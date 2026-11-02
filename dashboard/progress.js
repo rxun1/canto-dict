@@ -769,8 +769,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/audio/speakSentence → pass",
         },
         {
-          id: "P3-T11", title: "Translate screen", status: "todo",
-          files: ["app/(tabs)/translate.tsx", "app/(tabs)/translate.test.tsx"],
+          id: "P3-T11", title: "Translate screen", status: "done",
+          files: ["app/(tabs)/translate.tsx", "test/translate.test.tsx"],
           subtasks: [
             "Write failing RNTL test: entering text + Translate shows Cantonese (simplified) with Jyutping under each character and a 离线 tag",
             "Write failing RNTL test: online update swaps the tag to AI; error shows the note",
@@ -781,9 +781,11 @@ window.CANTO_PROGRESS = {
             "Implement the screen; log translations to history",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (1c6be49 + 4c77766; root 329 tests): app/(tabs)/translate.tsx + src/translate/useTranslator.ts (input/result/error, request counter drops stale onUpdate and rejections; restore() bumps it too) + src/components/{TranslationResult,ReadAloud,SegmentedControl}.tsx (SegmentedControl pulled out of Saved) + tagStyle.ts. History output = the final Translation as JSON without the note (src/translate/historyOutput.ts, fromHistoryOutput → null for anything else, so old plain rows still show raw); logged once per run with the resolved result, invalid input and reopens not logged. Reopen: Saved row → router.navigate /translate {historyId} → getHistoryItem(userDb, id) (new in src/userdata/history.ts) restores input + output with no network call, then setParams({historyId: undefined}) so the same row reopens again. ReadAloud: voice default, 语音|音节 toggle; status tied to result + mode. Missing voice text is Chinese steps (spec §7 has English). noKey/invalidKey notes link 去设置 → /settings. No simulator run. Parallel npx jest: search.test 食飯 < 50 ms now fails reliably under parallel load (52.6 ms, 3/3); passes alone and with --runInBand",
+            "Next: P3-T12 — Settings screen app/(tabs)/settings.tsx (currently a placeholder with a __DEV__ Dev checks link; keep it) + app/licenses.tsx. Tests under test/ (never inside app/). Data API in src/settings/settings.ts: getActiveProvider/setActiveProvider(userDb, id), getCustomProvider/saveCustomProvider(userDb, {baseUrl, model}), getApiKey/setApiKey/clearApiKey(providerId) (expo-secure-store, per provider: switching provider shows that provider's key); presets in src/settings/presets.ts (PRESETS, CUSTOM_PROVIDER, PROVIDERS, DEFAULT_PROVIDER_ID gemini). Test connection: translateOnline(provider, sample) from src/translate/online/client.ts; show the error class's message (InvalidKeyError, RateLimitError, TimeoutError, NetworkError, HttpError, BadReplyError) — never echo the key. Reuse src/components/SegmentedControl if it fits. Licenses: every source in spec §4.1 with license + link; MOEDICT_ATTRIBUTION lives in data-pipeline/src/sources/moedict.ts (data-pipeline is outside the app's tsconfig/Jest, so copy the string into an app constant and add a test or comment tying the two) plus the full MoE 使用說明 text (MoE requires it kept with the data; find it in docs/research or fetch it). Optional: consider loosening the flaky search timing test (src/dictionary/search.test.ts) since it now fails under parallel Jest",
           ],
           dod: ["Reopening a translation from History restores input and output"],
-          test: "npx jest app/\\(tabs\\)/translate → pass",
+          test: "npx jest test/translate → pass",
         },
         {
           id: "P3-T12", title: "Settings screen + licenses/credits", status: "todo",
