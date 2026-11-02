@@ -2,6 +2,7 @@
 // map), expo-network and global fetch mocked.
 import * as Network from "expo-network";
 import { openTestDb } from "../db/testDb";
+import type { Db } from "../db/types";
 import { setApiKey } from "../settings/settings";
 import { openTestUserDb, type TestUserDb } from "../userdata/testUserDb";
 import { MAX_INPUT_LENGTH, translate, TranslationInputError, type Translation } from "./index";
@@ -150,6 +151,22 @@ describe("online", () => {
     expect((await run()).final.note?.kind).toBe("onlineFailed");
     fetchMock.mockResolvedValueOnce(completion("I can't help with that."));
     expect((await run()).final.note?.kind).toBe("onlineFailed");
+  });
+
+  it("keeps the offline result with a note when reading the online reply's Jyutping fails", async () => {
+    // canto.db starts failing once the offline result is out; only then does the online reply arrive.
+    let broken = false;
+    const failingDb: Db = {
+      all: (sql, params) => (broken ? Promise.reject(new Error("db closed")) : db.all(sql, params)),
+      first: (sql, params) => (broken ? Promise.reject(new Error("db closed")) : db.first(sql, params)),
+    };
+    let respond!: () => void;
+    fetchMock.mockReturnValue(new Promise((resolve) => (respond = () => resolve(completion('{"cantonese": "佢今日冇返工。"}')))));
+    const final = await translate(INPUT, () => {
+      broken = true;
+      respond();
+    }, { db: failingDb, userDb });
+    expect(final).toEqual({ ...OFFLINE, note: { kind: "onlineFailed", message: expect.any(String) } });
   });
 
   it("an invalid key keeps the offline result with an 'API key invalid' note pointing to Settings", async () => {

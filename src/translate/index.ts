@@ -76,22 +76,22 @@ export async function translate(text: string, onUpdate: (result: Translation) =>
   onUpdate(offline);
   const outcome = await online;
   if (outcome === null) return offline;
-  const result = typeof outcome === "string" ? await toResult(deps.db, outcome, "online") : { ...offline, note: outcome };
+  const result = "kind" in outcome ? { ...offline, note: outcome } : outcome;
   onUpdate(result);
   return result;
 }
 
 /**
- * The online translation (traditional), a note to show with the offline result, or null to keep the
- * offline result as it is (no connection). Never rejects.
+ * The online result, a note to show with the offline result, or null to keep the offline result as it is
+ * (no connection). Never rejects.
  */
-async function translateOnlineOrNote(input: string, { userDb }: TranslateDeps): Promise<string | TranslationNote | null> {
+async function translateOnlineOrNote(input: string, { db, userDb }: TranslateDeps): Promise<Translation | TranslationNote | null> {
   try {
     const provider = await getActiveProvider(userDb);
     const apiKey = await getApiKey(provider.id);
     if (apiKey === null) return NOTES.noKey;
     if (!(await isOnline())) return null;
-    return await translateOnline({ ...provider, apiKey }, input);
+    return await toResult(db, await translateOnline({ ...provider, apiKey }, input), "online");
   } catch (e) {
     // Fixed notes only: an error's message is never shown, so the key can't leak through one.
     return e instanceof InvalidKeyError ? NOTES.invalidKey : NOTES.onlineFailed;
