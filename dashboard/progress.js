@@ -752,7 +752,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/index → pass",
         },
         {
-          id: "P3-T10", title: "Sentence speaker (iOS voice + syllable toggle)", status: "todo",
+          id: "P3-T10", title: "Sentence speaker (iOS voice + syllable toggle)", status: "done",
           files: ["src/audio/speakSentence.ts", "src/audio/speakSentence.test.ts"],
           subtasks: [
             "Write failing test: picks the first voice whose language is yue-HK or zh-HK (expo-speech mocked)",
@@ -762,6 +762,8 @@ window.CANTO_PROGRESS = {
             "Implement speakSentence(text, jyutping, mode)",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (d235c11 + ce8a9ed; root 306 tests): speakSentence(text, jyutping, mode: SpeakMode = 'voice'): Promise<SpeakResult> in src/audio/speakSentence.ts; SpeakResult = {missingVoice: true} | {missingVoice: false, usedTts}. 'voice': no Cantonese voice → stops any playback in progress (new stopPlayback() in playSyllables.ts) and returns missingVoice without speaking; else speakTts(text), usedTts false. 'syllables': never missingVoice (clips need no voice; a clip-less syllable falls back to TTS_LANGUAGE); nulls dropped, and only the characters with a reading are passed as text so the Han/syllable counts match; usedTts passed through (the TTS tag)",
+            "Next: P3-T11 — Translate screen app/(tabs)/translate.tsx; put the test under test/ (never inside app/, Expo Router treats every file there as a route; mock src/db/expoDb's useDb → openTestDb() as test/lookup.test.tsx does). translate(text, onUpdate, {db, userDb}) from src/translate/index.ts: validate errors are TranslationInputError (reason 'empty' | 'tooLong'); onUpdate gets the offline result then at most one more (online, or offline + note {kind: noKey | invalidKey | onlineFailed, message}; noKey/invalidKey link to Settings); can't be cancelled → request counter, drop stale onUpdate calls. Render cantonese (simplified) with jyutping (string | null)[] per code point under each character; tag 离线 / AI by source. 🔊 → speakSentence(cantonese, jyutping, mode) from src/audio/speakSentence.ts; mode toggle voice/syllables (default voice); missingVoice → show the download steps (spec §7); usedTts → TTS tag. Log translations to history (see the History task's open note: translation rows don't reopen on Translate yet — DoD needs reopening to restore input + output). RNTL v14 fireEvent is async; mock src/translate and src/audio/speakSentence in screen tests",
           ],
           dod: ["Default mode is the iOS voice (spec §6.4)"],
           test: "npx jest src/audio/speakSentence → pass",
