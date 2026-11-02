@@ -23,9 +23,11 @@ export const PRESETS: readonly ProviderPreset[] = [
     id: "gemini",
     label: "Gemini",
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    model: "gemini-3.8-flash",
-    fallbackModel: "gemini-3.5-flash-lite",
-    // Gemini 3 always thinks; left unbounded it can run past REQUEST_TIMEOUT_MS (suspected cause of 连接超时 on the device).
+    // gemini-3.8-flash and 3.7-flash gave no reply within 90 s / 40 s on a free key (2026-11-01); Flash-Lite
+    // answered in under 1 s with the most colloquial output of the models tried.
+    model: "gemini-3.5-flash-lite",
+    fallbackModel: "gemini-3.6-flash",
+    // Gemini 3 always thinks; low keeps the reply quick (the research doc's advice).
     reasoningEffort: "low",
   },
   {

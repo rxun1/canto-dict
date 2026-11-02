@@ -19,8 +19,8 @@ const KEY = "sk-secret-key-123";
 const KEY_PREFIX = KEY.slice(0, 5);
 const GEMINI: OnlineProvider = {
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  model: "gemini-3.8-flash",
-  fallbackModel: "gemini-3.5-flash-lite",
+  model: "gemini-3.5-flash-lite",
+  fallbackModel: "gemini-3.6-flash",
   reasoningEffort: "low",
   apiKey: KEY,
 };
@@ -78,7 +78,7 @@ describe("translateOnline", () => {
     expect(init.method).toBe("POST");
     expect(init.headers).toMatchObject({ Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" });
     expect(init.signal).toBeDefined();
-    expect(requestBody()).toMatchObject({ model: "gemini-3.8-flash", messages: buildMessages("他没有钱") });
+    expect(requestBody()).toMatchObject({ model: "gemini-3.5-flash-lite", messages: buildMessages("他没有钱") });
   });
 
   it("sends the provider's reasoning_effort, and none when it has none", async () => {
@@ -152,8 +152,8 @@ describe("translateOnline", () => {
     fetchMock.mockResolvedValueOnce(reply(429, "rate limited")).mockResolvedValueOnce(completion('{"cantonese": "你好"}'));
     await expect(translateOnline(GEMINI, "你好")).resolves.toBe("你好");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(requestBody(0).model).toBe("gemini-3.8-flash");
-    expect(requestBody(1).model).toBe("gemini-3.5-flash-lite");
+    expect(requestBody(0).model).toBe("gemini-3.5-flash-lite");
+    expect(requestBody(1).model).toBe("gemini-3.6-flash");
   });
 
   it("429 twice → RateLimitError after one retry", async () => {

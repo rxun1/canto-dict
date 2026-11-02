@@ -44,8 +44,8 @@ describe("presets", () => {
       id: "gemini",
       label: "Gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      model: "gemini-3.8-flash",
-      fallbackModel: "gemini-3.5-flash-lite",
+      model: "gemini-3.5-flash-lite",
+      fallbackModel: "gemini-3.6-flash",
       reasoningEffort: "low",
     });
   });
@@ -71,8 +71,8 @@ describe("active provider", () => {
     expect(await getActiveProvider(db)).toEqual({
       id: "gemini",
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-      model: "gemini-3.8-flash",
-      fallbackModel: "gemini-3.5-flash-lite",
+      model: "gemini-3.5-flash-lite",
+      fallbackModel: "gemini-3.6-flash",
       reasoningEffort: "low",
     });
   });

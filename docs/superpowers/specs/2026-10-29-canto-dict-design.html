@@ -268,7 +268,7 @@ history   (id PK, kind TEXT CHECK(kind IN (&#39;lookup&#39;,&#39;translation&#39
 <ul>
 <li><code>POST {baseURL}/chat/completions</code> (OpenAI-compatible), <code>Authorization: Bearer &lt;key&gt;</code>, 15 s timeout.</li>
 <li>Presets:<ul>
-<li><strong>Gemini (default):</strong> base <code>https://generativelanguage.googleapis.com/v1beta/openai/</code>, model <code>gemini-3.8-flash</code>. On HTTP 429, retry once with <code>gemini-3.5-flash-lite</code>.</li>
+<li><strong>Gemini (default):</strong> base <code>https://generativelanguage.googleapis.com/v1beta/openai/</code>, model <code>gemini-3.5-flash-lite</code>. On HTTP 429, retry once with <code>gemini-3.6-flash</code>.</li>
 <li><strong>Z.ai:</strong> base <code>https://api.z.ai/api/paas/v4/</code>, model <code>glm-4.7-flash</code>.</li>
 <li><strong>Custom:</strong> user-entered base URL, model and key.</li>
 </ul>
