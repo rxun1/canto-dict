@@ -700,8 +700,8 @@ window.CANTO_PROGRESS = {
           test: "npm run eval:translate → prints 'chrF: NN.N'",
         },
         {
-          id: "P3-T7", title: "Settings module (presets + Keychain key)", status: "todo",
-          files: ["src/settings/presets.ts", "src/settings/settings.ts", "src/settings/settings.test.ts"],
+          id: "P3-T7", title: "Settings module (presets + Keychain key)", status: "done",
+          files: ["src/settings/presets.ts", "src/settings/settings.ts", "src/settings/settings.test.ts", "src/userdata/schema.ts", "src/userdata/types.ts", "src/userdata/userdata.test.ts", "app.json", "package.json"],
           subtasks: [
             "Write presets.ts: Gemini (default, fallback model on 429), Z.ai, Custom — data only",
             "Write failing tests: getActiveProvider() returns Gemini by default; saving Custom persists baseURL/model",
@@ -710,6 +710,8 @@ window.CANTO_PROGRESS = {
             "Implement settings.ts",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (1b7f613; root 256 tests): presets.ts is data only (PRESETS = Gemini, Z.ai; CUSTOM_PROVIDER; PROVIDERS for the picker; DEFAULT_PROVIDER_ID 'gemini'); adding a provider = one PRESETS entry. Non-secret settings in a new key/value settings table in user.db (USER_SCHEMA_SQL, idempotent; keys provider, custom.baseURL, custom.model). API keys only in expo-secure-store as apiKey.<providerId>, never in user.db. A stored provider id that is no longer a preset resolves to Gemini; Custom can't be activated before it is saved; Custom base URL must be http(s) and gets a trailing '/' like the presets; keys trimmed, empty clears; unknown provider ids throw (errors name the id, never the key). expo-secure-store ~58.0.2 + config plugin in app.json; react-dom still 19.3.0",
+            "Next: P3-T8 — online client. From src/settings/settings.ts: getActiveProvider(db: UserDb): Promise<ResolvedProvider> where ResolvedProvider = {id, baseURL, model, fallbackModel?}; getApiKey(providerId): Promise<string | null> (null = no key). baseURL always ends with '/', so the endpoint is baseURL + 'chat/completions'. fallbackModel lives in the preset data (src/settings/presets.ts; only Gemini has one: gemini-3.5-flash-lite): on 429 retry once with it if present, else fail. Prefer the client take {baseURL, model, fallbackModel?, apiKey} as plain arguments (no db/secure-store inside, easy to test with mocked fetch). expo-secure-store is a new native module: the dev build needs a rebuild (npx expo run:ios) before keys work on device",
           ],
           dod: ["Changing provider needs no code change — presets are data"],
           test: "npx jest src/settings → pass",
