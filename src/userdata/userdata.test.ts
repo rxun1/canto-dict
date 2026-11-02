@@ -79,6 +79,18 @@ describe("history", () => {
   });
 });
 
+describe("schema", () => {
+  it("re-running it keeps existing rows (it runs on every open)", async () => {
+    await toggleFavorite(db, 81, 1000);
+    await addHistory(db, { kind: "lookup", entryId: 81 }, 1000);
+    await db.run("INSERT INTO settings (key, value) VALUES ('provider', 'zai')");
+    db.raw.exec(USER_SCHEMA_SQL);
+    expect(await listFavorites(db)).toHaveLength(1);
+    expect(await listHistory(db)).toHaveLength(1);
+    expect(await db.first("SELECT value FROM settings WHERE key = 'provider'")).toEqual({ value: "zai" });
+  });
+});
+
 // DoD: rebuilding canto.db never touches user.db (also: expoUserDb creates user.db on the device; it is never an asset).
 describe("user.db stays separate from canto.db", () => {
   const ROOT = join(__dirname, "../..");
@@ -87,7 +99,7 @@ describe("user.db stays separate from canto.db", () => {
     const tables = (sql: string) => [...sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)/g)].map((m) => m[1]);
     const canto = tables(readFileSync(join(ROOT, "data-pipeline/src/build/schema.sql"), "utf8"));
     const user = tables(USER_SCHEMA_SQL);
-    expect(user).toEqual(["favorites", "history"]);
+    expect(user).toEqual(["favorites", "history", "settings"]);
     expect(user.filter((t) => canto.includes(t))).toEqual([]);
   });
 });

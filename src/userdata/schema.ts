@@ -8,7 +8,8 @@ export const USER_DB_NAME = "user.db";
 export const HISTORY_LIMIT = 500;
 
 /**
- * Idempotent: safe to run on every open. The trigger enforces HISTORY_LIMIT. History is ordered by id
+ * Idempotent: safe to run on every open. settings holds non-secret key/value settings (src/settings);
+ * API keys never go here. The trigger enforces HISTORY_LIMIT. History is ordered by id
  * (AUTOINCREMENT, so it only grows), not by at: a clock set back can't make a new row the oldest.
  */
 export const USER_SCHEMA_SQL = `
@@ -30,4 +31,8 @@ DROP TRIGGER IF EXISTS history_cap;
 CREATE TRIGGER history_cap AFTER INSERT ON history BEGIN
   DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT ${HISTORY_LIMIT});
 END;
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
