@@ -1,5 +1,8 @@
-// Characters toSimplified leaves unchanged after OpenCC's traditional → simplified conversion
-// (decided 2026-10-30). Merge lists both groups in its stats for the build report.
+// Characters left unchanged after OpenCC's traditional → simplified conversion (decided
+// 2026-10-30), and the conversion around them. Shared by data-pipeline (toSimplified in
+// src/merge/normalize.ts; merge lists both groups in its stats for the build report) and the app
+// (toSimp in src/translate/script.ts), so translations simplify like the dictionary. No OpenCC
+// import here: each package passes its own converter, so data-pipeline uses its own opencc-js.
 
 /**
  * Cantonese characters kept in Cantonese text (toSimplified's "yue": displayed headwords and the
@@ -86,3 +89,43 @@ export const NON_BMP_KEEP: readonly string[] = [
   "𧼯", "𠠄", "𠣞", "𨗒", "𨗭", "𨜮", "鋗", "𨯺", "𨵷", "𩅅", "𩈚", "𩐊", "𩒖", "𩖶", "𩬰", "鱀", "𪃎", "𪄅", "𪈎", "𪊑",
   "𪘀", "𰻞",
 ];
+
+/** Converts `text` in runs between characters of `keep`, which stay as they are. */
+export function convertAround(text: string, convert: (text: string) => string, keep: ReadonlySet<string>): string {
+  let simplified = "";
+  let run = "";
+  for (const char of text) {
+    if (!keep.has(char)) {
+      run += char;
+      continue;
+    }
+    simplified += convert(run) + char;
+    run = "";
+  }
+  return simplified + convert(run);
+}
+
+export const NON_BMP_KEEP_SET: ReadonlySet<string> = new Set(NON_BMP_KEEP);
+const CANTONESE_KEEP_SET: ReadonlySet<string> = new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]);
+
+/** XI_TEXT_PHRASES as one alternation, captured so String.split keeps the matches (CJK only: no escaping). */
+const XI_TEXT_PATTERN = new RegExp(`(${XI_TEXT_PHRASES.join("|")})`, "u");
+
+/** A simplified text, and the 係 phrases (XI_TEXT_PHRASES, XI_HEADWORDS) it converted, in text order. */
+export interface Simplified {
+  readonly text: string;
+  readonly xiPhrases: readonly string[];
+}
+
+/**
+ * Simplifies Cantonese text with `convert` (OpenCC hk→cn), keeping CANTONESE_KEEP and
+ * NON_BMP_KEEP, except that 係 becomes 系 inside XI_TEXT_PHRASES (關係 → 关系).
+ */
+export function simplifyCantonese(text: string, convert: (text: string) => string): Simplified {
+  // split with a capture group: odd indexes are the phrases.
+  const parts = text.split(XI_TEXT_PATTERN);
+  return {
+    text: parts.map((part, i) => convertAround(part, convert, i % 2 === 1 ? NON_BMP_KEEP_SET : CANTONESE_KEEP_SET)).join(""),
+    xiPhrases: parts.filter((_, i) => i % 2 === 1),
+  };
+}

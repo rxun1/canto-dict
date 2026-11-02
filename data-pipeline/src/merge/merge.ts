@@ -6,7 +6,7 @@ import { isSingleCodePoint } from "../sources/codePoints";
 import { throwIfProblems, type Problem } from "../sources/problems";
 import { FREQ_OVERRIDES } from "./freqOverrides";
 import { headwordKey, simplify, toSimplified, type TextKind } from "./normalize";
-import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "./simplifiedKeep";
+import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "../../../src/script/simplifiedKeep";
 import type { Definition, Entry, EntryReading, Example, MandarinItem, MergeInputs, MergeResult, MergeStats, RowSource, WordCount } from "./types";
 
 /** The optional source a build can run without. */

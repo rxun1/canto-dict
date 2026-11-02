@@ -1,10 +1,10 @@
 import OpenCC from "opencc-js";
 import { isSingleCodePoint } from "../sources/codePoints";
-import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "./simplifiedKeep";
+import { NON_BMP_KEEP_SET, XI_HEADWORDS, convertAround, simplifyCantonese, type Simplified } from "../../../src/script/simplifiedKeep";
 
 /**
  * What kind of text toSimplified converts (headwordKey ignores it): its language, which picks the
- * keep-list (simplifiedKeep.ts), and the variant table its traditional forms are read with, which
+ * keep-list (src/script/simplifiedKeep.ts at the repo root), and the variant table its traditional forms are read with, which
  * picks the OpenCC config.
  * - "yue": Cantonese in Hong Kong forms, OpenCC hk→cn (衞生 → 卫生; tw→cn would leave 衞), keeping
  *   CANTONESE_KEEP (係, 嗰, 餸) and NON_BMP_KEEP, except that 係 becomes 系 inside XI_TEXT_PHRASES
@@ -25,15 +25,12 @@ const TW_TO_STANDARD = OpenCC.Converter({ from: "tw", to: "t" });
 const HK_TO_SIMPLIFIED = OpenCC.Converter({ from: "hk", to: "cn" });
 const TW_TO_SIMPLIFIED = OpenCC.Converter({ from: "tw", to: "cn" });
 
-const NON_BMP_KEEP_SET: ReadonlySet<string> = new Set(NON_BMP_KEEP);
-
-/** Per kind: the OpenCC converter and the characters left as they are. */
-const YUE_KEEP: ReadonlySet<string> = new Set([...CANTONESE_KEEP, ...NON_BMP_KEEP]);
-const KINDS: Readonly<Record<TextKind, { readonly convert: (text: string) => string; readonly keep: ReadonlySet<string> }>> = {
-  headword: { convert: HK_TO_SIMPLIFIED, keep: YUE_KEEP },
-  yue: { convert: HK_TO_SIMPLIFIED, keep: YUE_KEEP },
-  "zho-hk": { convert: HK_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
-  "zho-tw": { convert: TW_TO_SIMPLIFIED, keep: NON_BMP_KEEP_SET },
+/** Per kind: the OpenCC converter. */
+const CONVERTERS: Readonly<Record<TextKind, (text: string) => string>> = {
+  headword: HK_TO_SIMPLIFIED,
+  yue: HK_TO_SIMPLIFIED,
+  "zho-hk": HK_TO_SIMPLIFIED,
+  "zho-tw": TW_TO_SIMPLIFIED,
 };
 
 /**
@@ -61,30 +58,7 @@ export function headwordKey(word: string): string {
   return isSingleCodePoint(word) ? word : HK_TO_STANDARD(TW_TO_STANDARD(word));
 }
 
-/** XI_TEXT_PHRASES as one alternation, captured so String.split keeps the matches (CJK only: no escaping). */
-const XI_TEXT_PATTERN = new RegExp(`(${XI_TEXT_PHRASES.join("|")})`, "u");
 const XI_HEADWORD_SET: ReadonlySet<string> = new Set(XI_HEADWORDS);
-
-/** A simplified text, and the 係 phrases (XI_TEXT_PHRASES, XI_HEADWORDS) it converted, in text order. */
-export interface Simplified {
-  readonly text: string;
-  readonly xiPhrases: readonly string[];
-}
-
-/** Converts `text` in runs between characters of `keep`, which stay as they are. */
-function convertAround(text: string, convert: (text: string) => string, keep: ReadonlySet<string>): string {
-  let simplified = "";
-  let run = "";
-  for (const char of text) {
-    if (!keep.has(char)) {
-      run += char;
-      continue;
-    }
-    simplified += convert(run) + char;
-    run = "";
-  }
-  return simplified + convert(run);
-}
 
 /**
  * Simplified form of a traditional text for display (see TextKind). Characters without a
@@ -96,17 +70,12 @@ function convertAround(text: string, convert: (text: string) => string, keep: Re
  * Mandarin translations, MoE definitions and Wiktionary Mandarin words (checked 2026-10-30).
  */
 export function simplify(text: string, kind: TextKind): Simplified {
-  const { convert, keep } = KINDS[kind];
+  const convert = CONVERTERS[kind];
   if (kind === "headword" && XI_HEADWORD_SET.has(text)) {
     return { text: convertAround(text, convert, NON_BMP_KEEP_SET), xiPhrases: [text] };
   }
-  if (kind !== "headword" && kind !== "yue") return { text: convertAround(text, convert, keep), xiPhrases: [] };
-  // split with a capture group: odd indexes are the phrases.
-  const parts = text.split(XI_TEXT_PATTERN);
-  return {
-    text: parts.map((part, i) => convertAround(part, convert, i % 2 === 1 ? NON_BMP_KEEP_SET : keep)).join(""),
-    xiPhrases: parts.filter((_, i) => i % 2 === 1),
-  };
+  if (kind !== "headword" && kind !== "yue") return { text: convertAround(text, convert, NON_BMP_KEEP_SET), xiPhrases: [] };
+  return simplifyCantonese(text, convert);
 }
 
 /** simplify's text alone. */

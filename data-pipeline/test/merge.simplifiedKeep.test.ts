@@ -2,7 +2,7 @@
 import OpenCC from "opencc-js";
 import { merge } from "../src/merge/merge";
 import { toSimplified } from "../src/merge/normalize";
-import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "../src/merge/simplifiedKeep";
+import { CANTONESE_KEEP, NON_BMP_KEEP, XI_HEADWORDS, XI_TEXT_PHRASES } from "../../src/script/simplifiedKeep";
 import { inputs } from "./mergeInputs";
 
 /** The CJK blocks NON_BMP_KEEP was derived from (see its doc comment). */
