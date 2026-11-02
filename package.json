@@ -7,7 +7,9 @@
     "start": "expo start",
     "ios": "expo run:ios",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:build-set": "tsx scripts/build-eval-set.ts",
+    "eval:translate": "tsx scripts/eval-translate.ts"
   },
   "dependencies": {
     "expo": "~58.0.21",
@@ -37,6 +39,7 @@
     "better-sqlite3": "^13.0.3",
     "jest": "~30.5.2",
     "jest-expo": "~58.0.13",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   }
 }

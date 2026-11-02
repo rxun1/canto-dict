@@ -1,4 +1,4 @@
-// Jest only: better-sqlite3 (a devDependency) over the committed fixture DB that data-pipeline builds
+// Jest and scripts/ only: better-sqlite3 (a devDependency) over the committed fixture DB that data-pipeline builds
 // from its fixtures/ (npm run data:fixture in data-pipeline), the full canto.db, or an empty schema DB.
 import Database from "better-sqlite3";
 import { readFileSync } from "fs";
