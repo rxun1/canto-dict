@@ -632,7 +632,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/jyutping → pass",
         },
         {
-          id: "P3-T3", title: "Phrase table build step (pipeline)", status: "todo",
+          id: "P3-T3", title: "Phrase table build step (pipeline)", status: "done",
           files: ["data-pipeline/src/build/phraseTable.ts", "src/translate/offline/curated.ts", "data-pipeline/test/phraseTable.test.ts"],
           subtasks: [
             "Write curated.ts with ~300 hand-checked Mandarin → Cantonese pairs (的→嘅, 是→係, 没有→冇, 他/她→佢, 在→喺, 看→睇, 什么→乜嘢, 吃→食, …)",
@@ -644,6 +644,9 @@ window.CANTO_PROGRESS = {
             "Implement phraseTable.ts and add it to the pipeline build step",
             "Run tests → pass; rebuild data",
             "Commit",
+            "Done 2026-11-01 (635dab4 + review fixes 2444d54; data-pipeline 595 tests, root 207): phrase_map(mandarin_trad TEXT PRIMARY KEY, cantonese_trad, source curated|wiktionary|kaifangcidian) WITHOUT ROWID; real build 18,972 rows (411 curated, 4,927 Wiktionary, 13,634 Kaifangcidian; 1,579 identity rows, which shield words like 目的/小說 from 1-char rules). Keys = OpenCC cn→t (same as toTrad); Cantonese side respelled to the canto.db entry's form (説 not 說). Rules beyond the plan: priority curated > Wiktionary > Kaifangcidian; no 1-char keys from sources (only curated); frequency gate (source answer's entry freq ≥ the Mandarin word's own freq; curated exempt; Wiktionary freq-0 answers pass); Kaifangcidian 1-char answers dropped (MIN_KFCD_ANSWER_LENGTH); tie-break by listing position (Wiktionary order, KFCD gloss index) then freq. CANTO_DB_VERSION is 2. Fixture DB now holds 5,529 phrase rows",
+            "Open: risky 1-char curated keys (不→唔 hits 4-char idioms, 那→嗰, 来→嚟, 在→喺, 很→好, 吧→啦); clock times other than the shielded ones go through Wiktionary 一點→一啲 (下午一点 → 下晝一啲) — needs number-aware handling in P3-T4/T5; 28 curated outputs have no canto.db entry (Jyutping reads them in pieces); KFCD spells 'at' 响 in 4 rows; debatable Wiktionary rows 還是→定係, 而且→同埋",
+            "Next: P3-T4 — src/translate/offline/substitute.ts: longest match over phrase_map loaded once into a Map (add a src/db query, e.g. src/db/phraseMap.ts loadPhraseMap(db); SQL stays under src/db/). Keep substitute itself pure (takes the Map + text). Input must go through toTrad (src/translate/script.ts, cn→t) first: keys are cn→t output (喫飯, 爲什麼), and the goldens are written in simplified. Max key length: compute from the Map once (not a magic number). Goldens 他没有钱 → 佢冇錢 and 我在家看电视 → 我喺屋企睇電視 already pass an ad-hoc longest match on the real DB; the fixture DB has 5,529 rows incl. all curated pairs — check the goldens' keys exist there. Note for P3-T5's 你先走 golden: the table already maps 先走 → 走先. Tests under src/ or test/, never app/",
           ],
           dod: ["Phrase table has ≥ 5,000 rows after a real build"],
           test: "cd data-pipeline && npx vitest run test/phraseTable.test.ts → pass",
