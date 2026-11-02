@@ -39,6 +39,7 @@ const settingsValues = () => (db.raw.prepare("SELECT value FROM settings").all()
 describe("presets", () => {
   it("Gemini is the default, with a fallback model for HTTP 429", () => {
     expect(DEFAULT_PROVIDER_ID).toBe("gemini");
+    expect(PRESETS.map((p) => p.id)).toContain(DEFAULT_PROVIDER_ID);
     expect(PRESETS.find((p) => p.id === "gemini")).toEqual({
       id: "gemini",
       label: "Gemini",
@@ -159,6 +160,9 @@ describe("API keys", () => {
   });
 
   it("errors never contain the key", async () => {
-    await expect(setApiKey("bad id", "sk-top-secret")).rejects.not.toThrow(/sk-top-secret/);
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("keychain unavailable"));
+    await expect(setApiKey("zai", "sk-top-secret")).rejects.toThrow("keychain unavailable");
+    jest.mocked(SecureStore.setItemAsync).mockRejectedValueOnce(new Error("keychain unavailable"));
+    await expect(setApiKey("zai", "sk-top-secret")).rejects.not.toThrow(/sk-top-secret/);
   });
 });
