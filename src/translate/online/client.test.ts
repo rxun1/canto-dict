@@ -1,6 +1,7 @@
 // client.ts with global fetch mocked: each test queues the replies the "server" gives.
 import {
   BadReplyError,
+  ERROR_BODY_SNIPPET_LENGTH,
   HttpError,
   InvalidKeyError,
   NetworkError,
@@ -14,6 +15,8 @@ import {
 import { buildMessages, FEW_SHOT, SYSTEM_PROMPT } from "./prompt";
 
 const KEY = "sk-secret-key-123";
+/** Enough of the key to count as a leak: the leak tests look for this, so a cut-off key is caught too. */
+const KEY_PREFIX = KEY.slice(0, 5);
 const GEMINI: OnlineProvider = {
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
   model: "gemini-3.8-flash",
@@ -82,8 +85,12 @@ describe("translateOnline", () => {
     await expect(translateOnline(ZAI, "他没有钱。")).resolves.toBe("佢冇錢。");
   });
 
-  it("accepts JSON wrapped in a code fence", async () => {
+  it("accepts JSON wrapped in a code fence, or with prose around it", async () => {
     fetchMock.mockResolvedValueOnce(completion('```json\n{"cantonese": "我喺屋企睇電視"}\n```'));
+    await expect(translateOnline(ZAI, "我在家看电视")).resolves.toBe("我喺屋企睇電視");
+    fetchMock.mockResolvedValueOnce(completion('```JSON\n{"cantonese": "我喺屋企睇電視"}\n```'));
+    await expect(translateOnline(ZAI, "我在家看电视")).resolves.toBe("我喺屋企睇電視");
+    fetchMock.mockResolvedValueOnce(completion('Here you go: {"cantonese": "我喺屋企睇電視"}'));
     await expect(translateOnline(ZAI, "我在家看电视")).resolves.toBe("我喺屋企睇電視");
   });
 
@@ -207,6 +214,7 @@ describe("translateOnline", () => {
   describe("the API key never leaks", () => {
     const failures: [string, () => void][] = [
       ["a server error body that echoes the key", () => fetchMock.mockResolvedValue(reply(500, `bad request for key ${KEY}`))],
+      ["a server error body with the key across the snippet's cut", () => fetchMock.mockResolvedValue(reply(500, "x".repeat(ERROR_BODY_SNIPPET_LENGTH - KEY_PREFIX.length) + KEY))],
       ["a 401 body that echoes the key", () => fetchMock.mockResolvedValue(reply(401, `invalid key ${KEY}`))],
       ["a failing fetch whose message has the key", () => fetchMock.mockRejectedValue(new TypeError(`failed: Bearer ${KEY}`))],
       ["a no-CJK reply that echoes the key", () => fetchMock.mockResolvedValue(completion(`your key is ${KEY}`))],
@@ -219,12 +227,12 @@ describe("translateOnline", () => {
       );
       const error = await rejection(translateOnline(ZAI, "你好"));
       expect(error).toBeInstanceOf(OnlineTranslationError);
-      expect(error.message).not.toContain(KEY);
-      expect(String(error.stack)).not.toContain(KEY);
-      expect(JSON.stringify(error)).not.toContain(KEY);
-      expect(JSON.stringify(error.cause ?? null)).not.toContain(KEY);
+      expect(error.message).not.toContain(KEY_PREFIX);
+      expect(String(error.stack)).not.toContain(KEY_PREFIX);
+      expect(JSON.stringify(error)).not.toContain(KEY_PREFIX);
+      expect(JSON.stringify(error.cause ?? null)).not.toContain(KEY_PREFIX);
       for (const log of logs) {
-        expect(JSON.stringify(log.mock.calls)).not.toContain(KEY);
+        expect(JSON.stringify(log.mock.calls)).not.toContain(KEY_PREFIX);
         log.mockRestore();
       }
     });

@@ -2,23 +2,17 @@
 // on HTTP 429, one retry with the provider's fallback model. Takes the provider and key as plain values
 // (src/settings resolves them); throws an OnlineTranslationError subclass the caller can branch on (§7).
 // The API key goes only in the Authorization header: it is redacted from every error message and never logged.
+import type { ResolvedProvider } from "../../settings/settings";
 import { buildMessages } from "./prompt";
 
 /** How long one request (including reading its body) may take. */
 export const REQUEST_TIMEOUT_MS = 15_000;
 
 /** How much of an error response's body an HttpError message quotes. */
-const ERROR_BODY_SNIPPET_LENGTH = 200;
+export const ERROR_BODY_SNIPPET_LENGTH = 200;
 
 /** A provider as settings.getActiveProvider resolves it, plus its key. */
-export interface OnlineProvider {
-  /** Ends with "/". */
-  baseURL: string;
-  model: string;
-  /** Retried once with this model on HTTP 429. */
-  fallbackModel?: string;
-  apiKey: string;
-}
+export type OnlineProvider = Omit<ResolvedProvider, "id"> & { apiKey: string };
 
 /** Base class of every error translateOnline throws. */
 export class OnlineTranslationError extends Error {
@@ -68,9 +62,6 @@ export class BadReplyError extends OnlineTranslationError {}
 /** CJK ideographs: Ext A, the URO, compatibility ideographs, and the supplementary planes (as surrogate pairs). */
 const CJK = /[㐀-䶿一-鿿豈-﫿]|[\uD840-\uD87F][\uDC00-\uDFFF]/;
 
-/** A reply wrapped in a Markdown code fence: ```json … ``` */
-const CODE_FENCE = /^```(?:json)?\s*([\s\S]*?)\s*```$/;
-
 /**
  * Translates Mandarin `text` into HK Cantonese (traditional characters) with the provider's model, retrying
  * once with its fallback model on HTTP 429. Rejects with an OnlineTranslationError subclass.
@@ -113,7 +104,7 @@ async function request(provider: OnlineProvider, model: string, text: string): P
   }
   if (status === 429) throw new RateLimitError();
   if (status < 200 || status > 299) {
-    throw new HttpError(status, `HTTP ${status}: ${redact(body.slice(0, ERROR_BODY_SNIPPET_LENGTH))}`);
+    throw new HttpError(status, `HTTP ${status}: ${redact(body).slice(0, ERROR_BODY_SNIPPET_LENGTH)}`);
   }
   return parseCompletion(body);
 }
@@ -129,10 +120,11 @@ function parseCompletion(body: string): string {
   if (typeof content !== "string") throw new BadReplyError("Reply has no message content");
 
   const trimmed = content.trim();
-  const unfenced = CODE_FENCE.exec(trimmed)?.[1] ?? trimmed;
+  // From the first "{" to the last "}": drops a code fence (```json, ```JSON, …) or prose around the object.
+  const objectText = trimmed.slice(trimmed.indexOf("{"), trimmed.lastIndexOf("}") + 1);
   let cantonese: string;
   try {
-    const parsed: unknown = JSON.parse(unfenced);
+    const parsed: unknown = JSON.parse(objectText);
     if (typeof parsed !== "object" || parsed === null) throw new Error("not an object");
     const value = (parsed as { cantonese?: unknown }).cantonese;
     if (typeof value !== "string") throw new BadReplyError('Reply JSON has no "cantonese" string');
