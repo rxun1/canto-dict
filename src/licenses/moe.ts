@@ -12,7 +12,7 @@ export const MOEDICT_RELEASE = "2015_20260625";
  * The credit in the usage notes' format (一(三)). A copy of MOEDICT_ATTRIBUTION in
  * data-pipeline/src/sources/moedict.ts; moe.test.ts checks they match.
  */
-export const MOEDICT_ATTRIBUTION = `中華民國教育部（Ministry of Education, R.O.C.）。《重編國語辭典修訂本》（版本編號：${MOEDICT_RELEASE}）網址：http://dict.revised.moe.edu.tw/`;
+export const MOEDICT_ATTRIBUTION = `中華民國教育部（Ministry of Education, R.O.C.）。《重編國語辭典修訂本》（版本編號：${MOEDICT_RELEASE}）網址： http://dict.revised.moe.edu.tw/`;
 
 /**
  * 《重編國語辭典修訂本》公眾授權使用說明, verbatim, one string per paragraph. Source: the official MoE

@@ -18,7 +18,7 @@ const SOURCE_NAME = "MoE 重編國語辭典";
  * http://dict.revised.moe.edu.tw/", with the release we use filled in. The notes also ask that
  * anyone redistributing the data keep the usage notes with it.
  */
-export const MOEDICT_ATTRIBUTION = `中華民國教育部（Ministry of Education, R.O.C.）。《重編國語辭典修訂本》（版本編號：${MOEDICT_RELEASE}）網址：http://dict.revised.moe.edu.tw/`;
+export const MOEDICT_ATTRIBUTION = `中華民國教育部（Ministry of Education, R.O.C.）。《重編國語辭典修訂本》（版本編號：${MOEDICT_RELEASE}）網址： http://dict.revised.moe.edu.tw/`;
 
 /**
  * Rare characters the source shows as an image reference ("&3898_.gif;") or a placeholder
