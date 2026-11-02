@@ -246,7 +246,7 @@ window.CANTO_PROGRESS = {
             "Write failing test: MoE definitions attach to entries via a variant-folding KEY (MoE uses Taiwan forms 這裡/衛生/麵包/電線/著急; HK sources use 這裏/衞生/麪包/電綫/着急) — fold only the lookup key, keep MoE word/def text verbatim; drop reading-dependent senses (\"(一)之又音。\", 又音/讀音/語音 — use MoeSense.heteronym) so the Mandarin line prefers real definitions",
             "MoE script: per user decision (2026-10-30) MoE definitions get a simplified form via OpenCC t2s like everything else — personal display only, never redistributed (MoE forbids 轉為簡化字 for redistribution)",
             "Review fixes done 2026-10-30 (b3bf225..e84e632, 509 tests): freq falls back to the heaviest essay weight under the headword key (93 real misses rescued; the other 2,499 freq-0 entries have an exact essay weight of 0); KFCD \"…\" items with < 2 chars besides the placeholders dropped (7 of 68: …人, …子, 就…, …); Wiktionary ⿰-style described forms skipped; J kept like DJ/打J (only its loan zhei1 survives — zei is not in the attested syllable list)",
-            "Simplified keep-list (src/merge/simplifiedKeep.ts): 係/嗰/餸 in Cantonese text only (TextKind yue/headword), 342 chars whose OpenCC form is non-BMP in all text (鮟鱇魚 → 鮟鱇鱼); Mandarin text (zho-hk, zho-tw) never keeps 係; 係 phrase exceptions: 關係 anywhere in Cantonese text, 係數/基尼係數/介係詞/外文係/… as whole headwords only (佢係數學老師 keeps 係)",
+            "Simplified keep-list (src/merge/simplifiedKeep.ts, moved to src/script/simplifiedKeep.ts in P3-T1): 係/嗰/餸 in Cantonese text only (TextKind yue/headword), 342 chars whose OpenCC form is non-BMP in all text (鮟鱇魚 → 鮟鱇鱼); Mandarin text (zho-hk, zho-tw) never keeps 係; 係 phrase exceptions: 關係 anywhere in Cantonese text, 係數/基尼係數/介係詞/外文係/… as whole headwords only (佢係數學老師 keeps 係)",
             "Follow-ups (not done): MoE zho-tw simplified turns zyu3 著 into 着 (原著 → 原着); 二噁英 → 二𫫇英 (phrase-table only, 噁 left alone so 噁心 → 恶心); zei1 for J/DJ/打J needs 'zei' in the attested syllables",
             "Spec §4.3 updated 2026-10-30: aliases table (trad + simp), nullable rank/pos, definitions yue_simp/zho_simp, examples loan/zho_simp/source, mandarin sources (comma-separated); §5.1 CJK search also matches aliases",
             "Run tests → fail",
@@ -599,14 +599,16 @@ window.CANTO_PROGRESS = {
       doc: "../docs/superpowers/plans/2026-10-29-plan-3-translation.html",
       tasks: [
         {
-          id: "P3-T1", title: "Script conversion wrapper (OpenCC)", status: "todo",
-          files: ["src/translate/script.ts", "src/translate/script.test.ts"],
+          id: "P3-T1", title: "Script conversion wrapper (OpenCC)", status: "done",
+          files: ["src/translate/script.ts", "src/translate/script.test.ts", "src/script/simplifiedKeep.ts"],
           subtasks: [
             "Write failing tests: toTrad('没有') → '沒有'; toSimp('學校') → '学校'; toSimp('嘅冇喺') unchanged",
             "Run tests → fail",
             "Implement with opencc-js (s2t / t2s)",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (c35b749; root 198 tests, data-pipeline 573): per user decision toSimp matches the dictionary: OpenCC hk→cn keeping 係/嗰/餸 and NON_BMP_KEEP, 關係 → 关系; toTrad is cn→t (OpenCC standard, like headword keys). The keep-list moved from data-pipeline/src/merge/ to src/script/simplifiedKeep.ts (shared like src/jyutping; no OpenCC import there, each package passes its own converter). P2-T12 (iPhone QA) still todo, skipped for now",
+            "Next: P3-T2 — src/jyutping/text.ts textToJyutping(db, text): longest match over canto.db words, then to-jyutping per character; punctuation/Latin → null. SQL stays under src/db/ (Db interface + openTestDb() in src/db/testDb.ts over assets/test/canto.fixture.db). Fixture has 銀行 (id 103, ngan4 hong4) and 行 (id 100, haang4/hang4/hang6/hong4/hong2/hong6) but NO 行路: use a fixture stand-in for 'word reading wins' and say so. Pick a char's default reading by readings rank (schema: data-pipeline/src/build/writeDb.ts). Input is traditional (run toTrad from src/translate/script.ts first in the translate pipeline, not inside textToJyutping). src/jyutping is also compiled by data-pipeline's tsconfig: keep expo/db imports out of files the pipeline imports, or check npx tsc -p data-pipeline. Tests under src/ or test/, never app/",
           ],
           dod: ["Converter instances are created once and reused"],
           test: "npx jest src/translate/script → pass",
