@@ -668,7 +668,7 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/offline/substitute → pass",
         },
         {
-          id: "P3-T5", title: "Offline reorder rules", status: "todo",
+          id: "P3-T5", title: "Offline reorder rules", status: "done",
           files: ["src/translate/offline/rules.ts", "src/translate/offline/rules.test.ts"],
           subtasks: [
             "Write failing golden tests per rule: 我比你高 → 我高過你; 你先走 → 你行先; 给我 → 畀我; 在吃饭 → 食緊飯; 吃了 → 食咗; 你去不去 → 你去唔去",
@@ -676,6 +676,9 @@ window.CANTO_PROGRESS = {
             "Implement each rule as a small pure function, applied in a fixed order",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (91e9bd9; root 232 tests): rules run on substitute()'s Cantonese output (spec order), RULES = comparative, progressive, perfective, verbFirst, clockTime; applyRules(text). Golden 你先走 → 你走先 (not 你行先: 走 is 'leave'; the real table maps 先走 → 走先). 给我/你去不去 need no rule (phrase table). Short word lists on purpose (a miss leaves Mandarin order, a misfire garbles); no regex lookbehind (Hermes)",
+            "Open (phrase table / later rules): 好看 → 好型 (Wiktionary's 'good-looking' sense; wrong for films/matches, want 好睇); 了解 → 收到; questions: 你吃饭了吗 → 你食飯了嗎 (want 你食咗飯未; 嗎 isn't mapped, VO+了 isn't handled); 佢喺度睇電視 is fine, not turned into 睇緊",
+            "Next: P3-T6 — chrF eval harness. Data: HKAllen/cantonese-chinese-parallel-corpus (CC BY 4.0) and raptorkwok/cantonese-chinese-parallel-corpus-base (CC0) on Hugging Face (links in docs/research/translation.html ~line 286); sample 200 pairs into eval/test-set.tsv with source credits (check each dataset's column names/direction: Mandarin → Cantonese). The offline engine = toTrad → substitute(await phraseTable(db)) → applyRules → (compare in traditional; decide whether to also toSimp both sides). Running app TS from a script: the root has no tsx (data-pipeline has tsx ^4.23.15) and src/db/testDb.ts uses better-sqlite3 (root devDependency); add tsx as a root devDependency or run the eval through Jest — decide; keep scripts/ out of the Expo bundle and app tsconfig issues in mind (tsconfig includes **/*.ts). Eval uses assets/canto.db (git-ignored, must exist). DoD: < 10 s, prints one 'chrF: NN.N'. Record the baseline on the dashboard",
           ],
           dod: ["Each rule has at least 2 positive and 1 negative (unchanged) test"],
           test: "npx jest src/translate/offline/rules → pass",
