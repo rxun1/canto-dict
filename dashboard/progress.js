@@ -614,8 +614,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/script → pass",
         },
         {
-          id: "P3-T2", title: "Text → Jyutping (dictionary first, to-jyutping fallback)", status: "todo",
-          files: ["src/jyutping/text.ts", "src/jyutping/text.test.ts"],
+          id: "P3-T2", title: "Text → Jyutping (dictionary first, to-jyutping fallback)", status: "done",
+          files: ["src/translate/jyutping.ts", "src/translate/jyutping.test.ts", "src/db/wordReadings.ts"],
           subtasks: [
             "Write failing test: textToJyutping('銀行') → ['ngan4','hong4'] and ('行路') → ['haang4','lou6'] (word readings win)",
             "Write failing test: a character missing from the dictionary falls back to to-jyutping",
@@ -624,9 +624,12 @@ window.CANTO_PROGRESS = {
             "Implement longest-match over the words in canto.db, then to-jyutping",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (2013cec; root 207 tests): textToJyutping(db, text) in src/translate/jyutping.ts, NOT src/jyutping/text.ts (src/jyutping must stay free of app imports: data-pipeline compiles it and runs its tests). Longest canto.db word first (≤ MAX_WORD_LENGTH 8 chars, Han only, headword or alias spelling, first reading with one valid syllable per char); other chars take to-jyutping's reading over the whole text (context kept); punctuation/Latin null, even DSE. src/db/wordReadings.ts batches candidates 499 words per query (999 params). Fixture has no 行路, so 'word wins' uses 一個人 (jan1; to-jyutping jan4) and 哥哥. Full canto.db sample sentence: 1 ms",
+            "Open: input should be traditional (toTrad gives OpenCC standard forms); a canto.db word spelled in HK forms (裏, 着) matches only through an alias, otherwise it falls back to to-jyutping per char",
+            "Next: P3-T3 — phrase table build step in data-pipeline. curated.ts lives in the app (src/translate/offline/) but data-pipeline imports it: keep it pure TS (no app imports) and add \"../src/translate/offline\" to data-pipeline/tsconfig.json include, as P3-T1 did for ../src/script. Kaifangcidian/Wiktionary Mandarin pairs come from the mandarin table (schema: data-pipeline/src/build/schema.sql; writeDb.ts; mandarin.sources is comma-separated). Add phrase_map to schema.sql (src/db/testDb.ts openSchemaDb reads it), rebuild the fixture (cd data-pipeline && npm run data:fixture) and the real DB (npm run data:build; needs the download cache) for the ≥ 5,000 rows DoD. A new canto.db asset needs CANTO_DB_VERSION bumped in src/db/expoDb.tsx (else installed apps keep the old copy). Curated Mandarin keys: write them in simplified and convert with OpenCC, or write trad directly; decide and keep phrase_map.mandarin_trad consistent with P3-T1's toTrad (cn→t)",
           ],
           dod: ["One Jyutping (or null) per input character, same length as input"],
-          test: "npx jest src/jyutping/text → pass",
+          test: "npx jest src/translate/jyutping → pass",
         },
         {
           id: "P3-T3", title: "Phrase table build step (pipeline)", status: "todo",
