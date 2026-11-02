@@ -9,7 +9,7 @@ function tabIcon(name: SFSymbol) {
 export default function TabLayout() {
   return (
     <Tabs>
-      <Tabs.Screen name="lookup" options={{ title: "查字", tabBarIcon: tabIcon("magnifyingglass") }} />
+      <Tabs.Screen name="index" options={{ title: "查字", tabBarIcon: tabIcon("magnifyingglass") }} />
       <Tabs.Screen name="translate" options={{ title: "翻译", tabBarIcon: tabIcon("character.bubble") }} />
       <Tabs.Screen name="saved" options={{ title: "收藏", tabBarIcon: tabIcon("star") }} />
       <Tabs.Screen name="settings" options={{ title: "设置", tabBarIcon: tabIcon("gearshape") }} />

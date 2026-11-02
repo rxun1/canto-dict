@@ -34,7 +34,7 @@ describe("lookup screen", () => {
   afterEach(() => jest.useRealTimers());
 
   it("shows result rows only after the debounce", async () => {
-    await renderRouter("./app", { initialUrl: "/lookup" });
+    await renderRouter("./app", { initialUrl: "/" });
     await type("行");
     expect(screen.queryByText("行街")).toBeNull();
 
@@ -56,14 +56,14 @@ describe("lookup screen", () => {
 
   // All-tones matching is covered in src/dictionary/search.test.ts.
   it("finds 行 (hong4) for the toneless Jyutping query hong", async () => {
-    await renderRouter("./app", { initialUrl: "/lookup" });
+    await renderRouter("./app", { initialUrl: "/" });
     await type("hong");
     await finishDebounce();
     expect(screen.getByText("hong4")).toBeTruthy();
   });
 
   it("shows the hint for text that is not Jyutping, and nothing for blank input", async () => {
-    await renderRouter("./app", { initialUrl: "/lookup" });
+    await renderRouter("./app", { initialUrl: "/" });
     await type("water");
     await finishDebounce();
     expect(screen.getByText("输入汉字或粤拼")).toBeTruthy();
@@ -74,7 +74,7 @@ describe("lookup screen", () => {
   });
 
   it("clears the results at once when the input is cleared", async () => {
-    await renderRouter("./app", { initialUrl: "/lookup" });
+    await renderRouter("./app", { initialUrl: "/" });
     await type("行");
     await finishDebounce();
     expect(screen.getByText("行街")).toBeTruthy();
@@ -84,7 +84,7 @@ describe("lookup screen", () => {
   });
 
   it("opens the entry when a row is tapped", async () => {
-    const router = await renderRouter("./app", { initialUrl: "/lookup" });
+    const router = await renderRouter("./app", { initialUrl: "/" });
     await type("行街");
     await finishDebounce();
     await fireEvent.press(screen.getByText("行街"));

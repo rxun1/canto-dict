@@ -14,7 +14,7 @@ jest.mock("../src/userdata/expoUserDb", () => require("./helpers/mockUserDb"));
 describe("tab layout", () => {
   it("opens on Lookup and shows all four tabs", async () => {
     const router = await renderRouter("./app", { initialUrl: "/" });
-    expect(router.getPathname()).toBe("/lookup");
+    expect(router.getPathname()).toBe("/");
     expect(screen.getByPlaceholderText("汉字或粤拼")).toBeTruthy();
     // Tab buttons are labelled "<title>, tab, <n> of 4".
     ["查字", "翻译", "收藏", "设置"].forEach((title, i) => {
