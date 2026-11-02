@@ -734,8 +734,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest src/translate/online → pass",
         },
         {
-          id: "P3-T9", title: "translate() orchestrator", status: "todo",
-          files: ["src/translate/index.ts", "src/translate/index.test.ts"],
+          id: "P3-T9", title: "translate() orchestrator", status: "done",
+          files: ["src/translate/index.ts", "src/translate/index.test.ts", "package.json"],
           subtasks: [
             "Write failing test: empty or > 500-character input → validation error",
             "Write failing test: offline result delivered immediately with source 'offline' and Jyutping",
@@ -745,6 +745,8 @@ window.CANTO_PROGRESS = {
             "Implement translate(text, onUpdate) using script, substitute, rules, textToJyutping, client, expo-network",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (067eba1; root 299 tests): translate(text, onUpdate, {db, userDb}): Promise<Translation> in src/translate/index.ts; Translation = {cantonese, jyutping: (string | null)[], source: 'offline' | 'online', note?: {kind: 'noKey' | 'invalidKey' | 'onlineFailed', message}} (NOTES holds the fixed strings; noKey and invalidKey point to Settings, so the UI links there). Input trimmed; empty or > MAX_INPUT_LENGTH (500 code points) → TranslationInputError with reason 'empty' | 'tooLong', before any update. onUpdate gets the offline result (toTrad → substitute → applyRules) first; the online step runs in parallel and, at most once more, onUpdate gets the online result or the offline one plus a note; the promise resolves with the last result once all has settled. No key → offline, then offline + noKey hint (fetch never called; key checked before the network). No connection (expo-network isConnected or isInternetReachable false) → no second update, no note; a check that throws or can't tell → online is tried. Both results: Jyutping by textToJyutping on the traditional text, cantonese = toSimp(traditional), one syllable per code point (punctuation null). Notes are fixed strings, so the key never reaches one; nothing logged. expo-network ~58.0.4 added (app.json unchanged, react-dom still 19.3.0): needs a native rebuild (npx expo run:ios), not run. Full npx jest: the known flaky search timing test failed once in parallel; rerun and --runInBand pass all 299",
+            "Next: P3-T10 — speakSentence(text, jyutping, mode) in src/audio/speakSentence.ts. Reuse src/audio/playSyllables.ts: cantoneseVoice() (first yue-HK/zh-HK voice id, cached; undefined = none → return { missingVoice: true } instead of speaking), speakTts(text) (speaks with that voice, falling back to TTS_LANGUAGE zh-HK; resolves when speech ends; a new play stops the current one), playSyllables(syllables: readonly string[], text): Promise<{usedTts}> (text supplies Han chars for the per-syllable TTS fallback, matched only when the Han char count equals the syllable count). A translation's jyutping is (string | null)[] aligned per code point of the displayed (simplified) cantonese, null for punctuation/Latin: filter the nulls before playSyllables, and pass the cantonese as text. To mock: expo-speech (getAvailableVoicesAsync, speak, stop) and expo-audio (does not load under Jest), or mock ./playSyllables directly; cantoneseVoice caches its lookup across tests, so jest.isolateModules or mock it. Tests under src/, never app/",
           ],
           dod: ["Matches spec §6.1 and §7 rows for translation"],
           test: "npx jest src/translate/index → pass",
