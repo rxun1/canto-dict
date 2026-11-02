@@ -27,11 +27,19 @@ export async function addHistory(db: UserDb, item: HistoryInput, now: number = D
 /** All history, newest first (by id, see schema.ts). */
 export async function listHistory(db: UserDb): Promise<HistoryItem[]> {
   const rows = await db.all<HistoryRow>("SELECT id, kind, entry_id, input, output, at FROM history ORDER BY id DESC");
-  return rows.map((r) =>
-    r.kind === "lookup"
-      ? { id: r.id, kind: "lookup", entryId: r.entry_id!, at: r.at }
-      : { id: r.id, kind: "translation", input: r.input!, output: r.output!, at: r.at },
-  );
+  return rows.map(toItem);
+}
+
+/** One history row by id (a translation reopened from History), or null when it is gone (cleared, capped). */
+export async function getHistoryItem(db: UserDb, id: number): Promise<HistoryItem | null> {
+  const row = await db.first<HistoryRow>("SELECT id, kind, entry_id, input, output, at FROM history WHERE id = ?", [id]);
+  return row && toItem(row);
+}
+
+function toItem(r: HistoryRow): HistoryItem {
+  return r.kind === "lookup"
+    ? { id: r.id, kind: "lookup", entryId: r.entry_id!, at: r.at }
+    : { id: r.id, kind: "translation", input: r.input!, output: r.output!, at: r.at };
 }
 
 /** Deletes all history. */

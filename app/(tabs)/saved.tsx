@@ -1,10 +1,11 @@
 // Saved tab (spec §5.3): Favorites | History segments over user.db, newest first; a row opens its
-// entry. History (capped at 500 rows by user.db) has a Clear button. Reloads whenever the tab is
+// entry, a translation reopens on the Translate tab. History (capped at 500 rows by user.db) has a Clear button. Reloads whenever the tab is
 // focused, so favorites and history added on an entry screen show up.
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { FlatList, PlatformColor, Pressable, StyleSheet, Text, View } from "react-native";
 import { EntryRow, ROW_PADDING, RowSeparator } from "../../src/components/EntryRow";
+import { SegmentedControl, type Segment as SegmentItem } from "../../src/components/SegmentedControl";
 import { useDb } from "../../src/db/expoDb";
 import type { EntrySummary } from "../../src/db/searchQueries";
 import { useUserDb } from "../../src/userdata/expoUserDb";
@@ -13,7 +14,7 @@ import { loadSaved, type Saved, type SavedHistoryItem } from "../../src/userdata
 
 type Segment = "favorites" | "history";
 
-const SEGMENTS: { key: Segment; label: string }[] = [
+const SEGMENTS: SegmentItem<Segment>[] = [
   { key: "favorites", label: "收藏" },
   { key: "history", label: "历史" },
 ];
@@ -58,7 +59,14 @@ export default function SavedScreen() {
 
   const openEntry = useCallback((id: number) => router.push({ pathname: "/entry/[id]", params: { id: String(id) } }), [router]);
   const renderFavorite = useCallback(({ item }: { item: EntrySummary }) => <EntryRow entry={item} onPress={openEntry} />, [openEntry]);
-  const renderHistory = useCallback(({ item }: { item: SavedHistoryItem }) => <HistoryRow item={item} onPress={openEntry} />, [openEntry]);
+  const openTranslation = useCallback(
+    (historyId: number) => router.navigate({ pathname: "/translate", params: { historyId: String(historyId) } }),
+    [router],
+  );
+  const renderHistory = useCallback(
+    ({ item }: { item: SavedHistoryItem }) => <HistoryRow item={item} onOpenEntry={openEntry} onOpenTranslation={openTranslation} />,
+    [openEntry, openTranslation],
+  );
 
   const empty = failed ? (
     <Text style={styles.empty}>{LOAD_FAILED}</Text>
@@ -68,20 +76,7 @@ export default function SavedScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.bar}>
-        <View style={styles.segments} accessibilityRole="tablist">
-          {SEGMENTS.map(({ key, label }) => (
-            <Pressable
-              key={key}
-              accessibilityRole="tab"
-              accessibilityLabel={label}
-              accessibilityState={{ selected: segment === key }}
-              onPress={() => setSegment(key)}
-              style={[styles.segment, segment === key && styles.segmentSelected]}
-            >
-              <Text style={styles.segmentText}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <SegmentedControl segments={SEGMENTS} selected={segment} onSelect={setSegment} style={styles.segments} />
         {segment === "history" && saved !== null && saved.history.length > 0 && (
           <Pressable accessibilityRole="button" accessibilityLabel={CLEAR} hitSlop={8} onPress={clear} style={({ pressed }) => pressed && styles.pressed}>
             <Text style={styles.clear}>{CLEAR}</Text>
@@ -114,22 +109,33 @@ export default function SavedScreen() {
 const favoriteKey = (entry: EntrySummary) => String(entry.id);
 const historyKey = (item: SavedHistoryItem) => String(item.id);
 
-/** A lookup opens its entry. A translation is shown, input over output. */
-function HistoryRow({ item, onPress }: { item: SavedHistoryItem; onPress: (id: number) => void }) {
+/** A lookup opens its entry. A translation, input over output, reopens on the Translate tab. */
+function HistoryRow({
+  item,
+  onOpenEntry,
+  onOpenTranslation,
+}: {
+  item: SavedHistoryItem;
+  onOpenEntry: (entryId: number) => void;
+  onOpenTranslation: (historyId: number) => void;
+}) {
   return (
     <View testID={`history-${item.id}`}>
       {item.kind === "lookup" ? (
-        <EntryRow entry={item.entry} onPress={onPress} />
+        <EntryRow entry={item.entry} onPress={onOpenEntry} />
       ) : (
-        // TODO(Plan 3): tapping reopens it on the Translate tab (spec §5.3); Translate isn't built yet.
-        <View style={styles.translation}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onOpenTranslation(item.id)}
+          style={({ pressed }) => [styles.translation, pressed && styles.rowPressed]}
+        >
           <Text style={styles.translationInput} numberOfLines={1}>
             {item.input}
           </Text>
           <Text style={styles.translationOutput} numberOfLines={1}>
             {item.output}
           </Text>
-        </View>
+        </Pressable>
       )}
     </View>
   );
@@ -138,14 +144,12 @@ function HistoryRow({ item, onPress }: { item: SavedHistoryItem; onPress: (id: n
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
   bar: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: ROW_PADDING, marginVertical: 8 },
-  segments: { flex: 1, flexDirection: "row", padding: 2, borderRadius: 9, backgroundColor: PlatformColor("tertiarySystemFill") },
-  segment: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 7 },
-  segmentSelected: { backgroundColor: PlatformColor("systemBackground") },
-  segmentText: { fontSize: 15, color: PlatformColor("label") },
+  segments: { flex: 1 },
   clear: { fontSize: 17, color: PlatformColor("link") },
   pressed: { opacity: 0.5 },
   empty: { marginTop: 32, textAlign: "center", fontSize: 17, color: PlatformColor("secondaryLabel") },
-  translation: { paddingHorizontal: ROW_PADDING, paddingVertical: 10, gap: 2 },
+  translation: { paddingHorizontal: ROW_PADDING, paddingVertical: 10, gap: 2, backgroundColor: PlatformColor("systemBackground") },
+  rowPressed: { backgroundColor: PlatformColor("systemGray5") },
   translationInput: { fontSize: 15, color: PlatformColor("secondaryLabel") },
   translationOutput: { fontSize: 20, color: PlatformColor("label") },
 });

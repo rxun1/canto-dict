@@ -1,12 +1,14 @@
 // The Saved tab's lists (spec §5.3): user.db keeps entry ids only, so headwords come from canto.db.
 import { getEntrySummaries, type EntrySummary } from "../db/searchQueries";
 import type { Db } from "../db/types";
+import { fromHistoryOutput } from "../translate/historyOutput";
 import { listFavorites } from "./favorites";
 import { listHistory } from "./history";
 import type { UserDb } from "./types";
 
 export type SavedHistoryItem =
   | { id: number; kind: "lookup"; entry: EntrySummary }
+  /** output: the Cantonese to show (the stored output as is when it isn't a stored translation). */
   | { id: number; kind: "translation"; input: string; output: string };
 
 export interface Saved {
@@ -24,7 +26,10 @@ export async function loadSaved(db: Db, userDb: UserDb): Promise<Saved> {
   return {
     favorites: favorites.flatMap((f) => entries.get(f.entryId) ?? []),
     history: history.flatMap((h): SavedHistoryItem[] => {
-      if (h.kind === "translation") return [{ id: h.id, kind: "translation", input: h.input, output: h.output }];
+      if (h.kind === "translation") {
+        const output = fromHistoryOutput(h.output)?.cantonese ?? h.output;
+        return [{ id: h.id, kind: "translation", input: h.input, output }];
+      }
       const entry = entries.get(h.entryId);
       return entry ? [{ id: h.id, kind: "lookup", entry }] : [];
     }),

@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { isFavorite, listFavorites, toggleFavorite } from "./favorites";
-import { addHistory, clearHistory, listHistory } from "./history";
+import { addHistory, clearHistory, getHistoryItem, listHistory } from "./history";
 import { HISTORY_LIMIT, USER_SCHEMA_SQL } from "./schema";
 import { openTestUserDb, type TestUserDb } from "./testUserDb";
 
@@ -57,6 +57,14 @@ describe("history", () => {
     expect(rows).toHaveLength(HISTORY_LIMIT);
     expect(rows[0]).toMatchObject({ entryId: HISTORY_LIMIT + 5 });
     expect(rows[rows.length - 1]).toMatchObject({ entryId: 6 });
+  });
+
+  it("getHistoryItem returns one row by id, or null", async () => {
+    await addHistory(db, { kind: "lookup", entryId: 81 }, 1000);
+    await addHistory(db, { kind: "translation", input: "冰箱", output: "雪柜" }, 2000);
+    expect(await getHistoryItem(db, 2)).toEqual({ id: 2, kind: "translation", input: "冰箱", output: "雪柜", at: 2000 });
+    expect(await getHistoryItem(db, 1)).toEqual({ id: 1, kind: "lookup", entryId: 81, at: 1000 });
+    expect(await getHistoryItem(db, 3)).toBeNull();
   });
 
   it("clearHistory empties it", async () => {
