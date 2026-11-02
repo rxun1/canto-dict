@@ -788,8 +788,8 @@ window.CANTO_PROGRESS = {
           test: "npx jest test/translate → pass",
         },
         {
-          id: "P3-T12", title: "Settings screen + licenses/credits", status: "todo",
-          files: ["app/(tabs)/settings.tsx", "app/licenses.tsx", "app/(tabs)/settings.test.tsx"],
+          id: "P3-T12", title: "Settings screen + licenses/credits", status: "done",
+          files: ["app/(tabs)/settings.tsx", "app/licenses.tsx", "test/settings.test.tsx", "test/licenses.test.tsx"],
           subtasks: [
             "Write failing RNTL tests: choosing a preset fills base URL + model; Custom makes them editable; key field is masked",
             "Write failing RNTL test: 'Test connection' shows success or the error message",
@@ -799,9 +799,11 @@ window.CANTO_PROGRESS = {
             "Implement both screens",
             "Run tests → pass",
             "Commit",
+            "Done 2026-11-01 (8cdf343 + a059643; root 380 tests, parallel npx jest green): Settings: SegmentedControl provider picker; a preset becomes active at once (base URL/model read-only); Custom editable, 保存服务 validates (normalizeCustomProvider / CustomProviderError(field) in src/settings/settings.ts, Chinese per-field messages) then activates. Key masked, per provider, only 保存密钥/清除密钥 change it; a saved key is never read back (screen shows 已保存密钥/未保存密钥). 测试连接 (src/settings/testConnection.ts) translates 你好 with what is on screen, fixed Chinese messages per error class, HTTP shows only the status. A generation counter drops every reply after a provider switch (test, key status, save/clear, Custom save); failed load → 读取设置失败 + 重试. Known gap: switching away from Custom and back mid-save leaves Custom saved but inactive. Licenses (app/licenses.tsx, Stack title 数据来源与授权): 12 sources from src/licenses/sources.ts; src/licenses/moe.ts copies MOEDICT_RELEASE/ATTRIBUTION (test ties them to data-pipeline) + MOE_USAGE_NOTES verbatim from the official .odt (language.moe.gov.tw reviseddict_10312.odt, fetched 2026-11-01). search.test timing now fastest of 10. Open for the user: official credit has a space after 網址：(ours doesn't); MoE now offers 2015_20260929 (pipeline pinned to 2015_20260625)",
+            "Next: P3-T13 — manual QA on the iPhone; needs the user (device + Gemini key), so walk them through it rather than dispatching an agent. Before it: native rebuild (npx expo run:ios --device) since expo-network was added in P3-T9 (and check expo-secure-store is linked); Metro without CI=1; device signing needs an Apple ID team. P2-T12 (install on iPhone + lookup QA) is still todo and is the natural first half of the same device session. Automatable part first: npm run eval:translate (scripts/eval-translate.ts) for the offline score, npm test, and (cd data-pipeline && npm test). Then the checklist in this task's subtasks; record results here",
           ],
           dod: ["Every data source in spec §4.1 is credited on the licenses screen"],
-          test: "npx jest app/\\(tabs\\)/settings → pass",
+          test: "npx jest test/settings test/licenses → pass",
         },
         {
           id: "P3-T13", title: "Translation QA on iPhone (with a real Gemini key)", status: "todo",
